@@ -3,10 +3,13 @@ ui/app_pages/clips.py — Browse & manage existing clips from DB
 """
 
 import os
+import re
 from pathlib import Path
 import streamlit as st
 import pandas as pd
 from core.database import DatabaseManager
+from core.cutter import VideoCutter
+from core.transcript import TranscriptManager
 
 db = DatabaseManager()
 db.init_db()
@@ -46,37 +49,79 @@ try:
             st.caption(f"Toplam **{len(filtered_clips)}** klip listeleniyor.")
 
             for _, clip in filtered_clips.iterrows():
+                # Find parent video
+                parent_vid = videos_df[videos_df["id"] == clip["video_id"]]
+                video_url = parent_vid.iloc[0]["url"] if not parent_vid.empty else ""
+                video_uploader = parent_vid.iloc[0]["uploader"] if not parent_vid.empty else "Kanal"
+                video_title = parent_vid.iloc[0]["title"] if not parent_vid.empty else ""
+
                 with st.container(border=True):
-                    col_info, col_actions = st.columns([3, 1], vertical_alignment="center")
+                    col_info, col_actions = st.columns([3, 2], vertical_alignment="center")
                     
                     with col_info:
                         category = clip.get("category", "HIGHLIGHT")
                         st.markdown(f":violet-background[**{category}**] **{clip['title']}**")
-                        st.caption(f"Süre: **{clip['duration']} sn** | Viral Skor: **%{clip['score']}** | Oluşturulma: **{clip['created_at'][:16]}**")
+                        st.caption(f"Kanal: **{video_uploader}** | Süre: **{clip['duration']} sn** | Skor: **%{clip['score']}**")
                         
                         if pd.notna(clip.get("hook_caption")) and clip["hook_caption"]:
                             st.info(f"**Kanca:** \"{clip['hook_caption']}\"", icon=":material/campaign:")
 
                     with col_actions:
-                        # Check if a render exists
+                        # Check if a render exists on disk
                         clip_renders = renders_df[renders_df["clip_id"] == clip["id"]] if not renders_df.empty else pd.DataFrame()
+                        existing_file = None
                         if not clip_renders.empty:
-                            file_path = clip_renders.iloc[-1]["file_path"]
-                            if os.path.exists(file_path):
-                                with open(file_path, "rb") as f:
-                                    st.download_button(
-                                        "İndir (MP4)",
-                                        data=f,
-                                        file_name=os.path.basename(file_path),
-                                        mime="video/mp4",
-                                        icon=":material/download:",
-                                        width="stretch",
-                                        key=f"lib_dl_{clip['id']}"
-                                    )
+                            last_path = clip_renders.iloc[-1]["file_path"]
+                            if os.path.exists(last_path):
+                                existing_file = last_path
+
+                        if existing_file:
+                            st.video(existing_file)
+                            with open(existing_file, "rb") as f:
+                                st.download_button(
+                                    "Klibi İndir (MP4)",
+                                    data=f,
+                                    file_name=os.path.basename(existing_file),
+                                    mime="video/mp4",
+                                    icon=":material/download:",
+                                    width="stretch",
+                                    key=f"lib_dl_{clip['id']}"
+                                )
+                        
+                        # Re-render button
+                        render_btn_label = "Yeniden Renderla" if existing_file else "Klibi Renderla"
+                        if st.button(render_btn_label, icon=":material/refresh:", width="stretch", key=f"re_ren_{clip['id']}"):
+                            if not video_url:
+                                st.error("Orijinal video linki bulunamadı.")
                             else:
-                                st.button("Tekrar Renderla", icon=":material/refresh:", width="stretch", key=f"re_ren_{clip['id']}")
-                        else:
-                            st.caption("Henüz renderlanmadı.")
+                                with st.spinner(f"Klip #{clip['rank']} renderlanıyor..."):
+                                    try:
+                                        safe_uploader = re.sub(r'[^a-zA-Z0-9_\-]', '_', video_uploader).strip("_")
+                                        channel_out_dir = os.path.join("outputs", "clips", safe_uploader)
+                                        os.makedirs(channel_out_dir, exist_ok=True)
+                                        
+                                        cutter = VideoCutter(output_dir=channel_out_dir)
+                                        transcript = TranscriptManager.get_transcript(clip["video_id"])
+
+                                        clip_path = cutter.cut_clip(
+                                            url=video_url,
+                                            start_time=float(clip["start_time"]),
+                                            end_time=float(clip["end_time"]),
+                                            clip_id=f"{clip['rank']}",
+                                            video_title=video_title,
+                                            hook_caption=clip.get("hook_caption", ""),
+                                            transcript_segments=transcript,
+                                            render_mode="square_1x1_black",
+                                            add_subtitles=True,
+                                            add_hook_card=True,
+                                            enhance_colors=True,
+                                            use_whisper=False
+                                        )
+                                        db.save_render(clip["id"], "square_1x1_black", clip_path)
+                                        st.toast("Klip başarıyla renderlandı!", icon="🎉")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Render hatası: {str(e)}")
         else:
             st.info("Kayıtlı klip bulunamadı.", icon=":material/video_library:")
 
