@@ -112,3 +112,11 @@ def test_save_channel(temp_db):
         "dna_json": {"style": "energetic"}
     })
     assert chan_id is not None
+
+def test_clear_database(temp_db):
+    temp_db.init_db()
+    temp_db.save_video({"id": "v1"})
+    temp_db.save_clips("v1", [{"rank": 1}])
+    temp_db.clear_database()
+    assert len(temp_db.get_unprocessed_videos()) == 0
+    assert len(temp_db.get_clips_for_video("v1")) == 0

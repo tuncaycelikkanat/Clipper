@@ -98,3 +98,7 @@ def test_cleanup_exception(temp_dir):
     os.utime(old_file, (past_time, past_time))
     with patch("os.remove", side_effect=OSError("Cannot delete")):
         manager.cleanup(max_age_days=7)
+
+def test_clear_all(temp_dir):
+    manager = CacheManager(output_dir=temp_dir)
+    manager.clear_all() # safe to run

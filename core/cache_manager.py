@@ -73,3 +73,20 @@ class CacheManager:
                     logger.error("Failed to delete temp file {}: {}", filepath, e)
                     
         logger.info("Cleared {} temporary files", deleted_count)
+
+    def clear_all(self) -> None:
+        """Deletes all rendered clips, thumbnails, and temp files from disk."""
+        import shutil
+        target_dirs = ["outputs/clips", "outputs/thumbnails"]
+        for t_dir in target_dirs:
+            if os.path.exists(t_dir):
+                for item in os.listdir(t_dir):
+                    item_path = os.path.join(t_dir, item)
+                    try:
+                        if os.path.isfile(item_path) or os.path.islink(item_path):
+                            os.remove(item_path)
+                        elif os.path.isdir(item_path):
+                            shutil.rmtree(item_path)
+                    except Exception as e:
+                        logger.error("Failed to delete {}: {}", item_path, e)
+        logger.info("Completely cleared all output files from disk.")

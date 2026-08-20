@@ -373,3 +373,12 @@ class DatabaseManager:
             conn.commit()
         logger.debug("Upserted channel id={}", chan_id)
         return chan_id
+
+    def clear_database(self) -> None:
+        """Clear all videos, clips, and renders records."""
+        with self._connect() as conn:
+            conn.execute("DELETE FROM renders;")
+            conn.execute("DELETE FROM clips;")
+            conn.execute("DELETE FROM videos;")
+            conn.commit()
+        logger.info("Cleared all records from database.")

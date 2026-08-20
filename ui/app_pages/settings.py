@@ -55,9 +55,19 @@ with st.container(border=True):
             cache_mgr.clear_temp_files()
             st.toast("Geçici dosyalar silindi.", icon="🧹")
     with col_btn2:
-        if st.button("Tüm Çıktıları Sıfırla (Outputs)", icon=":material/delete_sweep:", type="primary", width="stretch"):
-            cache_mgr.cleanup(max_age_days=0)
-            st.toast("Tüm klip önbelleği temizlendi.", icon="🗑️")
+        if st.button("Tüm Çıktıları & Veritabanını Sıfırla", icon=":material/delete_sweep:", type="primary", width="stretch"):
+            cache_mgr.clear_all()
+            try:
+                db = DatabaseManager()
+                db.clear_database()
+            except Exception:
+                pass
+            
+            # Clear all session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+                
+            st.toast("Tüm klip dosyaları, veritabanı kayıtları ve önbellek sıfırlandı!", icon="🗑️")
             st.rerun()
 
 # Section 3: Background Channel Scheduler
