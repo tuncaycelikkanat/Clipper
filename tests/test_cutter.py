@@ -299,3 +299,29 @@ def test_cut_clip_remove_exception(mock_remove, mock_run, mock_ytdl, mock_getsiz
     )
     
     mock_remove.assert_called_once()
+
+@patch("core.cutter.os.path.exists")
+@patch("core.cutter.os.path.getsize")
+@patch("core.cutter.yt_dlp.YoutubeDL")
+@patch("core.cutter.subprocess.run")
+@patch("core.cutter._WHISPER_AVAILABLE", True)
+@patch("core.cutter.WhisperTranscriber")
+@patch("core.cutter.SubtitleGenerator.generate_ass_from_words")
+def test_cut_clip_with_whisper_and_progress_callback(mock_gen_ass_words, mock_transcriber_class, mock_run, mock_ytdl, mock_getsize, mock_exists, cutter):
+    mock_exists.side_effect = lambda p: not ("clip_" in p and not mock_run.called)
+    mock_getsize.return_value = 1024
+    
+    mock_transcriber = MagicMock()
+    mock_transcriber_class.return_value = mock_transcriber
+    mock_transcriber.transcribe_from_video.return_value = [{"word": "Test", "start": 0.0, "end": 1.0}]
+    
+    progress_calls = []
+    cutter.cut_clip(
+        url="http://youtube.com/watch?v=123",
+        start_time=10.0,
+        end_time=20.0,
+        clip_id="abc",
+        use_whisper=True,
+        progress_callback=lambda x: progress_calls.append(x)
+    )
+    assert len(progress_calls) > 0

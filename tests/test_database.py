@@ -10,7 +10,8 @@ def temp_db():
     os.close(fd)
     db = DatabaseManager(db_path=path)
     yield db
-    os.remove(path)
+    if os.path.exists(path):
+        os.remove(path)
 
 def test_init_db_creates_tables(temp_db):
     temp_db.init_db()
@@ -26,6 +27,8 @@ def test_init_db_creates_tables(temp_db):
 
 def test_save_and_get_video(temp_db):
     temp_db.init_db()
+    assert temp_db.get_video("vid123") is None
+
     video_data = {
         "id": "vid123",
         "url": "http://youtube.com/watch?v=vid123",
@@ -38,6 +41,10 @@ def test_save_and_get_video(temp_db):
     }
     temp_db.save_video(video_data)
     
+    v = temp_db.get_video("vid123")
+    assert v is not None
+    assert v["title"] == "Test Video"
+
     pending = temp_db.get_unprocessed_videos()
     assert len(pending) == 1
     assert pending[0]["id"] == "vid123"
@@ -70,20 +77,38 @@ def test_save_clips(temp_db):
     assert saved_clips[0]["title"] == "Clip 1"
     assert saved_clips[1]["title"] == "Clip 2"
 
-def test_save_render(temp_db):
+def test_save_render_with_real_file(temp_db):
     temp_db.init_db()
     temp_db.save_video({"id": "vid123"})
     clip_ids = temp_db.save_clips("vid123", [{"rank": 1}])
     clip_id = clip_ids[0]
     
-    render_id = temp_db.save_render(clip_id, "square_1x1_black", "/fake/path.mp4")
-    
-    conn = sqlite3.connect(temp_db.db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM renders WHERE id = ?", (render_id,))
-    row = cursor.fetchone()
-    assert row["clip_id"] == clip_id
-    assert row["render_mode"] == "square_1x1_black"
-    assert row["file_path"] == "/fake/path.mp4"
-    conn.close()
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+        f.write(b"fake content" * 100)
+        file_path = f.name
+        
+    try:
+        render_id = temp_db.save_render(clip_id, "square_1x1_black", file_path)
+        
+        conn = sqlite3.connect(temp_db.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM renders WHERE id = ?", (render_id,))
+        row = cursor.fetchone()
+        assert row["clip_id"] == clip_id
+        assert row["render_mode"] == "square_1x1_black"
+        assert row["file_path"] == file_path
+        assert row["file_size"] > 0
+        conn.close()
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+def test_save_channel(temp_db):
+    temp_db.init_db()
+    chan_id = temp_db.save_channel({
+        "url": "https://youtube.com/@test",
+        "name": "Test Channel",
+        "dna_json": {"style": "energetic"}
+    })
+    assert chan_id is not None

@@ -249,3 +249,32 @@ class TestGenerateAssFromWords:
             content = f.read()
         dialogues = _parse_dialogue_lines(content)
         assert len(dialogues) == 0
+
+def test_generate_ass_file_edge_cases(tmp_path):
+    out = str(tmp_path / "edge.ass")
+    segs = [
+        {"start": 10.0, "end": 10.0, "text": "zero dur"},
+        {"start": 11.0, "end": 12.0, "text": "   "}, # empty text
+    ]
+    SubtitleGenerator.generate_ass_file(
+        transcript_segments=segs,
+        clip_start_sec=10.0,
+        clip_end_sec=15.0,
+        output_path=out,
+    )
+    assert os.path.exists(out)
+
+def test_generate_ass_from_words_edge_cases(tmp_path):
+    out = str(tmp_path / "edge_words.ass")
+    words = [
+        {"word": "out_of_range", "start": 0.0, "end": 5.0},
+        {"word": "zero_dur", "start": 10.0, "end": 10.0},
+        {"word": "   ", "start": 11.0, "end": 12.0},
+    ]
+    SubtitleGenerator.generate_ass_from_words(
+        word_segments=words,
+        clip_start_sec=10.0,
+        clip_end_sec=15.0,
+        output_path=out,
+    )
+    assert os.path.exists(out)
