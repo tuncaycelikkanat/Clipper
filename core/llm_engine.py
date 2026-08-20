@@ -157,3 +157,68 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
 
         final_clips.sort(key=lambda x: x["start_time"])
         return final_clips
+
+    @classmethod
+    def generate_shorts_metadata(
+        cls,
+        clip_title: str,
+        hook_caption: str,
+        category: str,
+        video_title: str = "",
+        api_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Generate high-CTR title, SEO description, and tags for YouTube Shorts."""
+        key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            # Clean heuristic fallback
+            clean_title = f"{clip_title} 🔥 #Shorts #Gaming"
+            clean_desc = f"🎯 {hook_caption}\n\nOrijinal Video: {video_title}\n\n#Shorts #Gaming #Viral #Highlights"
+            clean_tags = ["shorts", "gaming", "viral", "highlights", "komik anlar", "türkçe gaming"]
+            return {"title": clean_title, "description": clean_desc, "tags": clean_tags}
+
+        client = genai.Client(api_key=key)
+
+        prompt = f"""
+Sen YouTube Shorts ve TikTok algoritmalarını çok iyi bilen profesyonel bir sosyal medya yöneticisisin.
+Aşağıdaki oyun klibi için yüksek izlenme ve tıklama (CTR) alacak Türkçe başlık, açıklama ve etiketler üret:
+
+Orijinal Video: {video_title}
+Klip Başlığı: {clip_title}
+Kategori: {category}
+İlk 3 Saniye Kancası (Hook): "{hook_caption}"
+
+Kurallar:
+1. Başlık: Çok merak uyandırıcı, büyük harf vurgulu, emoji içeren ve sonunda '#Shorts' etiketi olan maksimum 90 karakterlik bir başlık olsun.
+2. Açıklama: İzleyiciyi tutacak kısa kanca cümle, videonun özeti ve ilgili 4-5 hashtag içersin.
+3. Etiketler (Tags): Arama hacmi yüksek 8-12 adet ilgili Türkçe/İngilizce etiket listesi olsun.
+"""
+        class GeminiShortsMeta(BaseModel):
+            title: str = Field(description="Maks 90 karakterlik dikkat çekici YouTube Shorts başlığı")
+            description: str = Field(description="Kanca ve hashtag içeren açıklama")
+            tags: List[str] = Field(description="Arama hacmi yüksek etiketler")
+
+        for model_name in cls.MODELS_TO_TRY:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=GeminiShortsMeta,
+                        temperature=0.7
+                    ),
+                )
+                res_dict = json.loads(response.text)
+                return {
+                    "title": res_dict.get("title", f"{clip_title} #Shorts"),
+                    "description": res_dict.get("description", f"{hook_caption}\n\n#Shorts"),
+                    "tags": res_dict.get("tags", ["shorts", "gaming"])
+                }
+            except Exception:
+                continue
+
+        return {
+            "title": f"{clip_title} 🔥 #Shorts",
+            "description": f"🎯 {hook_caption}\n\n#Shorts #Gaming",
+            "tags": ["shorts", "gaming", "viral"]
+        }

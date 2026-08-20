@@ -267,3 +267,35 @@ def test_unmatched_candidate(mock_client_class, mock_candidates):
     assert len(result) == 1
     assert result[0]["candidate_id"] == 999
     assert result[0]["text"] == "" # Snippet should be empty
+
+def test_generate_shorts_metadata_no_api_key():
+    with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=True):
+        meta = GeminiHighlightEngine.generate_shorts_metadata(
+            clip_title="Clutch Moment",
+            hook_caption="Watch this!",
+            category="CLUTCH",
+            video_title="Main Video"
+        )
+        assert "Clutch Moment" in meta["title"]
+        assert len(meta["tags"]) > 0
+
+@patch("core.llm_engine.genai.Client")
+def test_generate_shorts_metadata_success(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_response = MagicMock()
+    mock_response.text = json.dumps({
+        "title": "EN İYİ AN! 🔥 #Shorts",
+        "description": "Açıklama #Shorts",
+        "tags": ["gaming", "shorts"]
+    })
+    mock_client.models.generate_content.return_value = mock_response
+    
+    meta = GeminiHighlightEngine.generate_shorts_metadata(
+        clip_title="Clip",
+        hook_caption="Hook",
+        category="CLUTCH",
+        api_key="fake_key"
+    )
+    assert meta["title"] == "EN İYİ AN! 🔥 #Shorts"
+    assert "gaming" in meta["tags"]

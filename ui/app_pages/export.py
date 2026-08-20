@@ -10,12 +10,13 @@ import pandas as pd
 from core.uploader import YouTubeUploader
 from core.notifier import Notifier
 from core.database import DatabaseManager
+from core.llm_engine import GeminiHighlightEngine
 
 db = DatabaseManager()
 db.init_db()
 
 st.header("Dışa Aktar & Yayınla", anchor=False)
-st.caption("Renderlanan klipleri doğrudan YouTube Shorts'a yükleyin veya Discord / Telegram kanallarına otomatik fırlatın.")
+st.caption("Renderlanan klipleri yapay zeka ile optimize edilmiş başlık ve açıklamalarla doğrudan YouTube Shorts'a yükleyin.")
 
 tab_yt, tab_hook = st.tabs(["YouTube Shorts Yükleme", "Webhook & Bildirimler"])
 
@@ -31,17 +32,27 @@ with tab_yt:
             rendered_files = [f for f in rendered_files if not os.path.basename(f).startswith("raw_cut_")]
             
             if rendered_files:
-                selected_file = st.selectbox(
-                    "Yüklenecek Klibi Seçin",
-                    options=rendered_files,
-                    format_func=lambda x: f"🎬 {os.path.basename(x)} ({os.path.dirname(x).split('/')[-1]})"
-                )
-                
-                # Try to find matching thumbnail automatically
-                base_name = os.path.basename(selected_file).replace(".mp4", "")
+                col_sel, col_ai_btn = st.columns([3, 2], vertical_alignment="bottom")
+                with col_sel:
+                    selected_file = st.selectbox(
+                        "Yüklenecek Klibi Seçin",
+                        options=rendered_files,
+                        format_func=lambda x: f"🎬 {os.path.basename(x)} ({os.path.dirname(x).split('/')[-1]})"
+                    )
+
+                # Fetch clip metadata from DB if exists
+                clip_info = {}
+                try:
+                    with db._connect() as conn:
+                        res = conn.execute("SELECT * FROM renders WHERE file_path = ?;", (selected_file,)).fetchone()
+                        if res:
+                            clip_row = conn.execute("SELECT * FROM clips WHERE id = ?;", (res["clip_id"],)).fetchone()
+                            if clip_row:
+                                clip_info = dict(clip_row)
+                except Exception:
+                    pass
+
                 parent_dir = os.path.basename(os.path.dirname(selected_file))
-                
-                # Check potential thumbnail paths
                 potential_thumbs = [
                     f"outputs/thumbnails/{parent_dir}/clip_1_thumb.jpg",
                     f"outputs/thumbnails/{parent_dir}/clip_2_thumb.jpg",
@@ -53,17 +64,57 @@ with tab_yt:
                         default_thumb = pt
                         break
 
+                # State keys for AI metadata
+                meta_key = f"meta_{selected_file}"
+                if meta_key not in st.session_state:
+                    # Default heuristic fallback
+                    raw_title = clip_info.get("title") or os.path.basename(selected_file).replace(".mp4", "").replace("_", " ")
+                    st.session_state[meta_key] = {
+                        "title": f"{raw_title[:80]} #Shorts #Gaming",
+                        "description": f"🎯 {clip_info.get('hook_caption', 'İşte o an!')}\n\nBu klip Gaming AI Clipper tarafından üretilmiştir.\n\n#Shorts #Gaming #Highlights #Viral",
+                        "tags": "shorts, gaming, funny, highlight, clips, viral"
+                    }
+
+                with col_ai_btn:
+                    if st.button("✨ Yapay Zeka ile Başlık & Açıklama Üret", icon=":material/auto_awesome:", type="secondary", width="stretch"):
+                        with st.spinner("Gemini viral başlık ve SEO açıklaması yazıyor..."):
+                            try:
+                                ai_meta = GeminiHighlightEngine.generate_shorts_metadata(
+                                    clip_title=clip_info.get("title", os.path.basename(selected_file)),
+                                    hook_caption=clip_info.get("hook_caption", "İnanılmaz an!"),
+                                    category=clip_info.get("category", "GAMING"),
+                                    video_title=parent_dir.replace("_", " ")
+                                )
+                                st.session_state[meta_key]["title"] = ai_meta["title"]
+                                st.session_state[meta_key]["description"] = ai_meta["description"]
+                                st.session_state[meta_key]["tags"] = ", ".join(ai_meta["tags"])
+                                st.toast("Yapay zeka başlık ve açıklamayı başarıyla üretti!", icon="✨")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Yapay zeka üretim hatası: {e}")
+
+                # Upload Form
                 with st.form("upload_form"):
                     col_f1, col_f2 = st.columns([3, 2])
                     with col_f1:
-                        title_candidate = os.path.basename(selected_file).replace(".mp4", "").replace("_", " ")
-                        title = st.text_input("Shorts Başlığı", value=title_candidate[:90] + " #shorts #gaming", max_chars=100)
-                        tags = st.text_input("Etiketler (Virgülle ayırın)", value="shorts, gaming, funny, highlight, clips")
-                        thumb_path = st.text_input("Özel Kapak Resmi Yolu (.jpg)", value=default_thumb, placeholder="outputs/thumbnails/.../clip_1_thumb.jpg")
+                        title = st.text_input(
+                            "Shorts Başlığı (Maks 100 Karakter)",
+                            value=st.session_state[meta_key]["title"],
+                            max_chars=100
+                        )
+                        tags = st.text_input(
+                            "Etiketler (Virgülle ayırın)",
+                            value=st.session_state[meta_key]["tags"]
+                        )
+                        thumb_path = st.text_input(
+                            "Özel Kapak Resmi Yolu (.jpg)",
+                            value=default_thumb,
+                            placeholder="outputs/thumbnails/.../clip_1_thumb.jpg"
+                        )
                     with col_f2:
                         desc = st.text_area(
                             "Video Açıklaması",
-                            value=f"Bu klip Gaming AI Clipper stüdyosu tarafından otonom olarak üretilmiştir.\n\n#Shorts #Gaming #Highlights",
+                            value=st.session_state[meta_key]["description"],
                             height=150
                         )
 
