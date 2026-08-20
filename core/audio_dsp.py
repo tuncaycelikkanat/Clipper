@@ -7,12 +7,49 @@ class AudioDSPAnalyzer:
     """Extracts and analyzes audio stream for Gaming highlight signals (energy spikes & shock patterns)."""
 
     @staticmethod
-    def extract_audio_energy(url: str, duration_sec: int, sample_rate: int = 16000, hop_sec: float = 0.5) -> Tuple[np.ndarray, np.ndarray]:
+    def _extract_chunk(stream_url: str, start_sec: float, dur_sec: float, sample_rate: int, hop_sec: float) -> Tuple[np.ndarray, np.ndarray]:
+        """Worker function to extract a specific chunk of audio."""
+        cmd = [
+            'ffmpeg',
+            '-ss', str(start_sec),
+            '-i', stream_url,
+            '-t', str(dur_sec),
+            '-f', 'f32le',
+            '-acodec', 'pcm_f32le',
+            '-ac', '1',
+            '-ar', str(sample_rate),
+            '-v', 'quiet',
+            '-'
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        raw_audio, _ = process.communicate()
+        
+        if len(raw_audio) < 1000:
+            total_points = int(dur_sec / hop_sec)
+            times = np.linspace(start_sec, start_sec + dur_sec, total_points, endpoint=False)
+            rms = np.zeros(total_points)
+            return times, rms
+            
+        audio = np.frombuffer(raw_audio, dtype=np.float32)
+        window_size = int(sample_rate * hop_sec)
+        num_windows = int(len(audio) / window_size)
+        
+        times = []
+        rms_values = []
+        for i in range(num_windows):
+            chunk = audio[i * window_size : (i + 1) * window_size]
+            rms = np.sqrt(np.mean(chunk**2) + 1e-12)
+            times.append(start_sec + i * hop_sec)
+            rms_values.append(rms)
+            
+        return np.array(times), np.array(rms_values)
+
+    @staticmethod
+    def extract_audio_energy(url: str, duration_sec: int, sample_rate: int = 16000, hop_sec: float = 0.5, num_chunks: int = 4) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Streams audio via FFmpeg and computes RMS energy profile over time.
+        Streams audio via FFmpeg in parallel chunks and computes RMS energy profile over time.
         Returns: (time_array, rms_energy_array)
         """
-        # Get audio direct stream URL using yt-dlp
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
@@ -23,7 +60,6 @@ class AudioDSPAnalyzer:
             info = ydl.extract_info(url, download=False)
             stream_url = info.get('url')
             if not stream_url:
-                # Find direct format url
                 for f in info.get('formats', []):
                     if f.get('acodec') != 'none' and f.get('url'):
                         stream_url = f.get('url')
@@ -32,53 +68,31 @@ class AudioDSPAnalyzer:
         if not stream_url:
             raise RuntimeError("Ses akış URL'si alınamadı.")
 
-        # Stream raw PCM audio via FFmpeg pipe
-        # Limit to duration or full stream, convert to 16kHz mono float32
-        cmd = [
-            'ffmpeg',
-            '-ss', '0',
-            '-i', stream_url,
-            '-t', str(duration_sec),
-            '-f', 'f32le',
-            '-acodec', 'pcm_f32le',
-            '-ac', '1',
-            '-ar', str(sample_rate),
-            '-v', 'quiet',
-            '-'
-        ]
-
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        raw_audio, _ = process.communicate()
-
-        if len(raw_audio) < 1000:
-            # Fallback mock/synthetic if stream blocked
-            total_points = int(duration_sec / hop_sec)
-            times = np.linspace(0, duration_sec, total_points)
-            rms = np.zeros(total_points)
-            return times, rms
-
-        # Convert raw bytes to numpy float32
-        audio = np.frombuffer(raw_audio, dtype=np.float32)
-
-        # Windowed RMS calculation
-        window_size = int(sample_rate * hop_sec)
-        num_windows = int(len(audio) / window_size)
+        chunk_dur = duration_sec / num_chunks
+        futures = []
+        from concurrent.futures import ThreadPoolExecutor
         
-        times = []
-        rms_values = []
-        
-        for i in range(num_windows):
-            chunk = audio[i * window_size : (i + 1) * window_size]
-            rms = np.sqrt(np.mean(chunk**2) + 1e-12)
-            times.append(i * hop_sec)
-            rms_values.append(rms)
+        with ThreadPoolExecutor(max_workers=num_chunks) as executor:
+            for i in range(num_chunks):
+                start_sec = i * chunk_dur
+                dur_sec = chunk_dur if i < num_chunks - 1 else duration_sec - start_sec
+                futures.append(executor.submit(AudioDSPAnalyzer._extract_chunk, stream_url, start_sec, dur_sec, sample_rate, hop_sec))
+                
+        all_times = []
+        all_rms = []
+        for future in futures:
+            t, r = future.result()
+            all_times.append(t)
+            all_rms.append(r)
+            
+        times_arr = np.concatenate(all_times) if all_times else np.array([])
+        rms_arr = np.concatenate(all_rms) if all_rms else np.array([])
 
-        times_arr = np.array(times)
-        rms_arr = np.array(rms_values)
-
-        # Normalize RMS between 0.0 and 1.0
-        max_rms = np.max(rms_arr) if len(rms_arr) > 0 and np.max(rms_arr) > 0 else 1.0
-        rms_norm = rms_arr / max_rms
+        if len(rms_arr) > 0:
+            max_rms = np.max(rms_arr) if np.max(rms_arr) > 0 else 1.0
+            rms_norm = rms_arr / max_rms
+        else:
+            rms_norm = rms_arr
 
         return times_arr, rms_norm
 

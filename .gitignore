@@ -1,0 +1,14 @@
+# .gitignore
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+outputs/clips/*.mp4
+outputs/clips/*.ass
+outputs/thumbnails/
+outputs/logs/
+outputs/test_clips/*.mp4
+scratch/
+*.db
+*.log
