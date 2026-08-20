@@ -31,10 +31,7 @@ from googleapiclient.http import MediaFileUpload
 
 
 # OAuth scopes required for uploading videos and setting thumbnails
-_SCOPES = [
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.force-ssl",
-]
+_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 _SETUP_INSTRUCTIONS = """
 YouTube API credentials not found at '{path}'.
