@@ -189,6 +189,12 @@ if analyze_btn and url_input:
         if not force_reanalyze and db.video_exists(video_data["id"]):
             cached_clips = db.get_clips_for_video(video_data["id"])
             if cached_clips:
+                # Format string'leri geri oluştur
+                for c in cached_clips:
+                    c["start_formatted"] = YouTubeExtractor.format_seconds(c["start_time"])
+                    c["end_formatted"] = YouTubeExtractor.format_seconds(c["end_time"])
+                    c["duration_formatted"] = f"{int(c['duration'])} sn"
+
                 st.session_state.video_data = video_data
                 st.session_state.clips = cached_clips
                 st.session_state.transcript = TranscriptManager.get_transcript(video_data["id"])
@@ -406,10 +412,10 @@ if st.session_state.video_data and st.session_state.clips:
     os.makedirs(channel_out_dir, exist_ok=True)
     cutter = VideoCutter(output_dir=channel_out_dir)
 
-    for clip in clips:
+    for idx, clip in enumerate(clips):
         rank = clip["rank"]
         clip_key = (
-            f"clip_{rank}_{clip['start_time']}_{clip['end_time']}_"
+            f"clip_{idx}_{rank}_{clip['start_time']}_{clip['end_time']}_"
             f"{selected_render_mode}_{enable_subtitles}_{enable_hook_card}_{enable_color_grade}"
         )
         q_report = reports.get(rank, {})

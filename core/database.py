@@ -242,7 +242,7 @@ class DatabaseManager:
             List of the newly inserted clip IDs.
         """
         sql = """
-            INSERT OR IGNORE INTO clips
+            INSERT OR REPLACE INTO clips
                 (id, video_id, rank, title, category, start_time, end_time,
                  duration, hook_caption, score, viral_confidence, render_path,
                  created_at)
