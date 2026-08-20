@@ -190,8 +190,8 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
         client = genai.Client(api_key=key)
 
         prompt = f"""
-Sen YouTube Shorts, TikTok ve SEO algoritmalarını mükemmel bilen uzman bir Gaming içerik yöneticisisin.
-Aşağıdaki oyun klibi için ASLA jenerik/kopya olmayan, doğrudan bu oyuna, olaya ve klibe özel başlık, açıklama ve etiketler üret:
+Sen YouTube Shorts, TikTok ve Instagram Reels için çalışan profesyonel bir Gaming Klip / Kesit kanalı yöneticisisin.
+Aşağıdaki oyun klibi için ASLA robotik 'AI slop' olmayan, doğrudan bu oyuna, olaya ve klibe özel başlık, kısa açıklama ve etiketler üret:
 
 Orijinal Video Başlığı / Kanal: {video_title}
 Klip Başlığı: {clip_title}
@@ -199,9 +199,9 @@ Kategori: {category}
 Klipteki Kanca Cümle / Olay: "{hook_caption}"
 
 GÖREVLER:
-1. Başlık: İzleyicinin kaydırmasını (scroll) anında durduracak, merak veya kahkaha uyandıran, BÜYÜK HARF vurgulu, 2 emoji içeren ve sonunda '#Shorts' etiketi olan maksimum 90 karakterlik Türkçe başlık.
-2. Açıklama: İlk satırda güçlü bir hook, ikinci paragrafta klibin heyecanını anlatan kısa özet, oyun adı ve 5 adet spesifik hashtag (#OyunAdi #Shorts #Gaming vb.).
-3. Etiketler (Tags): Kesinlikle sadece 'gaming, shorts' gibi genel kelimelerle kalma! Oyunun tam adını, klibin konusunu, oynanış mekaniğini, Türkçe oyun terimlerini ve niş arama terimlerini içeren 10-14 adet spesifik etiket listesi üret. (Örn BeamNG ise: 'beamng drive', 'beamng türkçe', 'araba ön kaldırma', 'araba kazaları', 'komik oyun anları', 'beamng rekor').
+1. Başlık: İzleyicinin kaydırmasını (scroll) anında durduracak, merak veya kahkaha uyandıran, dilbilgisi tam, BÜYÜK HARF vurgulu, 2 emoji içeren ve sonunda '#Shorts' etiketi olan maksimum 90 karakterlik Türkçe başlık.
+2. Açıklama: PERSPEKTİFE DİKKAT ET (Sen videodaki yayıncı değilsin, klip kanalısın!). Asla 'ben yaptım/oynadım' deme. 3. şahıs olarak olayı özetleyen maksimum 2 KISA CÜMLE + '🎬 Orijinal: {video_title}' atfı + 5 trend hashtag (#OyunAdi #Shorts #Gaming vb.).
+3. Etiketler (Tags): Oyunun tam adını, klibin konusunu, oynanış mekaniğini ve Türkçe oyun terimlerini içeren 10-14 adet spesifik etiket listesi üret.
 """
         class GeminiShortsMeta(BaseModel):
             title: str = Field(description="Maks 90 karakterlik dikkat çekici YouTube Shorts başlığı")

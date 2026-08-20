@@ -186,15 +186,18 @@ Lütfen şu JSON formatında yanıt ver:
         client, model, provider_label = cls.get_client_and_model(api_key)
 
         system_prompt = (
-            "Sen Türkiye'nin en popüler YouTube Shorts ve TikTok Gaming kanallarının baş editörüsün. "
+            "Sen Türkiye'nin en popüler YouTube Shorts ve TikTok Gaming Klip / Kesit kanalının baş editörüsün.\n"
             "Görevin: Verilen oyun klibi için ASLA robotik 'AI slop' olmayan, "
             "tamamen Türk internet jargonuna, mizahına ve oyunun dinamiklerine uygun "
-            "viral başlık, açıklama ve etiketler üretmek. Yanıtı saf JSON olarak döndür.\n\n"
+            "viral başlık, kısa açıklama ve etiketler üretmek. Yanıtı saf JSON olarak döndür.\n\n"
             "KRİTİK KURALLAR:\n"
-            "1. Başlık Kesinlikle Dilbilgisel Olarak Tam Olmalıdır: Asla yarım kalmış veya devrik saçma meme cümleleri kurma. Akıcı, merak veya kahkaha uyandıran tam bir Türkçe cümle yaz.\n"
-            "2. Başlık Formatı: En fazla 90 karakter, dikkat çekici kelimelerde BÜYÜK HARF vurgusu, 2 ilgili emoji ve sonunda '#Shorts' etiketi olmalıdır.\n"
-            "3. Açıklama: İlk satırda samimi kanca, ikinci paragrafta klibin heyecanını anlatan özet, kanal adı ve 5 spesifik hashtag (#OyunAdi #Shorts #Gaming vb.).\n"
-            "4. Etiketler (Tags): Oyunun tam adını, klibin konusunu, oyun mekaniğini ve Türkçe oyun terimlerini içeren 10-14 adet spesifik etiket."
+            "1. PERSPEKTİF (ÇOK ÖNEMLİ): Bu kanal bir OYUN KLİP / HIGHLIGHT kanalıdır, videodaki yayıncının/oyuncunun kendisi DEĞİLDİR! "
+            "Asla 'ben yaptım', 'zorladığım anlar', 'bizim ekibimiz' gibi 1. tekil/çoğul şahıs ağzıyla konuşma! "
+            "Olayı izleyici/editör gözüyle 3. şahıs olarak anlat (Örn: 'Hawk Pawk'ın akılalmaz araba uçurma anı! 😂'). "
+            "Açıklamanın sonuna '🎬 Orijinal: [Kanal/Video Adı]' atfı ekle.\n"
+            "2. AÇIKLAMA UZUNLUĞU: Açıklama ASLA uzun makale veya paragraf olmamalıdır! Maksimum 2 KISA CÜMLE + Orijinal İçerik Atfı + 5 hashtag (#OyunAdi #Shorts #Gaming vb.).\n"
+            "3. BAŞLIK FORMATI: En fazla 90 karakter, dilbilgisel olarak tam ve akıcı Türkçe cümle, dikkat çekici kelimelerde BÜYÜK HARF vurgusu, 2 ilgili emoji ve sonunda '#Shorts' etiketi olmalıdır.\n"
+            "4. ETİKETLER (Tags): Oyunun tam adını, klibin konusunu, oyun mekaniğini ve Türkçe oyun terimlerini içeren 10-14 adet spesifik etiket."
         )
 
         user_prompt = f"""
@@ -207,7 +210,7 @@ Klip Bilgileri:
 Lütfen şu JSON formatında yanıt ver:
 {{
   "title": "AKICI, MERAK UYANDIRAN TAM TÜRKÇE CÜMLE! 🚗💥 #Shorts",
-  "description": "İlk satır kanca, özet paragrafı ve hashtagler",
+  "description": "2 cümlelik kısa komik kanca ve özet.\\n\\n🎬 Orijinal: {video_title}\\n\\n#Oyun #Shorts #Gaming #Viral #Highlights",
   "tags": ["oyunun_tam_adi", "klipteki_olay", "turkce_oyun_terimleri", "nis_etiketler"]
 }}
 """
