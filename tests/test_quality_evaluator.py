@@ -26,6 +26,35 @@ def mock_arrays():
     rms = np.array([0.1, 0.8, 0.9, 0.7, 0.2])
     return times, rms
 
+@pytest.fixture(autouse=True)
+def isolate_gemini_tests():
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "", "DEEPSEEK_API_KEY": ""}):
+        yield
+
+
+@patch("core.deepseek_engine.DeepSeekEngine.evaluate_quality")
+def test_evaluate_clip_deepseek_primary(mock_ds_eval, mock_clip, mock_arrays):
+    mock_ds_eval.return_value = {
+        "hook_score": 98,
+        "entertainment_score": 99,
+        "payoff_score": 95,
+        "grade": "A+",
+        "editor_feedback": "DeepSeek Perfect",
+        "viral_tips": "DeepSeek Tip"
+    }
+    times, rms = mock_arrays
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test"}):
+        result = QualityEvaluator.evaluate_clip(
+            clip=mock_clip,
+            video_title="Test Video",
+            times=times,
+            rms=rms,
+            transcript=[]
+        )
+        assert result["hook_score"] == 98
+        assert result["grade"] == "A+"
+        assert result["editor_feedback"] == "DeepSeek Perfect"
+
 
 @patch("core.quality_evaluator.genai.Client")
 def test_evaluate_clip_success_first_model(mock_client_class, mock_clip, mock_arrays):

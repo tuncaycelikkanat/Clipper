@@ -40,16 +40,7 @@ class GeminiHighlightEngine:
         target_clips: int = 3,
         api_key: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Takes Top-15 DSP candidates and evaluates them in a single batch Gemini call.
-        """
-        key = api_key or os.environ.get("GEMINI_API_KEY")
-        if not key:
-            raise ValueError("Gemini API Key bulunamadı.")
-
-        client = genai.Client(api_key=key)
-
-        # Prepare compact JSON payload for Gemini
+        # Prepare compact JSON payload for LLM analysis
         candidates_summary = []
         for c in candidates:
             candidates_summary.append({
@@ -84,29 +75,50 @@ ADAY HAVUZU (TOP-{len(candidates)} Sinyal Verisi):
 Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olarak seçip detaylandır.
 """
 
-        last_error = None
+        # 1. Primary Engine: DeepSeek V3 (OpenRouter)
         data = None
-
-        for model_name in cls.MODELS_TO_TRY:
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        response_mime_type="application/json",
-                        response_schema=GeminiGamingBatchResult,
-                        temperature=0.3
-                    ),
+        try:
+            from core.deepseek_engine import DeepSeekEngine
+            if DeepSeekEngine.is_available():
+                ds_data = DeepSeekEngine.batch_judge_candidates(
+                    candidates_summary=candidates_summary,
+                    video_title=video_title,
+                    total_duration=total_duration,
+                    target_clips=target_clips
                 )
-                data = json.loads(response.text)
-                break
-            except Exception as e:
-                last_error = e
-                continue
+                if ds_data and "selected_clips" in ds_data:
+                    data = ds_data
+        except Exception:
+            data = None
 
+        # 2. Fallback to Google Gemini Flash if DeepSeek is not configured or fails
         if not data:
-            raise RuntimeError(f"Gemini Batch API hatası: {str(last_error)}")
+            key = api_key or os.environ.get("GEMINI_API_KEY")
+            if not key:
+                raise ValueError("Yapay Zeka API Anahtarı (OpenRouter / DeepSeek / Gemini) bulunamadı.")
+
+            client = genai.Client(api_key=key)
+            last_error = None
+            for model_name in cls.MODELS_TO_TRY:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            response_mime_type="application/json",
+                            response_schema=GeminiGamingBatchResult,
+                            temperature=0.3
+                        ),
+                    )
+                    data = json.loads(response.text)
+                    break
+                except Exception as e:
+                    last_error = e
+                    continue
+
+            if not data:
+                raise RuntimeError(f"Yapay Zeka Batch Analiz hatası: {str(last_error)}")
 
         verdicts = data.get("selected_clips", [])
         

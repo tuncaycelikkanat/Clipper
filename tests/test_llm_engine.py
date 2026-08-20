@@ -45,9 +45,15 @@ def mock_candidates():
     ]
 
 
+@pytest.fixture(autouse=True)
+def isolate_gemini_tests():
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "", "DEEPSEEK_API_KEY": ""}):
+        yield
+
+
 def test_no_api_key(mock_candidates):
-    with patch.dict(os.environ, clear=True):
-        with pytest.raises(ValueError, match="Gemini API Key bulunamadı."):
+    with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "", "DEEPSEEK_API_KEY": ""}, clear=True):
+        with pytest.raises(ValueError, match="API Anahtarı"):
             GeminiHighlightEngine.batch_judge_gaming_candidates(
                 candidates=mock_candidates,
                 video_title="Test Video",
@@ -104,19 +110,19 @@ def test_fallback_models(mock_client_class, mock_candidates):
             {
                 "candidate_id": 2,
                 "verdict": "KEEP",
-                "category": "FAIL/FUNNY",
+                "category": "FAIL_FUNNY",
                 "title": "Title 2",
                 "hook_caption": "Hook 2",
                 "why_viral": "Why 2",
                 "viral_confidence": 85,
                 "suggested_start": 20.0,
-                "suggested_end": 35.0
+                "suggested_end": 30.0
             }
         ]
     })
     
     mock_client.models.generate_content.side_effect = [
-        Exception("Model 1 failed"),
+        Exception("First model failed"),
         mock_response
     ]
 
@@ -138,7 +144,7 @@ def test_all_models_fail(mock_client_class, mock_candidates):
     mock_client_class.return_value = mock_client
     mock_client.models.generate_content.side_effect = Exception("All models fail")
 
-    with pytest.raises(RuntimeError, match="Gemini Batch API hatası"):
+    with pytest.raises(RuntimeError, match="Batch Analiz hatası"):
         GeminiHighlightEngine.batch_judge_gaming_candidates(
             candidates=mock_candidates,
             video_title="Test Video",
@@ -316,3 +322,30 @@ def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
             category="CLUTCH"
         )
         assert meta["title"] == "DEEPSEEK TITLE #Shorts"
+
+@patch("core.deepseek_engine.DeepSeekEngine.batch_judge_candidates")
+def test_batch_judge_deepseek_primary(mock_ds_judge, mock_candidates):
+    mock_ds_judge.return_value = {
+        "selected_clips": [
+            {
+                "candidate_id": 1,
+                "verdict": "KEEP",
+                "category": "CLUTCH",
+                "title": "DeepSeek Clutch",
+                "hook_caption": "Watch out",
+                "why_viral": "Insane skill",
+                "viral_confidence": 98,
+                "suggested_start": 2.0,
+                "suggested_end": 12.0
+            }
+        ]
+    }
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test"}):
+        result = GeminiHighlightEngine.batch_judge_gaming_candidates(
+            candidates=mock_candidates,
+            video_title="Test Video",
+            total_duration=100
+        )
+        assert len(result) == 1
+        assert result[0]["title"] == "DeepSeek Clutch"
+        assert result[0]["category"] == "CLUTCH"

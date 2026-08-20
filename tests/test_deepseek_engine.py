@@ -70,3 +70,40 @@ def test_deepseek_generate_shorts_copy_error(mock_openai_class):
             video_title="BeamNG",
             api_key="sk-test"
         )
+
+@patch("core.deepseek_engine.OpenAI")
+def test_deepseek_batch_judge_candidates(mock_openai_class):
+    mock_client = MagicMock()
+    mock_openai_class.return_value = mock_client
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps({
+        "selected_clips": [{"candidate_id": 1, "verdict": "KEEP", "viral_confidence": 95}]
+    })
+    mock_client.chat.completions.create.return_value = MagicMock(choices=[mock_choice])
+
+    data = DeepSeekEngine.batch_judge_candidates(
+        candidates_summary=[{"candidate_id": 1}],
+        video_title="Video",
+        total_duration=100,
+        api_key="sk-test"
+    )
+    assert len(data["selected_clips"]) == 1
+
+@patch("core.deepseek_engine.OpenAI")
+def test_deepseek_evaluate_quality(mock_openai_class):
+    mock_client = MagicMock()
+    mock_openai_class.return_value = mock_client
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps({
+        "hook_score": 90, "entertainment_score": 95, "payoff_score": 85, "grade": "A+",
+        "editor_feedback": "Great", "viral_tips": "None"
+    })
+    mock_client.chat.completions.create.return_value = MagicMock(choices=[mock_choice])
+
+    report = DeepSeekEngine.evaluate_quality(
+        clip={"title": "Clip", "category": "ACTION", "hook_caption": "Hook", "text": "Text"},
+        video_title="Video",
+        dur=30.0,
+        api_key="sk-test"
+    )
+    assert report["grade"] == "A+"

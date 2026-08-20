@@ -1,5 +1,8 @@
 """
-core/deepseek_engine.py — DeepSeek V3 / R1 creative engine (via OpenRouter or direct DeepSeek API).
+core/deepseek_engine.py — DeepSeek V3 / R1 engine powering:
+1. Top-N Batch Candidate Clip Judgment (Layer 4)
+2. Quality & Viral Action Density Evaluation (Layer 5)
+3. Viral Social Metadata, Hooks, and Titles (Export)
 """
 
 from __future__ import annotations
@@ -46,6 +49,129 @@ class DeepSeekEngine:
         or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
         ds_key = (api_key or os.environ.get("DEEPSEEK_API_KEY", "")).strip()
         return bool(or_key or ds_key)
+
+    @classmethod
+    def batch_judge_candidates(
+        cls,
+        candidates_summary: List[Dict[str, Any]],
+        video_title: str,
+        total_duration: int,
+        target_clips: int = 3,
+        api_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Judge Top-15 candidates in a single batch call using DeepSeek V3."""
+        client, model, provider_label = cls.get_client_and_model(api_key)
+
+        system_prompt = (
+            "Sen YouTube Shorts, TikTok ve Instagram Reels için milyonlar izlenen Gaming / Yayın klipleri seçen "
+            "profesyonel bir video editörüsün. Sana sinyal işleme (ses patlamaları, sessizlikten çığlığa geçiş, "
+            "izleyici tekrar yoğunluğu) ile tespit edilmiş aday klip havuzu verilecek.\n"
+            "GÖREVİN:\n"
+            "1. Tüm adayları bağlamsal olarak incele, sahte alarmları (sadece gürültü olan boş anları) ele ('DROP').\n"
+            "2. Gerçekten viral olabilecek en iyi anları ('KEEP') olarak işaretle ve en yüksek puandan sırala.\n"
+            "3. Her klip için aksiyonun başladığı ve bittiği en doğru başlangıç/bitiş saniyelerini öner.\n"
+            "4. Dikkat çekici bir başlık, ilk 3 saniye kanca yazısı (Hook) ve kategori belirle.\n"
+            "Yanıtı kesinlikle saf JSON formatında döndür."
+        )
+
+        user_prompt = f"""
+Video Başlığı: {video_title}
+Toplam Süre: {total_duration} saniye
+İstenen En İyi Klip Sayısı: {target_clips}
+
+ADAY HAVUZU (TOP-{len(candidates_summary)} Sinyal Verisi):
+{json.dumps(candidates_summary, indent=2, ensure_ascii=False)}
+
+Lütfen şu JSON formatında yanıt ver:
+{{
+  "selected_clips": [
+    {{
+      "candidate_id": 1,
+      "verdict": "KEEP",
+      "category": "CLUTCH / FAIL_FUNNY / RAGE_REACTION / EPIC_MOMENT",
+      "title": "Shorts/TikTok için dikkat çekici Türkçe başlık",
+      "hook_caption": "İlk 3 saniyede izleyiciyi yakalayacak kanca başlığı/yazısı",
+      "why_viral": "Neden viral olacağının analizi",
+      "viral_confidence": 92,
+      "suggested_start": 120.0,
+      "suggested_end": 155.0
+    }}
+  ]
+}}
+"""
+
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3,
+                max_tokens=2000,
+            )
+            raw_text = response.choices[0].message.content or "{}"
+            data = json.loads(raw_text)
+            logger.info(f"{provider_label} successfully judged candidates")
+            return data
+        except Exception as exc:
+            logger.error(f"{provider_label} batch judgment error: {exc}")
+            raise
+
+    @classmethod
+    def evaluate_quality(
+        cls,
+        clip: Dict[str, Any],
+        video_title: str,
+        dur: float,
+        api_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Evaluate clip quality and action density using DeepSeek V3."""
+        client, model, provider_label = cls.get_client_and_model(api_key)
+
+        system_prompt = (
+            "Sen YouTube Shorts ve TikTok için milyonlar izlenen Gaming ve Yayın içerikleri üreten Baş Editörsün. "
+            "Verilen klibi izleyici tutma, aksiyon, kanca ve vuruş gücüne göre değerlendirip JSON formatında yanıt ver."
+        )
+
+        user_prompt = f"""
+Video: {video_title}
+Klip Başlığı: {clip.get('title', '')}
+Kategori: {clip.get('category', 'ACTION')}
+Klip Süresi: {dur:.1f} sn
+Kanca (Hook): "{clip.get('hook_caption', '')}"
+Diyalog/Transkript: "{clip.get('text', '')}"
+
+Lütfen şu JSON formatında yanıt ver:
+{{
+  "hook_score": 90,
+  "entertainment_score": 92,
+  "payoff_score": 88,
+  "grade": "A+",
+  "editor_feedback": "Klibin güçlü ve zayıf yönlerine dair Türkçe editör yorumu",
+  "viral_tips": "Shorts/TikTok'ta etkileşimi artırmak için pratik tavsiye"
+}}
+"""
+
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3,
+                max_tokens=800,
+            )
+            raw_text = response.choices[0].message.content or "{}"
+            data = json.loads(raw_text)
+            logger.info(f"{provider_label} successfully evaluated clip quality")
+            return data
+        except Exception as exc:
+            logger.error(f"{provider_label} quality evaluation error: {exc}")
+            raise
 
     @classmethod
     def generate_shorts_copy(
