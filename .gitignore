@@ -11,3 +11,6 @@ outputs/test_clips/*.mp4
 scratch/
 *.db
 *.log
+credentials.json
+client_secret*.json
+token.json
