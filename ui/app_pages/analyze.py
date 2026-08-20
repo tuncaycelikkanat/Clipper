@@ -384,16 +384,30 @@ if st.session_state.video_data and st.session_state.clips:
                     with st.spinner("Kare yakalanıyor..."):
                         try:
                             thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
-                            ThumbnailGenerator.batch_generate_thumbnails(
-                                clips=[clip],
-                                video_path_or_url=vdata["url"],
+                            # If clip was already rendered locally, extract from local file for instant speed
+                            source_media = vdata["url"]
+                            clip_start_arg = start_sel
+                            if clip_key in st.session_state.generated_clips and os.path.exists(st.session_state.generated_clips[clip_key]):
+                                source_media = st.session_state.generated_clips[clip_key]
+                                clip_start_arg = 0.0
+
+                            gen_paths = ThumbnailGenerator.batch_generate_thumbnails(
+                                clips=[{**clip, "start_time": clip_start_arg, "end_time": clip_start_arg + dur_sel}],
+                                video_path_or_url=source_media,
                                 output_dir=thumb_dir
                             )
-                            st.success("Thumbnail üretildi!", icon=":material/image:")
+                            if gen_paths:
+                                st.toast("Thumbnail başarıyla üretildi!", icon="🖼️")
+                                st.rerun()
+                            else:
+                                st.error("Thumbnail oluşturulamadı.")
                         except Exception as e:
                             st.error(f"Thumbnail hatası: {str(e)}")
 
             with col_preview:
+                thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
+                thumb_path = os.path.join(thumb_dir, f"clip_{rank}_thumb.jpg")
+                
                 if clip_key in st.session_state.generated_clips:
                     rendered_file = st.session_state.generated_clips[clip_key]
                     if os.path.exists(rendered_file):
@@ -407,10 +421,17 @@ if st.session_state.video_data and st.session_state.clips:
                                 icon=":material/download:",
                                 width="stretch"
                             )
+                elif os.path.exists(thumb_path):
+                    st.image(thumb_path, caption=f"Klip #{rank} Kapak Resmi", width="stretch")
+                    with open(thumb_path, "rb") as f:
+                        st.download_button(
+                            label="Thumbnail İndir (JPG)",
+                            data=f,
+                            file_name=f"clip_{rank}_thumb.jpg",
+                            mime="image/jpeg",
+                            icon=":material/image:",
+                            width="stretch",
+                            key=f"dl_thumb_{clip_key}"
+                        )
                 else:
-                    thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
-                    thumb_path = os.path.join(thumb_dir, f"{vdata['id']}_clip_{rank}_thumb.jpg")
-                    if os.path.exists(thumb_path):
-                        st.image(thumb_path, caption=f"Klip #{rank} Önizleme", width="stretch")
-                    else:
-                        st.info("Klibi önizlemek için 'Bu Klibi Edit & İndir' butonuna basın.", icon=":material/play_circle:")
+                    st.info("Klibi izlemek için 'Edit & İndir'e, kapak resmi yakalamak için 'Thumbnail Üret'e basın.", icon=":material/play_circle:")
