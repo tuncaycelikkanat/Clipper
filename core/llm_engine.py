@@ -179,23 +179,23 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
         client = genai.Client(api_key=key)
 
         prompt = f"""
-Sen YouTube Shorts ve TikTok algoritmalarını çok iyi bilen profesyonel bir sosyal medya yöneticisisin.
-Aşağıdaki oyun klibi için yüksek izlenme ve tıklama (CTR) alacak Türkçe başlık, açıklama ve etiketler üret:
+Sen YouTube Shorts, TikTok ve SEO algoritmalarını mükemmel bilen uzman bir Gaming içerik yöneticisisin.
+Aşağıdaki oyun klibi için ASLA jenerik/kopya olmayan, doğrudan bu oyuna, olaya ve klibe özel başlık, açıklama ve etiketler üret:
 
-Orijinal Video: {video_title}
+Orijinal Video Başlığı / Kanal: {video_title}
 Klip Başlığı: {clip_title}
 Kategori: {category}
-İlk 3 Saniye Kancası (Hook): "{hook_caption}"
+Klipteki Kanca Cümle / Olay: "{hook_caption}"
 
-Kurallar:
-1. Başlık: Çok merak uyandırıcı, büyük harf vurgulu, emoji içeren ve sonunda '#Shorts' etiketi olan maksimum 90 karakterlik bir başlık olsun.
-2. Açıklama: İzleyiciyi tutacak kısa kanca cümle, videonun özeti ve ilgili 4-5 hashtag içersin.
-3. Etiketler (Tags): Arama hacmi yüksek 8-12 adet ilgili Türkçe/İngilizce etiket listesi olsun.
+GÖREVLER:
+1. Başlık: İzleyicinin kaydırmasını (scroll) anında durduracak, merak veya kahkaha uyandıran, BÜYÜK HARF vurgulu, 2 emoji içeren ve sonunda '#Shorts' etiketi olan maksimum 90 karakterlik Türkçe başlık.
+2. Açıklama: İlk satırda güçlü bir hook, ikinci paragrafta klibin heyecanını anlatan kısa özet, oyun adı ve 5 adet spesifik hashtag (#OyunAdi #Shorts #Gaming vb.).
+3. Etiketler (Tags): Kesinlikle sadece 'gaming, shorts' gibi genel kelimelerle kalma! Oyunun tam adını, klibin konusunu, oynanış mekaniğini, Türkçe oyun terimlerini ve niş arama terimlerini içeren 10-14 adet spesifik etiket listesi üret. (Örn BeamNG ise: 'beamng drive', 'beamng türkçe', 'araba ön kaldırma', 'araba kazaları', 'komik oyun anları', 'beamng rekor').
 """
         class GeminiShortsMeta(BaseModel):
             title: str = Field(description="Maks 90 karakterlik dikkat çekici YouTube Shorts başlığı")
             description: str = Field(description="Kanca ve hashtag içeren açıklama")
-            tags: List[str] = Field(description="Arama hacmi yüksek etiketler")
+            tags: List[str] = Field(description="Oyun ve klibe özel 10-14 adet arama etiketi")
 
         for model_name in cls.MODELS_TO_TRY:
             try:
@@ -205,14 +205,14 @@ Kurallar:
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=GeminiShortsMeta,
-                        temperature=0.7
+                        temperature=0.6
                     ),
                 )
                 res_dict = json.loads(response.text)
                 return {
                     "title": res_dict.get("title", f"{clip_title} #Shorts"),
                     "description": res_dict.get("description", f"{hook_caption}\n\n#Shorts"),
-                    "tags": res_dict.get("tags", ["shorts", "gaming"])
+                    "tags": res_dict.get("tags", [video_title.lower(), clip_title.lower(), "shorts", "gaming"])
                 }
             except Exception:
                 continue

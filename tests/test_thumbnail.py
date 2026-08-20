@@ -213,3 +213,15 @@ def test_batch_generate_thumbnails_exception_handled(tmp_path):
         )
         assert len(res) == 1
         assert mock_extract.call_count == 2
+
+def test_extract_candidates(tmp_path):
+    clip = {"rank": 1, "start_time": 10.0, "end_time": 40.0, "peak_time": 25.0}
+    with mock.patch.object(ThumbnailGenerator, "extract_best_frame") as mock_extract:
+        res = ThumbnailGenerator.extract_candidates(clip, "fake_path.mp4", output_dir=str(tmp_path))
+        assert mock_extract.call_count == 3
+        assert len(res) == 3
+
+    # Test URL branch with exception
+    with mock.patch.object(ThumbnailGenerator, "extract_best_frame_from_url", side_effect=Exception("Stream error")):
+        res_url = ThumbnailGenerator.extract_candidates(clip, "https://youtube.com/watch?v=123", output_dir=str(tmp_path))
+        assert len(res_url) == 0

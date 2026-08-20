@@ -406,23 +406,22 @@ if st.session_state.video_data and st.session_state.clips:
                             st.error(f"Klip render hatası: {str(e)}")
 
                 if thumb_click:
-                    with st.spinner("Kare yakalanıyor..."):
+                    with st.spinner("3 farklı kritik kareden kapak resimleri yakalanıyor..."):
                         try:
                             thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
-                            # If clip was already rendered locally, extract from local file for instant speed
                             source_media = vdata["url"]
                             clip_start_arg = start_sel
                             if clip_key in st.session_state.generated_clips and os.path.exists(st.session_state.generated_clips[clip_key]):
                                 source_media = st.session_state.generated_clips[clip_key]
                                 clip_start_arg = 0.0
 
-                            gen_paths = ThumbnailGenerator.batch_generate_thumbnails(
-                                clips=[{**clip, "start_time": clip_start_arg, "end_time": clip_start_arg + dur_sel}],
+                            gen_paths = ThumbnailGenerator.extract_candidates(
+                                clip={**clip, "start_time": clip_start_arg, "end_time": clip_start_arg + dur_sel},
                                 video_path_or_url=source_media,
                                 output_dir=thumb_dir
                             )
                             if gen_paths:
-                                st.toast("Thumbnail başarıyla üretildi!", icon="🖼️")
+                                st.toast("3 farklı kapak karesi başarıyla üretildi!", icon="🖼️")
                                 st.rerun()
                             else:
                                 st.error("Thumbnail oluşturulamadı.")
@@ -431,7 +430,9 @@ if st.session_state.video_data and st.session_state.clips:
 
             with col_preview:
                 thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
-                thumb_path = os.path.join(thumb_dir, f"clip_{rank}_thumb.jpg")
+                main_thumb = os.path.join(thumb_dir, f"clip_{rank}_thumb.jpg")
+                hook_thumb = os.path.join(thumb_dir, f"clip_{rank}_thumb_hook.jpg")
+                action_thumb = os.path.join(thumb_dir, f"clip_{rank}_thumb_action.jpg")
                 
                 if clip_key in st.session_state.generated_clips:
                     rendered_file = st.session_state.generated_clips[clip_key]
@@ -446,13 +447,30 @@ if st.session_state.video_data and st.session_state.clips:
                                 icon=":material/download:",
                                 width="stretch"
                             )
-                elif os.path.exists(thumb_path):
-                    st.image(thumb_path, caption=f"Klip #{rank} Kapak Resmi", width="stretch")
-                    with open(thumb_path, "rb") as f:
+                elif os.path.exists(main_thumb):
+                    frame_options = {"💥 Zirve Şok": main_thumb}
+                    if os.path.exists(hook_thumb):
+                        frame_options["🎯 Giriş Kancası"] = hook_thumb
+                    if os.path.exists(action_thumb):
+                        frame_options["🔥 Aksiyon Anı"] = action_thumb
+
+                    if len(frame_options) > 1:
+                        sel_frame = st.segmented_control(
+                            "Kapak Karesi Seç",
+                            options=list(frame_options.keys()),
+                            default="💥 Zirve Şok",
+                            key=f"thumb_choice_{clip_key}"
+                        )
+                        active_thumb = frame_options.get(sel_frame, main_thumb)
+                    else:
+                        active_thumb = main_thumb
+
+                    st.image(active_thumb, caption=f"Klip #{rank} Kapak Resmi", width="stretch")
+                    with open(active_thumb, "rb") as f:
                         st.download_button(
                             label="Thumbnail İndir (JPG)",
                             data=f,
-                            file_name=f"clip_{rank}_thumb.jpg",
+                            file_name=os.path.basename(active_thumb),
                             mime="image/jpeg",
                             icon=":material/image:",
                             width="stretch",

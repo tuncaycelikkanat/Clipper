@@ -267,3 +267,49 @@ class ThumbnailGenerator:
             len(clips),
         )
         return generated
+
+    @classmethod
+    def extract_candidates(
+        cls,
+        clip: dict,
+        video_path_or_url: str,
+        output_dir: str = "outputs/thumbnails",
+    ) -> List[str]:
+        """Extract multiple high-impact candidate frames for a single clip.
+        
+        Extracts:
+        - 1. Peak Shock (Zirve ses / aksiyon patlaması)
+        - 2. Hook Frame (İlk 2 saniyedeki kanca anı)
+        - 3. Action Climax (%75 aksiyon düğümü)
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        is_url = video_path_or_url.startswith("http")
+        rank = clip.get("rank", 1)
+        start = float(clip.get("start_time", 0.0))
+        end = float(clip.get("end_time", start + 30.0))
+        dur = max(1.0, end - start)
+        
+        # 3 Key candidate timestamps
+        peak_t = float(clip.get("peak_time", start + dur * 0.5))
+        hook_t = min(end - 0.5, start + 2.0)
+        action_t = min(end - 0.5, start + dur * 0.75)
+
+        points = [
+            ("main", peak_t, f"clip_{rank}_thumb.jpg"),
+            ("hook", hook_t, f"clip_{rank}_thumb_hook.jpg"),
+            ("action", action_t, f"clip_{rank}_thumb_action.jpg"),
+        ]
+
+        created = []
+        for name, t_stamp, fname in points:
+            out_file = os.path.join(output_dir, fname)
+            try:
+                if is_url:
+                    cls.extract_best_frame_from_url(video_path_or_url, start, t_stamp, out_file)
+                else:
+                    cls.extract_best_frame(video_path_or_url, t_stamp, out_file)
+                created.append(out_file)
+            except Exception as e:
+                logger.warning(f"Failed candidate {name} for clip {rank}: {e}")
+
+        return created
