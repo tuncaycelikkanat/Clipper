@@ -248,9 +248,12 @@ class ThumbnailGenerator:
                         output_path=out_path,
                     )
                 else:
+                    dur = max(1.0, end - start)
+                    local_seek = (peak - start) if (peak >= start and start > 0) else peak
+                    local_seek = max(0.1, min(dur - 0.2, local_seek))
                     cls.extract_best_frame(
                         video_path=video_path_or_url,
-                        peak_time=peak,
+                        peak_time=local_seek,
                         output_path=out_path,
                     )
                 generated.append(out_path)
@@ -307,7 +310,10 @@ class ThumbnailGenerator:
                 if is_url:
                     cls.extract_best_frame_from_url(video_path_or_url, start, t_stamp, out_file)
                 else:
-                    cls.extract_best_frame(video_path_or_url, t_stamp, out_file)
+                    # If extracting from a rendered clip, convert absolute video time to local clip time
+                    local_seek = (t_stamp - start) if (t_stamp >= start and start > 0) else t_stamp
+                    local_seek = max(0.1, min(dur - 0.2, local_seek))
+                    cls.extract_best_frame(video_path_or_url, local_seek, out_file)
                 created.append(out_file)
             except Exception as e:
                 logger.warning(f"Failed candidate {name} for clip {rank}: {e}")
