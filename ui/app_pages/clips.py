@@ -28,10 +28,10 @@ try:
             col_f1, col_f2 = st.columns(2)
             with col_f1:
                 video_options = ["Tüm Videolar"] + videos_df["title"].tolist()
-                selected_video = st.selectbox("Videoya Göre Filtrele", video_options, icon=":material/movie:")
+                selected_video = st.selectbox("Videoya Göre Filtrele", video_options)
             with col_f2:
                 categories = ["Tümü"] + (clips_df["category"].dropna().unique().tolist() if not clips_df.empty else [])
-                selected_category = st.selectbox("Kategoriye Göre Filtrele", categories, icon=":material/category:")
+                selected_category = st.selectbox("Kategoriye Göre Filtrele", categories)
 
         if not clips_df.empty:
             filtered_clips = clips_df.copy()
