@@ -3,12 +3,18 @@ ui/app_pages/export.py — Upload to YouTube, webhook settings
 """
 
 import os
+import glob
 from pathlib import Path
 import streamlit as st
+import pandas as pd
 from core.uploader import YouTubeUploader
 from core.notifier import Notifier
+from core.database import DatabaseManager
 
-st.header("Dışa Aktar & Bildirimler", anchor=False)
+db = DatabaseManager()
+db.init_db()
+
+st.header("Dışa Aktar & Yayınla", anchor=False)
 st.caption("Renderlanan klipleri doğrudan YouTube Shorts'a yükleyin veya Discord / Telegram kanallarına otomatik fırlatın.")
 
 tab_yt, tab_hook = st.tabs(["YouTube Shorts Yükleme", "Webhook & Bildirimler"])
@@ -20,32 +26,75 @@ with tab_yt:
         if uploader.is_authenticated():
             st.success("YouTube Hesabı Bağlandı ve Yetkilendirildi", icon=":material/check_circle:")
             
-            with st.form("upload_form"):
-                video_path = st.text_input("Klip Dosya Yolu (.mp4)", placeholder="outputs/clips/Kanal_Adi/clip_1.mp4")
-                title = st.text_input("Shorts Başlığı", max_chars=100, placeholder="En İyi An! #shorts #gaming")
-                desc = st.text_area("Açıklama", placeholder="Orijinal video linki ve etiketler...")
-                tags = st.text_input("Etiketler (Virgülle ayırın)", value="shorts, gaming, highlights")
+            # Find available rendered clips
+            rendered_files = glob.glob("outputs/clips/**/*.mp4", recursive=True)
+            rendered_files = [f for f in rendered_files if not os.path.basename(f).startswith("raw_cut_")]
+            
+            if rendered_files:
+                selected_file = st.selectbox(
+                    "Yüklenecek Klibi Seçin",
+                    options=rendered_files,
+                    format_func=lambda x: f"🎬 {os.path.basename(x)} ({os.path.dirname(x).split('/')[-1]})"
+                )
                 
-                submitted = st.form_submit_button("YouTube'a Yükle", type="primary", icon=":material/upload:")
-                if submitted:
-                    if os.path.exists(video_path):
-                        with st.spinner("Video YouTube sunucularına yükleniyor..."):
+                # Try to find matching thumbnail automatically
+                base_name = os.path.basename(selected_file).replace(".mp4", "")
+                parent_dir = os.path.basename(os.path.dirname(selected_file))
+                
+                # Check potential thumbnail paths
+                potential_thumbs = [
+                    f"outputs/thumbnails/{parent_dir}/clip_1_thumb.jpg",
+                    f"outputs/thumbnails/{parent_dir}/clip_2_thumb.jpg",
+                    f"outputs/thumbnails/{parent_dir}/clip_3_thumb.jpg",
+                ]
+                default_thumb = ""
+                for pt in potential_thumbs:
+                    if os.path.exists(pt):
+                        default_thumb = pt
+                        break
+
+                with st.form("upload_form"):
+                    col_f1, col_f2 = st.columns([3, 2])
+                    with col_f1:
+                        title_candidate = os.path.basename(selected_file).replace(".mp4", "").replace("_", " ")
+                        title = st.text_input("Shorts Başlığı", value=title_candidate[:90] + " #shorts #gaming", max_chars=100)
+                        tags = st.text_input("Etiketler (Virgülle ayırın)", value="shorts, gaming, funny, highlight, clips")
+                        thumb_path = st.text_input("Özel Kapak Resmi Yolu (.jpg)", value=default_thumb, placeholder="outputs/thumbnails/.../clip_1_thumb.jpg")
+                    with col_f2:
+                        desc = st.text_area(
+                            "Video Açıklaması",
+                            value=f"Bu klip Gaming AI Clipper stüdyosu tarafından otonom olarak üretilmiştir.\n\n#Shorts #Gaming #Highlights",
+                            height=150
+                        )
+
+                    submitted = st.form_submit_button("YouTube'a Yükle", type="primary", icon=":material/upload:", width="stretch")
+                    if submitted:
+                        with st.spinner("Video ve kapak resmi YouTube sunucularına yükleniyor..."):
                             try:
                                 res = uploader.upload_short(
-                                    video_path=video_path,
+                                    video_path=selected_file,
                                     title=title,
                                     description=desc,
-                                    tags=[t.strip() for t in tags.split(",") if t.strip()]
+                                    tags=[t.strip() for t in tags.split(",") if t.strip()],
+                                    thumbnail_path=thumb_path if thumb_path and os.path.exists(thumb_path) else None
                                 )
                                 st.success(f"Yükleme Başarılı! Video URL: {res['url']}", icon=":material/verified:")
                             except Exception as e:
                                 st.error(f"Yükleme başarısız: {e}")
-                    else:
-                        st.error("Dosya bulunamadı. Lütfen yolu kontrol edin.")
+            else:
+                st.info("Henüz renderlanmış klip bulunamadı. Önce 'Analiz & Edit' sayfasından bir klip oluşturun.", icon=":material/info:")
+
         else:
             st.warning("YouTube Hesabı Doğrulaması Gerekiyor (OAuth2)", icon=":material/lock:")
-            st.caption("credentials.json dosyasını proje kök dizinine yerleştirdikten sonra aşağıdaki butona tıklayın.")
-            if st.button("YouTube ile Giriş Yap", icon=":material/login:"):
+            st.markdown("""
+            **Kurulum Adımları:**
+            1. [Google Cloud Console](https://console.cloud.google.com/) adresine gidin.
+            2. Bir proje açıp **YouTube Data API v3** servisini etkinleştirin.
+            3. OAuth 2.0 Client ID oluşturun (Uygulama tipi: *Desktop App*).
+            4. İndirdiğiniz JSON dosyasını proje kök dizinine **`credentials.json`** adıyla kaydedin.
+            5. Aşağıdaki butona tıklayarak tarayıcıdan izin verin.
+            """)
+            if st.button("YouTube ile Giriş Yap", icon=":material/login:", type="primary"):
                 try:
                     uploader.authenticate()
                     st.rerun()

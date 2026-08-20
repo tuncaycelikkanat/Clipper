@@ -30,8 +30,11 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 
-# OAuth scopes required for uploading videos
-_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# OAuth scopes required for uploading videos and setting thumbnails
+_SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
+]
 
 _SETUP_INSTRUCTIONS = """
 YouTube API credentials not found at '{path}'.
@@ -137,6 +140,7 @@ class YouTubeUploader:
         title: str,
         description: str = "",
         tags: Optional[list[str]] = None,
+        thumbnail_path: Optional[str] = None,
         made_for_kids: bool = False,
     ) -> dict:
         """
@@ -147,6 +151,7 @@ class YouTubeUploader:
             title: Video title (max 100 chars).
             description: Video description.
             tags: List of tag strings.
+            thumbnail_path: Optional path to .jpg thumbnail file to attach.
             made_for_kids: Whether the video is made for children.
 
         Returns:
@@ -212,6 +217,18 @@ class YouTubeUploader:
         )
         url = f"https://www.youtube.com/shorts/{video_id}"
         logger.success(f"Upload complete → {url}")
+
+        if thumbnail_path and os.path.exists(thumbnail_path):
+            try:
+                logger.info(f"Uploading custom thumbnail for video {video_id}…")
+                thumb_media = MediaFileUpload(thumbnail_path, mimetype="image/jpeg")
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=thumb_media,
+                ).execute()
+                logger.success("Custom thumbnail uploaded successfully.")
+            except Exception as e:
+                logger.warning(f"Could not upload custom thumbnail: {e}")
 
         return {
             "video_id": video_id,
