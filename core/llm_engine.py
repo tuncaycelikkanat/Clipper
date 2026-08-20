@@ -168,6 +168,20 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
         api_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate high-CTR title, SEO description, and tags for YouTube Shorts."""
+        # 1. Try DeepSeek V3/R1 first if configured (Dream Team Creative Lead)
+        try:
+            from core.deepseek_engine import DeepSeekEngine
+            if DeepSeekEngine.is_available():
+                return DeepSeekEngine.generate_shorts_copy(
+                    clip_title=clip_title,
+                    hook_caption=hook_caption,
+                    category=category,
+                    video_title=video_title
+                )
+        except Exception:
+            pass
+
+        # 2. Fallback to Gemini Flash
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:
             # Clean heuristic fallback

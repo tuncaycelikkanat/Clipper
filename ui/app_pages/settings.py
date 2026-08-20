@@ -15,20 +15,34 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 st.header("Sistem & Ayarlar", anchor=False)
 st.caption("API yapılandırmaları, zamanlanmış kanal botları ve disk önbellek yönetimi.")
 
-# Section 1: API Status
+# Section 1: API Status (Dream Team)
 with st.container(border=True):
-    st.subheader("API Yapılandırması", anchor=False)
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    masked_key = gemini_key[:6] + "..." + gemini_key[-4:] if gemini_key else "Tanımlanmamış"
+    st.subheader("Yapay Zeka Motorları (Dream Team)", anchor=False)
+    st.caption("Gemini Flash devasa video transkript analizini ve aday seçimini yapar; DeepSeek ise viral kanca ve başlıkları kurgular.")
     
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    masked_gemini = gemini_key[:6] + "..." + gemini_key[-4:] if gemini_key else "Tanımlanmamış"
+    
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
+    masked_deepseek = deepseek_key[:6] + "..." + deepseek_key[-4:] if deepseek_key else "Tanımlanmamış (Gemini yedekte)"
+
     col_k1, col_k2 = st.columns([3, 1], vertical_alignment="center")
     with col_k1:
-        st.text_input("GEMINI_API_KEY", value=masked_key, disabled=True, help=".env dosyasından okunur")
+        st.text_input("GEMINI_API_KEY (Analiz Motoru)", value=masked_gemini, disabled=True)
     with col_k2:
         if gemini_key:
             st.success("Aktif", icon=":material/check:")
         else:
             st.error("Eksik", icon=":material/close:")
+
+    col_d1, col_d2 = st.columns([3, 1], vertical_alignment="center")
+    with col_d1:
+        st.text_input("DEEPSEEK_API_KEY (Kreatif Kanca & Başlık)", value=masked_deepseek, disabled=True)
+    with col_d2:
+        if deepseek_key:
+            st.success("Aktif", icon=":material/check:")
+        else:
+            st.info("İsteğe Bağlı", icon=":material/info:")
 
 # Section 2: Disk & Cache Management
 with st.container(border=True):
