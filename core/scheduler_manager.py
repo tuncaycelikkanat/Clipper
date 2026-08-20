@@ -20,16 +20,15 @@ except ImportError:  # pragma: no cover
     IntervalTrigger = None  # type: ignore[assignment,misc]
 
 try:
-    from core.logger import get_logger
-    logger = get_logger(__name__)
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger(__name__)
 
 try:
-    from core.database import Database  # noqa: F401 — optional
+    from core.database import DatabaseManager  # noqa: F401 — optional
 except ImportError:
-    Database = None  # type: ignore[assignment,misc]
+    DatabaseManager = None  # type: ignore[assignment,misc]
 
 
 class SchedulerManager:
@@ -210,9 +209,9 @@ class SchedulerManager:
 
             # Determine already-processed IDs from DB (optional)
             processed_ids: List[str] = []
-            if Database is not None:
+            if DatabaseManager is not None:
                 try:
-                    db = Database()
+                    db = DatabaseManager()
                     processed_ids = db.get_processed_video_ids(channel_url)
                 except Exception as db_err:
                     logger.warning("DB sorgu hatası, atlanıyor: %s", db_err)

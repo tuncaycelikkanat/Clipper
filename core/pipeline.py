@@ -228,7 +228,10 @@ class ClipperPipeline:
         # Layer 6 — Cut / Render
         # ----------------------------------------------------------------
         self._log("✂️  [6/6] Rendering clips…", cb)
-        cutter = VideoCutter(output_dir=self.output_dir)
+        import re
+        safe_uploader = re.sub(r'[^a-zA-Z0-9_\-]', '_', video_data.get("uploader", "Kanal")).strip("_")
+        channel_out_dir = os.path.join(self.output_dir, safe_uploader)
+        cutter = VideoCutter(output_dir=channel_out_dir)
 
         results: List[Dict[str, Any]] = []
         for idx, (clip, clip_db_id) in enumerate(

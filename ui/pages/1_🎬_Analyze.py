@@ -7,6 +7,7 @@ Streamlit multipage page. All five pipeline layers run here.
 
 import os
 import sys
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -29,6 +30,10 @@ from core.llm_engine import GeminiHighlightEngine
 from core.aligner import AlignmentEngine
 from core.quality_evaluator import QualityEvaluator
 from core.cutter import VideoCutter
+from core.database import DatabaseManager
+
+db = DatabaseManager()
+db.init_db()
 
 # Custom CSS
 st.markdown("""
@@ -259,6 +264,12 @@ if analyze_btn and url_input:
             )
             quality_reports[c["rank"]] = report
 
+        try:
+            db.save_video(video_data)
+            db.save_clips(video_data["id"], final_clips)
+        except Exception as e:
+            st.error(f"Analiz sonuçları veritabanına yazılamadı: {e}")
+
         st.session_state.clips = final_clips
         st.session_state.quality_reports = quality_reports
         st.session_state.generated_clips = {}
@@ -366,7 +377,10 @@ if st.session_state.video_data and st.session_state.clips:
 
     # Final clips with quality reports
     st.markdown(f"### 🏆 Katman 3 & 4: Gemini Flash Tarafından Seçilen En İyi {len(clips)} Klip")
-    cutter = VideoCutter(output_dir="outputs/clips")
+    safe_uploader = re.sub(r'[^a-zA-Z0-9_\-]', '_', vdata.get("uploader", "Kanal")).strip("_")
+    channel_out_dir = os.path.join("outputs", "clips", safe_uploader)
+    os.makedirs(channel_out_dir, exist_ok=True)
+    cutter = VideoCutter(output_dir=channel_out_dir)
 
     for clip in clips:
         rank = clip["rank"]
@@ -442,7 +456,18 @@ if st.session_state.video_data and st.session_state.clips:
                                 enhance_colors=enable_color_grade,
                             )
                             st.session_state.generated_clips[clip_key] = clip_path
-                            st.success("Klip başarıyla editlendi ve hazır!")
+                            try:
+                                db.save_video(vdata)
+                                db.save_clips(vdata["id"], [clip])
+                            except Exception as e:
+                                st.warning(f"DB Kayıt Hatası (Render Öncesi): {e}")
+                                pass
+                            
+                            try:
+                                db.save_render(clip.get("id", f"{vdata['id']}_clip_{rank}"), selected_render_mode, clip_path)
+                                st.success("Klip başarıyla editlendi ve hazır!")
+                            except Exception as e:
+                                st.error(f"Render Veritabanına Yazılamadı: {e}")
                         except Exception as e:
                             st.error(f"Klip editlenirken hata: {str(e)}")
                             
@@ -451,11 +476,12 @@ if st.session_state.video_data and st.session_state.clips:
                     with st.spinner("Thumbnail üretiliyor..."):
                         try:
                             from core.thumbnail import ThumbnailGenerator
-                            thumb_path = f"outputs/thumbnails/clip_{rank}_thumb.jpg"
+                            thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
+                            thumb_path = os.path.join(thumb_dir, f"{vdata['id']}_clip_{rank}_thumb.jpg")
                             ThumbnailGenerator.batch_generate_thumbnails(
                                 clips=[clip],
                                 video_path_or_url=vdata["url"],
-                                output_dir="outputs/thumbnails"
+                                output_dir=thumb_dir
                             )
                             st.success("Thumbnail üretildi!")
                         except Exception as e:
@@ -479,7 +505,8 @@ if st.session_state.video_data and st.session_state.clips:
                             use_container_width=True,
                         )
                         
-                        thumb_path = f"outputs/thumbnails/clip_{rank}_thumb.jpg"
+                        thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
+                        thumb_path = os.path.join(thumb_dir, f"{vdata['id']}_clip_{rank}_thumb.jpg")
                         if os.path.exists(thumb_path):
                             st.image(thumb_path, caption=f"Klip #{rank} Thumbnail", use_container_width=True)
 

@@ -4,8 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
-outputs/clips/*.mp4
-outputs/clips/*.ass
+outputs/clips/
 outputs/thumbnails/
 outputs/logs/
 outputs/test_clips/*.mp4

@@ -1,6 +1,7 @@
 import os
 import time
 import glob
+from pathlib import Path
 from core.logger import logger
 
 class CacheManager:
@@ -18,17 +19,18 @@ class CacheManager:
         max_age_seconds = max_age_days * 24 * 60 * 60
         deleted_count = 0
         
-        for filename in os.listdir(self.output_dir):
-            filepath = os.path.join(self.output_dir, filename)
-            if os.path.isfile(filepath):
-                file_age = now - os.path.getmtime(filepath)
-                if file_age > max_age_seconds:
-                    try:
-                        os.remove(filepath)
-                        deleted_count += 1
-                        logger.debug("Deleted old render file: {}", filepath)
-                    except Exception as e:
-                        logger.error("Failed to delete file {}: {}", filepath, e)
+        for root, _, files in os.walk(self.output_dir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                if os.path.isfile(filepath):
+                    file_age = now - os.path.getmtime(filepath)
+                    if file_age > max_age_seconds:
+                        try:
+                            os.remove(filepath)
+                            deleted_count += 1
+                            logger.debug("Deleted old render file: {}", filepath)
+                        except Exception as e:
+                            logger.error("Failed to delete file {}: {}", filepath, e)
                         
         logger.info("Cleaned up {} old render files", deleted_count)
 
@@ -40,11 +42,12 @@ class CacheManager:
         total_bytes = 0
         clip_count = 0
         
-        for filename in os.listdir(self.output_dir):
-            filepath = os.path.join(self.output_dir, filename)
-            if os.path.isfile(filepath) and filename.endswith(".mp4") and not filename.startswith("raw_cut_"):
-                total_bytes += os.path.getsize(filepath)
-                clip_count += 1
+        for root, _, files in os.walk(self.output_dir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                if os.path.isfile(filepath) and filename.endswith(".mp4") and not filename.startswith("raw_cut_"):
+                    total_bytes += os.path.getsize(filepath)
+                    clip_count += 1
                 
         return {"total_bytes": total_bytes, "clip_count": clip_count}
 
@@ -56,12 +59,12 @@ class CacheManager:
         deleted_count = 0
         
         temp_patterns = [
-            os.path.join(self.output_dir, "raw_cut_*.mp4"),
-            os.path.join(self.output_dir, "*.ass")
+            os.path.join(self.output_dir, "**", "raw_cut_*.mp4"),
+            os.path.join(self.output_dir, "**", "*.ass")
         ]
         
         for pattern in temp_patterns:
-            for filepath in glob.glob(pattern):
+            for filepath in glob.glob(pattern, recursive=True):
                 try:
                     os.remove(filepath)
                     deleted_count += 1

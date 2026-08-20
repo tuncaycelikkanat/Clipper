@@ -248,7 +248,10 @@ class DatabaseManager:
         inserted_ids: List[str] = []
         with self._connect() as conn:
             for clip in clips:
-                clip_id = str(uuid.uuid4())
+                rank = clip.get("rank", 0)
+                clip_id = f"{video_id}_clip_{rank}"
+                # Store the id back into the clip dict so the caller can use it
+                clip["id"] = clip_id
                 params: Dict[str, Any] = {
                     "id": clip_id,
                     "video_id": video_id,
