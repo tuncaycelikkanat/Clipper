@@ -158,6 +158,7 @@ with col_url:
         placeholder="https://www.youtube.com/watch?v=...",
         label_visibility="collapsed",
     )
+    force_reanalyze = st.checkbox("Önbelleği Yoksay (Yeniden Analiz Et)", value=False)
 with col_btn:
     analyze_btn = st.button("🚀 Otonom Analiz & Edit", type="primary", use_container_width=True)
 
@@ -179,104 +180,127 @@ with sample_col3:
 
 # ── 5-Layer Pipeline ──────────────────────────────────────────────────────────
 if analyze_btn and url_input:
-    progress_bar = st.progress(0, text="Katman 1: Video bilgileri ve transkript alınıyor...")
+    progress_bar = st.progress(0, text="Katman 1: Video bilgileri alınıyor...")
     try:
         video_data = YouTubeExtractor.get_video_data(url_input)
-        st.session_state.video_data = video_data
-        transcript = TranscriptManager.get_transcript(video_data["id"])
-        st.session_state.transcript = transcript
-
-        progress_bar.progress(20, text="Katman 1: Ses Enerji Patlamaları & Sessizlik-Şok Analizi yapılıyor...")
-        times, rms = AudioDSPAnalyzer.extract_audio_energy(
-            video_data["url"], duration_sec=video_data["duration"]
-        )
-        dsp_signals = AudioDSPAnalyzer.detect_signals(times, rms)
-        st.session_state.signals = dsp_signals
-
-        progress_bar.progress(40, text="Katman 2: Skorlar birleştirilip Top-N aday havuzu oluşturuluyor...")
-        ranker = CandidateRanker(candidate_window_sec=35, merge_threshold_sec=8, top_n=12)
-        candidates = ranker.fuse_signals_and_generate_candidates(
-            times=dsp_signals["times"],
-            audio_spikes=dsp_signals["audio_spikes"],
-            silence_bursts=dsp_signals["silence_bursts"],
-            heatmap=video_data["heatmap"],
-            transcript=transcript,
-            total_duration=video_data["duration"],
-        )
-        st.session_state.candidates = candidates
-
-        progress_bar.progress(65, text="Katman 3: Gemini Flash tek batch çağrıda tüm adayları yargılıyor...")
-        if active_key:
-            judged_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
-                candidates=candidates,
-                video_title=video_data["title"],
+        cached_clips = None
+        
+        # Check cache early
+        if not force_reanalyze and db.video_exists(video_data["id"]):
+            cached_clips = db.get_clips_for_video(video_data["id"])
+            if cached_clips:
+                st.session_state.video_data = video_data
+                st.session_state.clips = cached_clips
+                st.session_state.transcript = TranscriptManager.get_transcript(video_data["id"])
+                
+                # Mock signals & reports to prevent KeyError down the line
+                st.session_state.signals = {"times": [], "rms": [], "audio_spikes": [], "silence_bursts": []}
+                st.session_state.candidates = []
+                st.session_state.quality_reports = {}
+                st.session_state.generated_clips = {}
+                
+                progress_bar.progress(100, text="Önbellekten Yüklendi! ✅")
+                st.success(f"Video daha önce analiz edilmiş. {len(cached_clips)} klip önbellekten hızlıca getirildi.")
+            else:
+                cached_clips = None
+                
+        if force_reanalyze or not db.video_exists(video_data["id"]) or not cached_clips:
+            st.session_state.video_data = video_data
+            transcript = TranscriptManager.get_transcript(video_data["id"])
+            st.session_state.transcript = transcript
+    
+            progress_bar.progress(20, text="Katman 1: Ses Enerji Patlamaları & Sessizlik-Şok Analizi yapılıyor...")
+            times, rms = AudioDSPAnalyzer.extract_audio_energy(
+                video_data["url"], duration_sec=video_data["duration"]
+            )
+            dsp_signals = AudioDSPAnalyzer.detect_signals(times, rms)
+            st.session_state.signals = dsp_signals
+    
+            progress_bar.progress(40, text="Katman 2: Skorlar birleştirilip Top-N aday havuzu oluşturuluyor...")
+            ranker = CandidateRanker(candidate_window_sec=35, merge_threshold_sec=8, top_n=12)
+            candidates = ranker.fuse_signals_and_generate_candidates(
+                times=dsp_signals["times"],
+                audio_spikes=dsp_signals["audio_spikes"],
+                silence_bursts=dsp_signals["silence_bursts"],
+                heatmap=video_data["heatmap"],
+                transcript=transcript,
                 total_duration=video_data["duration"],
-                target_clips=3,
-                api_key=active_key,
             )
-        else:
-            judged_clips = []
-            for rank, c in enumerate(candidates[:3], start=1):
-                judged_clips.append({
-                    "rank": rank,
-                    "title": f"Highlight #{rank}",
-                    "category": "ACTION",
-                    "score": c["fusion_score"],
-                    "hook_caption": "İşte o an!",
-                    "reason": "Sinyal işleme zirve noktası",
-                    "start_time": c["start_time"],
-                    "start_formatted": c["start_formatted"],
-                    "end_time": c["end_time"],
-                    "end_formatted": c["end_formatted"],
-                    "duration": c["duration"],
-                    "duration_formatted": f"{int(c['duration'])} sn",
-                    "text": c["transcript_snippet"],
-                })
+            st.session_state.candidates = candidates
 
-        progress_bar.progress(80, text="Katman 4: Sınırlar ses sessizlik noktalarına hizalanıyor...")
-        final_clips = []
-        for c in judged_clips:
-            ref_start, ref_end = AlignmentEngine.refine_cut_points(
-                c["start_time"],
-                c["end_time"],
-                times=dsp_signals["times"],
-                rms=dsp_signals["rms"],
-                transcript=transcript,
+            progress_bar.progress(65, text="Katman 3: Gemini Flash tek batch çağrıda tüm adayları yargılıyor...")
+            if active_key:
+                judged_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
+                    candidates=candidates,
+                    video_title=video_data["title"],
+                    total_duration=video_data["duration"],
+                    target_clips=3,
+                    api_key=active_key,
+                )
+            else:
+                judged_clips = []
+                for rank, c in enumerate(candidates[:3], start=1):
+                    judged_clips.append({
+                        "rank": rank,
+                        "title": f"Highlight #{rank}",
+                        "category": "ACTION",
+                        "score": c["fusion_score"],
+                        "hook_caption": "İşte o an!",
+                        "reason": "Sinyal işleme zirve noktası",
+                        "start_time": c["start_time"],
+                        "start_formatted": c["start_formatted"],
+                        "end_time": c["end_time"],
+                        "end_formatted": c["end_formatted"],
+                        "duration": c["duration"],
+                        "duration_formatted": f"{int(c['duration'])} sn",
+                        "text": c["transcript_snippet"],
+                    })
+    
+            progress_bar.progress(80, text="Katman 4: Sınırlar ses sessizlik noktalarına hizalanıyor...")
+            final_clips = []
+            for c in judged_clips:
+                ref_start, ref_end = AlignmentEngine.refine_cut_points(
+                    c["start_time"],
+                    c["end_time"],
+                    times=dsp_signals["times"],
+                    rms=dsp_signals["rms"],
+                    transcript=transcript,
+                )
+                c["start_time"] = ref_start
+                c["start_formatted"] = YouTubeExtractor.format_seconds(ref_start)
+                c["end_time"] = ref_end
+                c["end_formatted"] = YouTubeExtractor.format_seconds(ref_end)
+                c["duration"] = round(ref_end - ref_start, 1)
+                c["duration_formatted"] = f"{int(c['duration'])} sn"
+                final_clips.append(c)
+    
+            progress_bar.progress(90, text="Kalite Değerlendirmesi: Her klip için detaylı karne çıkarılıyor...")
+            quality_reports: dict = {}
+            for c in final_clips:
+                report = QualityEvaluator.evaluate_clip(
+                    clip=c,
+                    video_title=video_data["title"],
+                    times=dsp_signals["times"],
+                    rms=dsp_signals["rms"],
+                    transcript=transcript,
+                    api_key=active_key,
+                )
+                quality_reports[c["rank"]] = report
+    
+            try:
+                db.save_video(video_data)
+                db.save_clips(video_data["id"], final_clips)
+            except Exception as e:
+                st.error(f"Analiz sonuçları veritabanına yazılamadı: {e}")
+    
+            st.session_state.clips = final_clips
+            st.session_state.quality_reports = quality_reports
+        if force_reanalyze or not db.video_exists(video_data["id"]) or not cached_clips:
+            st.session_state.generated_clips = {}
+            progress_bar.progress(100, text="Tamamlandı!")
+            st.success(
+                f"Analiz & Kalite Denetimi tamamlandı! {len(st.session_state.clips)} nihai viral klip seçildi."
             )
-            c["start_time"] = ref_start
-            c["start_formatted"] = YouTubeExtractor.format_seconds(ref_start)
-            c["end_time"] = ref_end
-            c["end_formatted"] = YouTubeExtractor.format_seconds(ref_end)
-            c["duration"] = round(ref_end - ref_start, 1)
-            c["duration_formatted"] = f"{int(c['duration'])} sn"
-            final_clips.append(c)
-
-        progress_bar.progress(90, text="Kalite Değerlendirmesi: Her klip için detaylı karne çıkarılıyor...")
-        quality_reports: dict = {}
-        for c in final_clips:
-            report = QualityEvaluator.evaluate_clip(
-                clip=c,
-                video_title=video_data["title"],
-                times=dsp_signals["times"],
-                rms=dsp_signals["rms"],
-                transcript=transcript,
-                api_key=active_key,
-            )
-            quality_reports[c["rank"]] = report
-
-        try:
-            db.save_video(video_data)
-            db.save_clips(video_data["id"], final_clips)
-        except Exception as e:
-            st.error(f"Analiz sonuçları veritabanına yazılamadı: {e}")
-
-        st.session_state.clips = final_clips
-        st.session_state.quality_reports = quality_reports
-        st.session_state.generated_clips = {}
-        progress_bar.progress(100, text="Tamamlandı!")
-        st.success(
-            f"Analiz & Kalite Denetimi tamamlandı! {len(final_clips)} nihai viral klip seçildi."
-        )
 
     except Exception as e:
         progress_bar.empty()

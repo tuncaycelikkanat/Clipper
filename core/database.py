@@ -141,16 +141,22 @@ class DatabaseManager:
     # ------------------------------------------------------------------
 
     def video_exists(self, video_id: str) -> bool:
-        """Return *True* if a row with *video_id* exists in the videos table.
-
-        Args:
-            video_id: The YouTube video ID (e.g. ``"dQw4w9WgXcQ"``).
-        """
+        """Return True if *video_id* is in the videos table."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT 1 FROM videos WHERE id = ?", (video_id,)
+                "SELECT 1 FROM videos WHERE id = ?;", (video_id,)
             ).fetchone()
-        return row is not None
+            return row is not None
+
+    def get_video(self, video_id: str) -> Optional[Dict[str, Any]]:
+        """Return video metadata if it exists, otherwise None."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM videos WHERE id = ?;", (video_id,)
+            ).fetchone()
+            if row:
+                return dict(row)
+            return None
 
     def save_video(self, video_data: Dict[str, Any]) -> str:
         """Upsert a video record.
