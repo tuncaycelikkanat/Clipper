@@ -172,12 +172,14 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
         try:
             from core.deepseek_engine import DeepSeekEngine
             if DeepSeekEngine.is_available():
-                return DeepSeekEngine.generate_shorts_copy(
+                res = DeepSeekEngine.generate_shorts_copy(
                     clip_title=clip_title,
                     hook_caption=hook_caption,
                     category=category,
                     video_title=video_title
                 )
+                res["provider"] = "DeepSeek V3 (Kreatif Motor)"
+                return res
         except Exception:
             pass
 
@@ -188,7 +190,7 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
             clean_title = f"{clip_title} 🔥 #Shorts #Gaming"
             clean_desc = f"🎯 {hook_caption}\n\nOrijinal Video: {video_title}\n\n#Shorts #Gaming #Viral #Highlights"
             clean_tags = ["shorts", "gaming", "viral", "highlights", "komik anlar", "türkçe gaming"]
-            return {"title": clean_title, "description": clean_desc, "tags": clean_tags}
+            return {"title": clean_title, "description": clean_desc, "tags": clean_tags, "provider": "Heuristic"}
 
         client = genai.Client(api_key=key)
 
@@ -226,7 +228,8 @@ GÖREVLER:
                 return {
                     "title": res_dict.get("title", f"{clip_title} #Shorts"),
                     "description": res_dict.get("description", f"{hook_caption}\n\n#Shorts"),
-                    "tags": res_dict.get("tags", [video_title.lower(), clip_title.lower(), "shorts", "gaming"])
+                    "tags": res_dict.get("tags", [video_title.lower(), clip_title.lower(), "shorts", "gaming"]),
+                    "provider": f"Google Gemini ({model_name})"
                 }
             except Exception:
                 continue
@@ -234,5 +237,6 @@ GÖREVLER:
         return {
             "title": f"{clip_title} 🔥 #Shorts",
             "description": f"🎯 {hook_caption}\n\n#Shorts #Gaming",
-            "tags": ["shorts", "gaming", "viral"]
+            "tags": ["shorts", "gaming", "viral"],
+            "provider": "Google Gemini (Fallback)"
         }

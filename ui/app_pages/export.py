@@ -77,7 +77,7 @@ with tab_yt:
 
                 with col_ai_btn:
                     if st.button("✨ Yapay Zeka ile Başlık & Açıklama Üret", icon=":material/auto_awesome:", type="secondary", width="stretch"):
-                        with st.spinner("Gemini viral başlık ve SEO açıklaması yazıyor..."):
+                        with st.spinner("Yapay zeka (DeepSeek / Gemini) viral başlık ve SEO açıklaması yazıyor..."):
                             try:
                                 ai_meta = GeminiHighlightEngine.generate_shorts_metadata(
                                     clip_title=clip_info.get("title", os.path.basename(selected_file)),
@@ -88,10 +88,14 @@ with tab_yt:
                                 st.session_state[meta_key]["title"] = ai_meta["title"]
                                 st.session_state[meta_key]["description"] = ai_meta["description"]
                                 st.session_state[meta_key]["tags"] = ", ".join(ai_meta["tags"])
-                                st.toast("Yapay zeka başlık ve açıklamayı başarıyla üretti!", icon="✨")
+                                st.session_state[meta_key]["provider"] = ai_meta.get("provider", "Yapay Zeka")
+                                st.toast(f"Başlık ve açıklama üretildi! ({ai_meta.get('provider', 'AI')})", icon="✨")
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Yapay zeka üretim hatası: {e}")
+
+                if "provider" in st.session_state[meta_key]:
+                    st.caption(f"✨ Son Üretim Motoru: **{st.session_state[meta_key]['provider']}**")
 
                 # Upload Form
                 with st.form("upload_form"):
