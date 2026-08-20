@@ -35,12 +35,15 @@ with st.container(border=True):
         else:
             st.error("Eksik", icon=":material/close:")
 
-    col_d1, col_d2 = st.columns([3, 1], vertical_alignment="center")
-    with col_d1:
-        st.text_input("DEEPSEEK_API_KEY (Kreatif Kanca & Başlık)", value=masked_deepseek, disabled=True)
-    with col_d2:
-        if deepseek_key:
-            st.success("Aktif", icon=":material/check:")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+    masked_or = openrouter_key[:8] + "..." + openrouter_key[-4:] if openrouter_key else "Tanımlanmamış"
+
+    col_or1, col_or2 = st.columns([3, 1], vertical_alignment="center")
+    with col_or1:
+        st.text_input("OPENROUTER_API_KEY (DeepSeek V3 Ücretsiz)", value=masked_or, disabled=True)
+    with col_or2:
+        if openrouter_key:
+            st.success("Aktif (Öncelikli)", icon=":material/verified:")
         else:
             st.info("İsteğe Bağlı", icon=":material/info:")
 

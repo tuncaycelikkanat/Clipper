@@ -7,16 +7,19 @@ from core.deepseek_engine import DeepSeekEngine
 
 
 def test_deepseek_is_available():
-    with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "sk-12345"}):
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-12345", "DEEPSEEK_API_KEY": ""}):
         assert DeepSeekEngine.is_available() is True
 
-    with patch.dict(os.environ, {"DEEPSEEK_API_KEY": ""}, clear=True):
+    with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "sk-12345", "OPENROUTER_API_KEY": ""}):
+        assert DeepSeekEngine.is_available() is True
+
+    with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "", "OPENROUTER_API_KEY": ""}, clear=True):
         assert DeepSeekEngine.is_available() is False
 
 
 def test_deepseek_no_api_key():
-    with patch.dict(os.environ, {"DEEPSEEK_API_KEY": ""}, clear=True):
-        with pytest.raises(ValueError, match="DEEPSEEK_API_KEY"):
+    with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "", "OPENROUTER_API_KEY": ""}, clear=True):
+        with pytest.raises(ValueError, match="Neither OPENROUTER_API_KEY nor DEEPSEEK_API_KEY found."):
             DeepSeekEngine.generate_shorts_copy(
                 clip_title="Clutch",
                 hook_caption="Hook",

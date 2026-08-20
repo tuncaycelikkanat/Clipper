@@ -281,21 +281,38 @@ def test_generate_shorts_metadata_no_api_key():
 
 @patch("core.llm_engine.genai.Client")
 def test_generate_shorts_metadata_success(mock_client_class):
-    mock_client = MagicMock()
-    mock_client_class.return_value = mock_client
-    mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "title": "EN İYİ AN! 🔥 #Shorts",
-        "description": "Açıklama #Shorts",
-        "tags": ["gaming", "shorts"]
-    })
-    mock_client.models.generate_content.return_value = mock_response
-    
-    meta = GeminiHighlightEngine.generate_shorts_metadata(
-        clip_title="Clip",
-        hook_caption="Hook",
-        category="CLUTCH",
-        api_key="fake_key"
-    )
-    assert meta["title"] == "EN İYİ AN! 🔥 #Shorts"
-    assert "gaming" in meta["tags"]
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "", "DEEPSEEK_API_KEY": ""}):
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_response = MagicMock()
+        mock_response.text = json.dumps({
+            "title": "EN İYİ AN! 🔥 #Shorts",
+            "description": "Açıklama #Shorts",
+            "tags": ["gaming", "shorts"]
+        })
+        mock_client.models.generate_content.return_value = mock_response
+        
+        meta = GeminiHighlightEngine.generate_shorts_metadata(
+            clip_title="Clip",
+            hook_caption="Hook",
+            category="CLUTCH",
+            api_key="fake_key"
+        )
+        assert meta["title"] == "EN İYİ AN! 🔥 #Shorts"
+        assert "gaming" in meta["tags"]
+
+@patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
+def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
+    mock_ds_call.return_value = {
+        "title": "DEEPSEEK TITLE #Shorts",
+        "description": "Desc",
+        "tags": ["tag1"],
+        "provider": "DeepSeek V3"
+    }
+    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test"}):
+        meta = GeminiHighlightEngine.generate_shorts_metadata(
+            clip_title="Clip",
+            hook_caption="Hook",
+            category="CLUTCH"
+        )
+        assert meta["title"] == "DEEPSEEK TITLE #Shorts"
