@@ -29,7 +29,7 @@ class GeminiGamingBatchResult(BaseModel):
 class GeminiHighlightEngine:
     """Uses Google Gemini Flash to batch-judge Top-N gaming candidate clips in 1 structured call."""
 
-    MODELS_TO_TRY = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    MODELS_TO_TRY = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]
 
     @classmethod
     def batch_judge_gaming_candidates(
@@ -40,7 +40,7 @@ class GeminiHighlightEngine:
         target_clips: int = 3,
         api_key: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        # Prepare compact JSON payload for LLM analysis
+        # Prepare compact JSON payload for Gemini analysis
         candidates_summary = []
         for c in candidates:
             candidates_summary.append({
@@ -75,50 +75,33 @@ ADAY HAVUZU (TOP-{len(candidates)} Sinyal Verisi):
 Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olarak seçip detaylandır.
 """
 
-        # 1. Primary Engine: DeepSeek V3 (OpenRouter)
+        key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            raise ValueError("GEMINI_API_KEY bulunamadı.")
+
+        client = genai.Client(api_key=key)
+        last_error = None
         data = None
-        try:
-            from core.deepseek_engine import DeepSeekEngine
-            if DeepSeekEngine.is_available():
-                ds_data = DeepSeekEngine.batch_judge_candidates(
-                    candidates_summary=candidates_summary,
-                    video_title=video_title,
-                    total_duration=total_duration,
-                    target_clips=target_clips
+        for model_name in cls.MODELS_TO_TRY:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json",
+                        response_schema=GeminiGamingBatchResult,
+                        temperature=0.3
+                    ),
                 )
-                if ds_data and "selected_clips" in ds_data:
-                    data = ds_data
-        except Exception:
-            data = None
+                data = json.loads(response.text)
+                break
+            except Exception as e:
+                last_error = e
+                continue
 
-        # 2. Fallback to Google Gemini Flash if DeepSeek is not configured or fails
         if not data:
-            key = api_key or os.environ.get("GEMINI_API_KEY")
-            if not key:
-                raise ValueError("Yapay Zeka API Anahtarı (OpenRouter / DeepSeek / Gemini) bulunamadı.")
-
-            client = genai.Client(api_key=key)
-            last_error = None
-            for model_name in cls.MODELS_TO_TRY:
-                try:
-                    response = client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            response_mime_type="application/json",
-                            response_schema=GeminiGamingBatchResult,
-                            temperature=0.3
-                        ),
-                    )
-                    data = json.loads(response.text)
-                    break
-                except Exception as e:
-                    last_error = e
-                    continue
-
-            if not data:
-                raise RuntimeError(f"Yapay Zeka Batch Analiz hatası: {str(last_error)}")
+            raise RuntimeError(f"Gemini Batch Analiz hatası: {str(last_error)}")
 
         verdicts = data.get("selected_clips", [])
         

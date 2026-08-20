@@ -53,7 +53,7 @@ def isolate_gemini_tests():
 
 def test_no_api_key(mock_candidates):
     with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "", "DEEPSEEK_API_KEY": ""}, clear=True):
-        with pytest.raises(ValueError, match="API Anahtarı"):
+        with pytest.raises(ValueError, match="GEMINI_API_KEY"):
             GeminiHighlightEngine.batch_judge_gaming_candidates(
                 candidates=mock_candidates,
                 video_title="Test Video",
@@ -322,30 +322,3 @@ def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
             category="CLUTCH"
         )
         assert meta["title"] == "DEEPSEEK TITLE #Shorts"
-
-@patch("core.deepseek_engine.DeepSeekEngine.batch_judge_candidates")
-def test_batch_judge_deepseek_primary(mock_ds_judge, mock_candidates):
-    mock_ds_judge.return_value = {
-        "selected_clips": [
-            {
-                "candidate_id": 1,
-                "verdict": "KEEP",
-                "category": "CLUTCH",
-                "title": "DeepSeek Clutch",
-                "hook_caption": "Watch out",
-                "why_viral": "Insane skill",
-                "viral_confidence": 98,
-                "suggested_start": 2.0,
-                "suggested_end": 12.0
-            }
-        ]
-    }
-    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test"}):
-        result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-            candidates=mock_candidates,
-            video_title="Test Video",
-            total_duration=100
-        )
-        assert len(result) == 1
-        assert result[0]["title"] == "DeepSeek Clutch"
-        assert result[0]["category"] == "CLUTCH"

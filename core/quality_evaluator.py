@@ -55,26 +55,13 @@ class QualityEvaluator:
         else:
             action_density = 80
 
-        # 3. Primary AI Judge: DeepSeek V3 (OpenRouter)
+        # 3. Gemini-as-a-Judge Evaluation (Calibrated for Gaming / Entertainment)
+        key = api_key or os.environ.get("GEMINI_API_KEY")
         llm_eval = None
-        try:
-            from core.deepseek_engine import DeepSeekEngine
-            if DeepSeekEngine.is_available():
-                llm_eval = DeepSeekEngine.evaluate_quality(
-                    clip=clip,
-                    video_title=video_title,
-                    dur=dur
-                )
-        except Exception:
-            llm_eval = None
-
-        # 4. Fallback AI Judge: Google Gemini Flash
-        if not llm_eval:
-            key = api_key or os.environ.get("GEMINI_API_KEY")
-            if key:
-                try:
-                    client = genai.Client(api_key=key)
-                    prompt = f"""
+        if key:
+            try:
+                client = genai.Client(api_key=key)
+                prompt = f"""
 Sen YouTube Shorts, TikTok ve Reels için milyonlar izlenen Gaming ve Yayın içerikleri üreten Baş Editörsün.
 Aşağıdaki Gaming / Oyun klibini değerlendir.
 
@@ -94,23 +81,23 @@ Kriterler (Oyun & Eğlence Kriterleri):
 
 Lütfen Pydantic JSON olarak değerlendir.
 """
-                    for g_model in ["gemini-3.6-flash", "gemini-3.5-flash"]:
-                        try:
-                            response = client.models.generate_content(
-                                model=g_model,
-                                contents=prompt,
-                                config=types.GenerateContentConfig(
-                                    response_mime_type="application/json",
-                                    response_schema=ClipQualityReport,
-                                    temperature=0.2
-                                )
+                for g_model in ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]:
+                    try:
+                        response = client.models.generate_content(
+                            model=g_model,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                response_schema=ClipQualityReport,
+                                temperature=0.2
                             )
-                            llm_eval = json.loads(response.text)
-                            break
-                        except Exception:
-                            continue
-                except Exception:
-                    llm_eval = None
+                        )
+                        llm_eval = json.loads(response.text)
+                        break
+                    except Exception:
+                        continue
+            except Exception:
+                llm_eval = None
 
         if not llm_eval:
             llm_eval = {

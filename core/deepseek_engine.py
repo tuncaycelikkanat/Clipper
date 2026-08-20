@@ -187,9 +187,14 @@ Lütfen şu JSON formatında yanıt ver:
 
         system_prompt = (
             "Sen Türkiye'nin en popüler YouTube Shorts ve TikTok Gaming kanallarının baş editörüsün. "
-            "Görevin: Verilen oyun klibi için ASLA 'AI slop' (yapay zeka klişesi) olmayan, "
+            "Görevin: Verilen oyun klibi için ASLA robotik 'AI slop' olmayan, "
             "tamamen Türk internet jargonuna, mizahına ve oyunun dinamiklerine uygun "
-            "viral başlık, açıklama ve etiketler üretmek. Yanıtı saf JSON olarak döndür."
+            "viral başlık, açıklama ve etiketler üretmek. Yanıtı saf JSON olarak döndür.\n\n"
+            "KRİTİK KURALLAR:\n"
+            "1. Başlık Kesinlikle Dilbilgisel Olarak Tam Olmalıdır: Asla yarım kalmış veya devrik saçma meme cümleleri kurma. Akıcı, merak veya kahkaha uyandıran tam bir Türkçe cümle yaz.\n"
+            "2. Başlık Formatı: En fazla 90 karakter, dikkat çekici kelimelerde BÜYÜK HARF vurgusu, 2 ilgili emoji ve sonunda '#Shorts' etiketi olmalıdır.\n"
+            "3. Açıklama: İlk satırda samimi kanca, ikinci paragrafta klibin heyecanını anlatan özet, kanal adı ve 5 spesifik hashtag (#OyunAdi #Shorts #Gaming vb.).\n"
+            "4. Etiketler (Tags): Oyunun tam adını, klibin konusunu, oyun mekaniğini ve Türkçe oyun terimlerini içeren 10-14 adet spesifik etiket."
         )
 
         user_prompt = f"""
@@ -201,9 +206,9 @@ Klip Bilgileri:
 
 Lütfen şu JSON formatında yanıt ver:
 {{
-  "title": "Maksimum 90 karakterlik, aşırı merak veya kahkaha uyandıran, BÜYÜK HARF vurgulu, emojili ve sonunda #Shorts etiketi olan Türkçe başlık",
-  "description": "İlk satırda izleyiciyi vuran samimi kanca, klibin komedisini/aksiyonunu anlatan kısa paragraf, oyun adı ve 5 trend hashtag (#OyunAdi #Shorts #Gaming vb.)",
-  "tags": ["oyunun_tam_adi", "klipteki_olay", "turkce_oyun_terimleri", "nis_arama_etiketleri_10_14_adet"]
+  "title": "AKICI, MERAK UYANDIRAN TAM TÜRKÇE CÜMLE! 🚗💥 #Shorts",
+  "description": "İlk satır kanca, özet paragrafı ve hashtagler",
+  "tags": ["oyunun_tam_adi", "klipteki_olay", "turkce_oyun_terimleri", "nis_etiketler"]
 }}
 """
 
