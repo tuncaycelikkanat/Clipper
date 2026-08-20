@@ -118,7 +118,20 @@ try:
                                             use_whisper=False
                                         )
                                         db.save_render(clip["id"], "square_1x1_black", clip_path)
-                                        st.toast("Klip başarıyla renderlandı!", icon="🎉")
+                                        
+                                        # Auto-generate thumbnail
+                                        try:
+                                            thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
+                                            from core.thumbnail import ThumbnailGenerator
+                                            ThumbnailGenerator.batch_generate_thumbnails(
+                                                clips=[{**dict(clip), "start_time": 0.0, "end_time": float(clip["duration"])}],
+                                                video_path_or_url=clip_path,
+                                                output_dir=thumb_dir
+                                            )
+                                        except Exception:
+                                            pass
+
+                                        st.toast("Klip ve thumbnail başarıyla hazırlandı!", icon="🎉")
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Render hatası: {str(e)}")

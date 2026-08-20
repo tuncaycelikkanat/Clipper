@@ -260,6 +260,18 @@ class ClipperPipeline:
                 self.db.save_render(clip_db_id, render_mode, render_path)
                 clip["render_path"] = render_path
                 self._log(f"   ✓ Saved → {render_path}", cb)
+
+                # Auto-generate thumbnail
+                try:
+                    thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
+                    from core.thumbnail import ThumbnailGenerator
+                    ThumbnailGenerator.batch_generate_thumbnails(
+                        clips=[{**clip, "start_time": 0.0, "end_time": clip["duration"]}],
+                        video_path_or_url=render_path,
+                        output_dir=thumb_dir
+                    )
+                except Exception:
+                    pass
             except Exception as exc:
                 logger.error("Render failed for clip {}: {}", clip_db_id, exc)
                 render_path = ""

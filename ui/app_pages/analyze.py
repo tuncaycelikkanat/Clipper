@@ -234,11 +234,24 @@ if analyze_btn and url_input:
                 except Exception as e:
                     st.error(f"Veritabanı kayıt hatası: {e}")
 
+                # Auto-generate thumbnails for all selected clips
+                st.write("🖼️ Kapak resimleri (thumbnails) otomatik üretiliyor...")
+                try:
+                    safe_uploader_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', video_data.get("uploader", "Kanal")).strip("_")
+                    thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader_name)
+                    ThumbnailGenerator.batch_generate_thumbnails(
+                        clips=final_clips,
+                        video_path_or_url=video_data["url"],
+                        output_dir=thumb_dir
+                    )
+                except Exception as e:
+                    pass
+
                 st.session_state.clips = final_clips
                 st.session_state.quality_reports = quality_reports
                 st.session_state.generated_clips = {}
-                status.update(label=f"Analiz tamamlandı! {len(final_clips)} klip bulundu.", state="complete", expanded=False)
-                st.toast("Analiz başarıyla tamamlandı!", icon="🎉")
+                status.update(label=f"Analiz tamamlandı! {len(final_clips)} klip ve thumbnail hazır.", state="complete", expanded=False)
+                st.toast("Analiz ve kapak resimleri başarıyla tamamlandı!", icon="🎉")
 
         except Exception as e:
             status.update(label=f"Hata oluştu: {str(e)}", state="error")
@@ -376,7 +389,19 @@ if st.session_state.video_data and st.session_state.clips:
                             except Exception:
                                 pass
                             db.save_render(clip.get("id", f"{vdata['id']}_clip_{rank}"), render_mode_val, clip_path)
-                            st.success("Klip başarıyla editlendi ve hazır!", icon=":material/check:")
+                            
+                            # Automatically generate thumbnail from newly rendered clip
+                            try:
+                                thumb_dir = os.path.join("outputs", "thumbnails", safe_uploader)
+                                ThumbnailGenerator.batch_generate_thumbnails(
+                                    clips=[{**clip, "start_time": 0.0, "end_time": dur_sel}],
+                                    video_path_or_url=clip_path,
+                                    output_dir=thumb_dir
+                                )
+                            except Exception:
+                                pass
+                                
+                            st.success("Klip ve thumbnail başarıyla editlendi ve hazır!", icon=":material/check:")
                         except Exception as e:
                             st.error(f"Klip render hatası: {str(e)}")
 
