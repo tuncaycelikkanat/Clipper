@@ -1,16 +1,45 @@
-# .gitignore
+# Environments & Virtual Environments
 .venv/
-__pycache__/
-*.pyc
-*.pyo
+venv/
+ENV/
+env/
 .env
-outputs/clips/
-outputs/thumbnails/
-outputs/logs/
-outputs/test_clips/*.mp4
-scratch/
-*.db
+.env.*
+!.env.example
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Outputs, Logs, Media & Renders
+outputs/
+*.mp4
+*.mkv
+*.webm
+*.ass
+*.srt
+*.jpg
+*.jpeg
+*.png
+*.gif
 *.log
+
+# Databases & Scratch Files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+scratch/
+
+# Google OAuth & Secrets
 credentials.json
 client_secret*.json
 token.json
+.system_generated/
+.agents/
