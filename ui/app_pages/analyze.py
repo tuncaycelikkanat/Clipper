@@ -48,6 +48,14 @@ st.caption("5 katmanlı sinyal işleme ve Gemini yapay zekası ile YouTube video
 with st.sidebar:
     st.subheader("Edit & Render Ayarları")
     
+    target_clips = st.slider(
+        "Hedef Klip Sayısı",
+        min_value=1,
+        max_value=20,
+        value=3,
+        help="Analiz sonrası üretilecek en iyi klip sayısı (1 - 20)"
+    )
+
     selected_render_mode = st.segmented_control(
         "Klip Formatı",
         options=[
@@ -73,7 +81,7 @@ with st.sidebar:
     enable_subtitles = st.toggle("Karaoke Altyazı (ASS)", value=True, help="Neon sarı kelime vurgulu altyazı")
     enable_hook_card = st.toggle("Kanca Başlık Kartı (İlk 3 Sn)", value=True, help="İlk 3 saniye animasyonlu dikkat çekici başlık")
     enable_color_grade = st.toggle("Renk İyileştirme (+Vibrance)", value=True, help="FFmpeg canlı renk & kontrast filtresi")
-    use_whisper = st.toggle("Whisper Kelime Senkronu", value=False, help="faster-whisper ile milisaniyelik kelime zamanlaması")
+    use_whisper = st.toggle("Whisper Kelime Senkronu", value=True, help="faster-whisper ile milisaniyelik kelime zamanlaması")
     
     st.markdown("---")
     active_key = os.environ.get("GEMINI_API_KEY", "")
@@ -157,8 +165,9 @@ if analyze_btn and url_input:
                 dsp_signals = AudioDSPAnalyzer.detect_signals(times, rms)
                 st.session_state.signals = dsp_signals
 
-                st.write("🎯 [Katman 3/5] Çoklu sinyal füzyonu ile Top-12 aday havuzu oluşturuluyor...")
-                ranker = CandidateRanker(candidate_window_sec=35, merge_threshold_sec=8, top_n=12)
+                pool_size = max(target_clips * 3, 15)
+                st.write(f"🎯 [Katman 3/5] Çoklu sinyal füzyonu ile Top-{pool_size} aday havuzu oluşturuluyor...")
+                ranker = CandidateRanker(candidate_window_sec=35, merge_threshold_sec=8, top_n=pool_size)
                 candidates = ranker.fuse_signals_and_generate_candidates(
                     times=dsp_signals["times"],
                     audio_spikes=dsp_signals["audio_spikes"],
@@ -169,18 +178,18 @@ if analyze_btn and url_input:
                 )
                 st.session_state.candidates = candidates
 
-                st.write("🤖 [Katman 4/5] Gemini yapay zekası viral potansiyeli yüksek anları seçiyor...")
+                st.write(f"🤖 [Katman 4/5] Gemini yapay zekası viral potansiyeli en yüksek {target_clips} klibi seçiyor...")
                 if active_key:
                     judged_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
                         candidates=candidates,
                         video_title=video_data["title"],
                         total_duration=video_data["duration"],
-                        target_clips=3,
+                        target_clips=target_clips,
                         api_key=active_key,
                     )
                 else:
                     judged_clips = []
-                    for rank, c in enumerate(candidates[:3], start=1):
+                    for rank, c in enumerate(candidates[:target_clips], start=1):
                         judged_clips.append({
                             "rank": rank,
                             "title": f"Highlight #{rank}",

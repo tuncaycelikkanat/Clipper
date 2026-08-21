@@ -115,7 +115,7 @@ try:
                                             add_subtitles=True,
                                             add_hook_card=True,
                                             enhance_colors=True,
-                                            use_whisper=False
+                                            use_whisper=True
                                         )
                                         db.save_render(clip["id"], "square_1x1_black", clip_path)
                                         
