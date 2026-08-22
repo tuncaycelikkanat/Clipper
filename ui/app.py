@@ -22,8 +22,10 @@ pages = [
     st.Page("app_pages/analyze.py", title="Analiz & Edit", icon=":material/auto_awesome:", default=True),
     st.Page("app_pages/clips.py", title="Klip Kütüphanesi", icon=":material/video_library:"),
     st.Page("app_pages/export.py", title="Dışa Aktar & Yayınla", icon=":material/upload:"),
+    st.Page("app_pages/autopilot.py", title="Otonom Bot (AutoPilot)", icon=":material/smart_toy:"),
     st.Page("app_pages/settings.py", title="Sistem & Ayarlar", icon=":material/settings:"),
 ]
+
 
 nav = st.navigation(pages, position="sidebar")
 nav.run()

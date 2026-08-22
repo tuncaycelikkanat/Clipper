@@ -106,6 +106,38 @@ CREATE TABLE IF NOT EXISTS heatmap_patterns (
 );
 """
 
+_DDL_TRACKED_CHANNELS = """
+CREATE TABLE IF NOT EXISTS tracked_channels (
+    id              TEXT PRIMARY KEY,
+    url             TEXT UNIQUE NOT NULL,
+    name            TEXT NOT NULL,
+    min_score       INTEGER DEFAULT 90,
+    target_playlist TEXT,
+    auto_upload     INTEGER DEFAULT 1,
+    last_checked    TEXT,
+    active          INTEGER DEFAULT 1,
+    created_at      TEXT NOT NULL
+);
+"""
+
+_DDL_AUTOPILOT_QUEUE = """
+CREATE TABLE IF NOT EXISTS autopilot_queue (
+    id             TEXT PRIMARY KEY,
+    video_id       TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    clip_id        TEXT,
+    channel_url    TEXT NOT NULL,
+    title          TEXT NOT NULL,
+    render_path    TEXT NOT NULL,
+    thumbnail_path TEXT,
+    viral_score    INTEGER NOT NULL,
+    scheduled_at   TEXT NOT NULL,
+    status         TEXT DEFAULT 'QUEUED',
+    youtube_url    TEXT,
+    error_msg      TEXT,
+    created_at     TEXT NOT NULL
+);
+"""
+
 
 # ---------------------------------------------------------------------------
 # DatabaseManager
@@ -146,6 +178,8 @@ class DatabaseManager:
             conn.execute(_DDL_CHANNELS)
             conn.execute(_DDL_RENDERS)
             conn.execute(_DDL_HEATMAP_PATTERNS)
+            conn.execute(_DDL_TRACKED_CHANNELS)
+            conn.execute(_DDL_AUTOPILOT_QUEUE)
             conn.commit()
         logger.info("Database initialised at {}", self.db_path)
 
@@ -492,6 +526,130 @@ class DatabaseManager:
         return [dict(r) for r in rows]
 
     # ------------------------------------------------------------------
+    # AutoPilot & Tracked Channels operations
+    # ------------------------------------------------------------------
+
+    def add_tracked_channel(
+        self,
+        url: str,
+        name: str,
+        min_score: int = 90,
+        target_playlist: Optional[str] = None,
+        auto_upload: int = 1,
+    ) -> str:
+        """Kanalı otomatik takip listesine ekler veya günceller."""
+        channel_id = str(uuid.uuid4())
+        sql = """
+            INSERT INTO tracked_channels
+                (id, url, name, min_score, target_playlist, auto_upload, active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(url) DO UPDATE SET
+                name            = excluded.name,
+                min_score       = excluded.min_score,
+                target_playlist = excluded.target_playlist,
+                auto_upload     = excluded.auto_upload,
+                active          = 1;
+        """
+        with self._connect() as conn:
+            conn.execute(
+                sql,
+                (channel_id, url.strip(), name.strip(), int(min_score),
+                 target_playlist, int(auto_upload), _utcnow()),
+            )
+            conn.commit()
+        logger.info("Tracked channel added/updated: {} ({})", name, url)
+        return channel_id
+
+    def get_tracked_channels(self, active_only: bool = True) -> List[Dict[str, Any]]:
+        """Takip edilen kanalları listeler."""
+        sql = "SELECT * FROM tracked_channels"
+        if active_only:
+            sql += " WHERE active = 1"
+        sql += " ORDER BY created_at DESC;"
+
+        with self._connect() as conn:
+            rows = conn.execute(sql).fetchall()
+        return [dict(r) for r in rows]
+
+    def remove_tracked_channel(self, channel_id_or_url: str) -> None:
+        """Kanalı takip listesinden kaldırır."""
+        sql = "DELETE FROM tracked_channels WHERE id = ? OR url = ?;"
+        with self._connect() as conn:
+            conn.execute(sql, (channel_id_or_url, channel_id_or_url))
+            conn.commit()
+        logger.info("Removed tracked channel: {}", channel_id_or_url)
+
+    def update_tracked_channel_checked(self, channel_url: str) -> None:
+        """Kanalın son kontrol edilme tarihini günceller."""
+        sql = "UPDATE tracked_channels SET last_checked = ? WHERE url = ?;"
+        with self._connect() as conn:
+            conn.execute(sql, (_utcnow(), channel_url))
+            conn.commit()
+
+    def add_to_autopilot_queue(
+        self,
+        video_id: str,
+        clip_id: Optional[str],
+        channel_url: str,
+        title: str,
+        render_path: str,
+        thumbnail_path: Optional[str],
+        viral_score: int,
+        scheduled_at: str,
+        status: str = "QUEUED",
+        youtube_url: Optional[str] = None,
+    ) -> str:
+        """Zamanlanmış veya stoklanmış klibi autopilot kuyruğuna kaydeder."""
+        queue_id = str(uuid.uuid4())
+        sql = """
+            INSERT INTO autopilot_queue
+                (id, video_id, clip_id, channel_url, title, render_path,
+                 thumbnail_path, viral_score, scheduled_at, status, youtube_url, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        with self._connect() as conn:
+            conn.execute(
+                sql,
+                (queue_id, video_id, clip_id, channel_url, title, render_path,
+                 thumbnail_path, int(viral_score), scheduled_at, status, youtube_url, _utcnow()),
+            )
+            conn.commit()
+        logger.info("Added to autopilot queue id={} score={} scheduled_at={}", queue_id, viral_score, scheduled_at)
+        return queue_id
+
+    def get_autopilot_queue(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Autopilot kuyruğundaki tüm klipleri tarih sırasıyla listeler."""
+        sql = "SELECT * FROM autopilot_queue ORDER BY scheduled_at DESC LIMIT ?;"
+        with self._connect() as conn:
+            rows = conn.execute(sql, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_autopilot_queue_status(
+        self,
+        queue_id: str,
+        status: str,
+        youtube_url: Optional[str] = None,
+        error_msg: Optional[str] = None,
+    ) -> None:
+        """Kuyruk öğesinin durumunu günceller."""
+        sql = """
+            UPDATE autopilot_queue
+            SET status = ?, youtube_url = COALESCE(?, youtube_url), error_msg = ?
+            WHERE id = ?;
+        """
+        with self._connect() as conn:
+            conn.execute(sql, (status, youtube_url, error_msg, queue_id))
+            conn.commit()
+        logger.debug("Updated autopilot queue {} status={}", queue_id, status)
+
+    def get_latest_scheduled_time(self) -> Optional[str]:
+        """Kuyrukta en ileri tarihe planlanmış klibin ISO tarihini döner."""
+        sql = "SELECT scheduled_at FROM autopilot_queue WHERE status IN ('QUEUED', 'SCHEDULED') ORDER BY scheduled_at DESC LIMIT 1;"
+        with self._connect() as conn:
+            row = conn.execute(sql).fetchone()
+        return row["scheduled_at"] if row else None
+
+    # ------------------------------------------------------------------
     # Clear
     # ------------------------------------------------------------------
 
@@ -502,6 +660,8 @@ class DatabaseManager:
             conn.execute("DELETE FROM clips;")
             conn.execute("DELETE FROM videos;")
             conn.execute("DELETE FROM heatmap_patterns;")
+            conn.execute("DELETE FROM autopilot_queue;")
             conn.commit()
         logger.info("Cleared all records from database.")
+
 

@@ -71,8 +71,16 @@ def test_export_page(monkeypatch):
 
 
 
+def test_autopilot_page():
+    """Test that ui/app_pages/autopilot.py renders tabs and metrics properly."""
+    at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "autopilot.py"), default_timeout=10)
+    at.run()
+    assert not at.exception, f"AutoPilot page error: {at.exception}"
+
+
 def test_settings_page():
     """Test that ui/app_pages/settings.py renders properly."""
     at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "settings.py"), default_timeout=10)
     at.run()
     assert not at.exception, f"Settings page error: {at.exception}"
+

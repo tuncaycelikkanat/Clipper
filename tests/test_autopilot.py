@@ -1,0 +1,312 @@
+"""
+tests/test_autopilot.py — Unit & Integration tests for AutoPilotManager
+"""
+
+import datetime
+import os
+import tempfile
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from core.autopilot import AutoPilotManager
+from core.database import DatabaseManager
+
+
+@pytest.fixture
+def auto_db():
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    db = DatabaseManager(db_path=path)
+    db.init_db()
+    yield db
+    if os.path.exists(path):
+        os.remove(path)
+
+
+@pytest.fixture
+def manager(auto_db):
+    return AutoPilotManager(
+        db=auto_db,
+        daily_slots=["13:00", "18:00", "22:00"],
+        timezone_offset_hours=3,  # Turkey UTC+3
+    )
+
+
+# ===========================================================================
+# 1. SMART SLOT ALLOCATOR TESTS
+# ===========================================================================
+
+def test_compute_next_available_slot_morning(manager):
+    """Sabah 10:00 UTC (13:00 TR) öncesinde (örn: 06:00 UTC = 09:00 TR) sıradaki slot 13:00 TR (10:00 UTC) olmalıdır."""
+    # 2026-08-23 06:00 UTC -> 09:00 TR
+    base_utc = datetime.datetime(2026, 8, 23, 6, 0, tzinfo=datetime.timezone.utc)
+    cand_utc, iso_str = manager.compute_next_available_slot(reference_time_utc=base_utc)
+
+    # 13:00 TR = 10:00 UTC
+    assert cand_utc == datetime.datetime(2026, 8, 23, 10, 0, tzinfo=datetime.timezone.utc)
+    assert iso_str == "2026-08-23T10:00:00Z"
+
+
+def test_compute_next_available_slot_afternoon(manager):
+    """Öğleden sonra 14:00 TR (11:00 UTC) durumunda sıradaki slot 18:00 TR (15:00 UTC) olmalıdır."""
+    base_utc = datetime.datetime(2026, 8, 23, 11, 0, tzinfo=datetime.timezone.utc)
+    cand_utc, iso_str = manager.compute_next_available_slot(reference_time_utc=base_utc)
+
+    # 18:00 TR = 15:00 UTC
+    assert cand_utc == datetime.datetime(2026, 8, 23, 15, 0, tzinfo=datetime.timezone.utc)
+    assert iso_str == "2026-08-23T15:00:00Z"
+
+
+def test_compute_next_available_slot_late_night(manager):
+    """Gece 23:30 TR (20:30 UTC) durumunda sıradaki slot ertesi gün 13:00 TR (10:00 UTC) olmalıdır."""
+    base_utc = datetime.datetime(2026, 8, 23, 20, 30, tzinfo=datetime.timezone.utc)
+    cand_utc, iso_str = manager.compute_next_available_slot(reference_time_utc=base_utc)
+
+    # Ertesi gün 13:00 TR = 10:00 UTC
+    assert cand_utc == datetime.datetime(2026, 8, 24, 10, 0, tzinfo=datetime.timezone.utc)
+    assert iso_str == "2026-08-24T10:00:00Z"
+
+
+def test_compute_next_available_slot_chains_after_latest(manager):
+    """Kuyrukta en son 24 Ağustos 18:00 TR (15:00 UTC) varsa, yeni video 24 Ağustos 22:00 TR (19:00 UTC) slota atanmalıdır."""
+    base_utc = datetime.datetime(2026, 8, 23, 8, 0, tzinfo=datetime.timezone.utc)
+    latest_iso = "2026-08-24T15:00:00Z"  # 18:00 TR
+
+    cand_utc, iso_str = manager.compute_next_available_slot(
+        reference_time_utc=base_utc,
+        latest_scheduled_iso=latest_iso,
+    )
+
+    assert cand_utc == datetime.datetime(2026, 8, 24, 19, 0, tzinfo=datetime.timezone.utc)
+    assert iso_str == "2026-08-24T19:00:00Z"
+
+
+# ===========================================================================
+# 2. CHANNEL MANAGEMENT TESTS
+# ===========================================================================
+
+def test_add_and_get_tracked_channels(manager, auto_db):
+    ch_id = manager.add_channel(
+        url="https://youtube.com/@StreamerTest",
+        name="Streamer Test",
+        min_score=92,
+        target_playlist="PL_TEST_123",
+        auto_upload=True,
+    )
+    assert ch_id is not None
+
+    channels = manager.get_tracked_channels()
+    assert len(channels) == 1
+    assert channels[0]["name"] == "Streamer Test"
+    assert channels[0]["min_score"] == 92
+    assert channels[0]["target_playlist"] == "PL_TEST_123"
+
+    # Remove channel
+    manager.remove_channel(ch_id)
+    assert len(manager.get_tracked_channels()) == 0
+
+
+# ===========================================================================
+# 3. AUTOPILOT QUEUE DATABASE OPERATIONS
+# ===========================================================================
+
+def test_autopilot_queue_persistence_and_status(auto_db):
+    auto_db.save_video({"id": "v_queue_01", "title": "Test Video"})
+
+    q_id = auto_db.add_to_autopilot_queue(
+        video_id="v_queue_01",
+        clip_id="c_01",
+        channel_url="https://youtube.com/@test",
+        title="Epic Clutch #Shorts",
+        render_path="/tmp/fake_render.mp4",
+        thumbnail_path="/tmp/fake_thumb.jpg",
+        viral_score=95,
+        scheduled_at="2026-08-25T10:00:00Z",
+        status="QUEUED",
+    )
+    assert q_id is not None
+
+    items = auto_db.get_autopilot_queue()
+    assert len(items) == 1
+    assert items[0]["status"] == "QUEUED"
+    assert items[0]["viral_score"] == 95
+
+    # Update to SCHEDULED with youtube URL
+    auto_db.update_autopilot_queue_status(
+        queue_id=q_id,
+        status="SCHEDULED",
+        youtube_url="https://youtube.com/shorts/fake_id",
+    )
+
+    updated_items = auto_db.get_autopilot_queue()
+    assert updated_items[0]["status"] == "SCHEDULED"
+    assert updated_items[0]["youtube_url"] == "https://youtube.com/shorts/fake_id"
+
+    # Latest scheduled time
+    latest = auto_db.get_latest_scheduled_time()
+    assert latest == "2026-08-25T10:00:00Z"
+
+
+# ===========================================================================
+# 4. AUTOPILOT CYCLE RUNNER & >=90 FILTERING
+# ===========================================================================
+
+def test_run_cycle_no_channels(manager):
+    res = manager.run_cycle()
+    assert res["channels_checked"] == 0
+    assert res["clips_stockpiled"] == 0
+
+
+@patch("core.notifier.Notifier.notify_clip_ready")
+@patch("core.uploader.YouTubeUploader.upload_short")
+@patch("core.uploader.YouTubeUploader.is_authenticated")
+@patch("core.thumbnail.ThumbnailGenerator.batch_generate_thumbnails")
+@patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
+@patch("core.pipeline.ClipperPipeline.run")
+@patch("core.feed.ChannelFeed.get_channel_videos")
+def test_run_cycle_processes_and_filters_90_score(
+    mock_feed,
+    mock_pipeline,
+    mock_deepseek,
+    mock_thumbs,
+    mock_is_auth,
+    mock_upload,
+    mock_notify,
+    manager,
+    tmp_path,
+):
+    # 1. Kanal ekle
+    manager.add_channel(
+        url="https://youtube.com/@TopGamer",
+        name="Top Gamer",
+        min_score=90,
+        target_playlist="PL_GAMES",
+        auto_upload=True,
+    )
+
+    # 2. Feed 2 video dönsün (1 yeni, 1 eski)
+    mock_feed.return_value = [
+        {"id": "new_vid_101", "url": "https://youtube.com/watch?v=new_vid_101", "title": "New Stream 101"},
+    ]
+
+    # 3. Pipeline render sonuçları: 1 klip 94 skor (geçer), 1 klip 82 skor (elenir)
+    fake_render = str(tmp_path / "top_clip.mp4")
+    with open(fake_render, "w") as f:
+        f.write("video_bytes")
+
+    mock_pipeline.return_value = [
+        {
+            "clip_id": "clip_high_score",
+            "title": "İnanılmaz Vuruş",
+            "category": "CLUTCH",
+            "score": 94,
+            "viral_confidence": 94,
+            "render_path": fake_render,
+            "hook_caption": "Bunu kimse beklemiyordu!",
+            "duration": 25.0,
+        },
+        {
+            "clip_id": "clip_low_score",
+            "title": "Sıradan An",
+            "category": "GAMING",
+            "score": 82,
+            "viral_confidence": 82,
+            "render_path": fake_render,
+            "duration": 20.0,
+        },
+    ]
+
+    # 4. Copywriting & Thumbnail
+    mock_deepseek.return_value = {
+        "title": "Burada ölürsem oyunu silerim dedi ve... 😂 #Shorts",
+        "description": "Son saniye 1v4 clutch anı! Sizce ne yapmalıydı?\n\n🎬 Orijinal: Top Gamer\n\n#Shorts #Gaming",
+        "tags": ["gaming", "shorts", "clutch"],
+    }
+    mock_thumbs.return_value = [str(tmp_path / "thumb.jpg")]
+
+    # 5. YouTube Auth & Upload
+    mock_is_auth.return_value = True
+    mock_upload.return_value = {
+        "video_id": "yt_sched_101",
+        "url": "https://youtube.com/shorts/yt_sched_101",
+        "status": "uploaded",
+    }
+
+    # Döngüyü çalıştır
+    res = manager.run_cycle()
+
+    assert res["channels_checked"] == 1
+    assert res["new_videos_found"] == 1
+    assert res["clips_stockpiled"] == 1  # Sadece 94 puanlı klip stoklandı!
+    assert res["clips_scheduled"] == 1
+
+    # DB Kuyruğu kontrolü
+    queue = manager.db.get_autopilot_queue()
+    assert len(queue) == 1
+    assert queue[0]["viral_score"] == 94
+    assert queue[0]["status"] == "SCHEDULED"
+    assert queue[0]["youtube_url"] == "https://youtube.com/shorts/yt_sched_101"
+
+
+@patch("core.feed.ChannelFeed.get_channel_videos")
+def test_run_cycle_skips_when_no_new_videos(mock_feed, manager, auto_db):
+    manager.add_channel(
+        url="https://youtube.com/@Streamer",
+        name="Streamer",
+    )
+    auto_db.save_video({"id": "already_processed_v1", "title": "Old Video"})
+    mock_feed.return_value = [{"id": "already_processed_v1", "url": "http://yt.com/1"}]
+
+    res = manager.run_cycle()
+    assert res["channels_checked"] == 1
+    assert res["new_videos_found"] == 0
+    assert res["clips_stockpiled"] == 0
+
+
+@patch("core.notifier.Notifier.notify_clip_ready")
+@patch("core.uploader.YouTubeUploader.upload_short")
+@patch("core.uploader.YouTubeUploader.is_authenticated")
+@patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
+@patch("core.pipeline.ClipperPipeline.run")
+@patch("core.feed.ChannelFeed.get_channel_videos")
+def test_run_cycle_upload_error_fallbacks_to_queued(
+    mock_feed,
+    mock_pipeline,
+    mock_deepseek,
+    mock_is_auth,
+    mock_upload,
+    mock_notify,
+    manager,
+    tmp_path,
+):
+    manager.add_channel(
+        url="https://youtube.com/@ErrorStreamer",
+        name="Error Streamer",
+        min_score=90,
+        auto_upload=True,
+    )
+    mock_feed.return_value = [{"id": "vid_err_1", "url": "http://yt.com/err", "title": "Err Vid"}]
+
+    fake_render = str(tmp_path / "clip_err.mp4")
+    with open(fake_render, "w") as f:
+        f.write("data")
+
+    mock_pipeline.return_value = [{
+        "clip_id": "c_err",
+        "title": "High score clip",
+        "score": 95,
+        "render_path": fake_render,
+    }]
+    mock_deepseek.side_effect = Exception("DeepSeek API down")
+    mock_is_auth.return_value = True
+    mock_upload.side_effect = Exception("YouTube quota exceeded")
+
+    res = manager.run_cycle()
+    assert res["clips_stockpiled"] == 1
+    assert res["clips_scheduled"] == 0
+
+    queue = manager.db.get_autopilot_queue()
+    assert len(queue) == 1
+    assert queue[0]["status"] == "QUEUED"  # Stokta kaldı!
+

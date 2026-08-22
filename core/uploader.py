@@ -186,6 +186,7 @@ class YouTubeUploader:
         language: str = "tr",
         location_description: str = "Istanbul, Turkey",
         playlist_id: Optional[str] = None,
+        publish_at: Optional[str] = None,
     ) -> dict:
         """
         Upload a video file as a YouTube Short.
@@ -200,16 +201,8 @@ class YouTubeUploader:
             language: BCP-47 language code for video & audio (default "tr").
             location_description: Human-readable recording location for geo-tag.
             playlist_id: If set, video is added to this YouTube playlist after upload.
-
-        Returns:
-            dict with keys:
-                - video_id (str): YouTube video ID.
-                - url (str): Full YouTube watch URL.
-                - status (str): Upload status string from the API.
-
-        Raises:
-            FileNotFoundError: If video_path does not exist.
-            RuntimeError: If not authenticated.
+            publish_at: Optional ISO-8601 UTC timestamp string (e.g. '2026-08-23T10:00:00.000Z')
+                        for scheduled publishing. If set, privacyStatus is set to 'private' until that time.
         """
         video_path = str(Path(video_path).resolve())
         if not os.path.exists(video_path):
@@ -224,6 +217,13 @@ class YouTubeUploader:
         if "#Shorts" not in shorts_description:
             shorts_description = f"{description}\n\n#Shorts".strip()
 
+        status_dict: dict = {
+            "privacyStatus": "private" if publish_at else "public",
+            "selfDeclaredMadeForKids": made_for_kids,
+        }
+        if publish_at:
+            status_dict["publishAt"] = publish_at
+
         body = {
             "snippet": {
                 "title": title[:100],
@@ -233,14 +233,12 @@ class YouTubeUploader:
                 "defaultLanguage": language,
                 "defaultAudioLanguage": language,
             },
-            "status": {
-                "privacyStatus": "public",
-                "selfDeclaredMadeForKids": made_for_kids,
-            },
+            "status": status_dict,
             "recordingDetails": {
                 "locationDescription": location_description,
             },
         }
+
 
         media = MediaFileUpload(
             video_path,
