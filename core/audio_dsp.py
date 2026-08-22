@@ -8,9 +8,17 @@ class AudioDSPAnalyzer:
 
     @staticmethod
     def _extract_chunk(stream_url: str, start_sec: float, dur_sec: float, sample_rate: int, hop_sec: float) -> Tuple[np.ndarray, np.ndarray]:
-        """Worker function to extract a specific chunk of audio."""
+        """Worker function to extract a specific chunk of audio with reconnect & timeout safety."""
+        total_points = max(int(dur_sec / hop_sec), 1)
+        fallback_times = np.linspace(start_sec, start_sec + dur_sec, total_points, endpoint=False)
+        fallback_rms = np.zeros(total_points)
+
         cmd = [
             'ffmpeg',
+            '-reconnect', '1',
+            '-reconnect_at_eof', '1',
+            '-reconnect_streamed', '1',
+            '-reconnect_delay_max', '2',
             '-ss', str(start_sec),
             '-i', stream_url,
             '-t', str(dur_sec),
@@ -21,14 +29,21 @@ class AudioDSPAnalyzer:
             '-v', 'quiet',
             '-'
         ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        raw_audio, _ = process.communicate()
-        
-        if len(raw_audio) < 1000:
-            total_points = int(dur_sec / hop_sec)
-            times = np.linspace(start_sec, start_sec + dur_sec, total_points, endpoint=False)
-            rms = np.zeros(total_points)
-            return times, rms
+        try:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            timeout_sec = max(int(dur_sec * 1.5), 60)
+            raw_audio, _ = process.communicate(timeout=timeout_sec)
+        except (subprocess.TimeoutExpired, Exception):
+            try:
+                process.kill()
+                process.communicate()
+            except Exception:
+                pass
+            return fallback_times, fallback_rms
+
+        if not raw_audio or len(raw_audio) < 1000:
+            return fallback_times, fallback_rms
+
             
         audio = np.frombuffer(raw_audio, dtype=np.float32)
         window_size = int(sample_rate * hop_sec)
