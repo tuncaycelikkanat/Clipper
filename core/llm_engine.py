@@ -38,7 +38,8 @@ class GeminiHighlightEngine:
         video_title: str,
         total_duration: int,
         target_clips: int = 3,
-        api_key: Optional[str] = None
+        api_key: Optional[str] = None,
+        channel_dna: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         # Prepare compact JSON payload for Gemini analysis
         candidates_summary = []
@@ -64,16 +65,22 @@ class GeminiHighlightEngine:
             "4. Dikkat çekici bir başlık, ilk 3 saniye kanca yazısı (Hook) ve kategori belirle."
         )
 
+        dna_section = ""
+        if channel_dna:
+            from core.channel_dna import ChannelDNAManager
+            dna_section = ChannelDNAManager().format_prompt_context(channel_dna)
+
         prompt = f"""
 Video Başlığı: {video_title}
 Toplam Süre: {YouTubeExtractor.format_seconds(total_duration)} ({total_duration}s)
 İstenen En İyi Klip Sayısı: {target_clips}
-
+{dna_section}
 ADAY HAVUZU (TOP-{len(candidates)} Sinyal Verisi):
 {json.dumps(candidates_summary, indent=2, ensure_ascii=False)}
 
 Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olarak seçip detaylandır.
 """
+
 
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:

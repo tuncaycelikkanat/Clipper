@@ -387,6 +387,37 @@ class DatabaseManager:
         logger.debug("Upserted channel id={}", chan_id)
         return chan_id
 
+    def get_channel(self, channel_id_or_name: str) -> Optional[Dict[str, Any]]:
+        """Return channel metadata by id or name if it exists, otherwise None."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM channels WHERE id = ? OR name = ? LIMIT 1;",
+                (channel_id_or_name, channel_id_or_name),
+            ).fetchone()
+            if row:
+                return dict(row)
+            return None
+
+    def get_channel_clips(self, channel_name_or_uploader: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Return past clips for a given channel / uploader by joining videos and clips tables.
+        """
+        sql = """
+            SELECT c.*, v.uploader, v.title AS video_title
+            FROM clips c
+            JOIN videos v ON c.video_id = v.id
+            WHERE v.uploader = ? OR v.uploader LIKE ?
+            ORDER BY c.created_at DESC
+            LIMIT ?;
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                sql,
+                (channel_name_or_uploader, f"%{channel_name_or_uploader}%", limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
     def save_heatmap_pattern(
         self,
         video_id: str,
