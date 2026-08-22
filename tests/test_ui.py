@@ -80,10 +80,17 @@ def test_autopilot_page(monkeypatch):
     assert not at.exception, f"AutoPilot page error: {at.exception}"
 
 
+def test_planner_page():
+    """Test that ui/app_pages/planner.py renders day picker and slot cards properly."""
+    at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "planner.py"), default_timeout=15)
+    at.run()
+    assert not at.exception, f"Planner page error: {at.exception}"
+
 
 def test_settings_page():
     """Test that ui/app_pages/settings.py renders properly."""
     at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "settings.py"), default_timeout=10)
     at.run()
     assert not at.exception, f"Settings page error: {at.exception}"
+
 

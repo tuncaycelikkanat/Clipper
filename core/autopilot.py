@@ -151,6 +151,103 @@ class AutoPilotManager:
 
         return candidate_utc, iso_str
 
+    # ------------------------------------------------------------------
+    # Gap Refill (Akıllı Boşluk Doldurma)
+    # ------------------------------------------------------------------
+
+    def remove_and_refill_gap(self, queue_id: str) -> Dict[str, Any]:
+        """
+        Kuyruktan bir videoyu siler ve arkasındaki tüm videoları 1 slot öne kaydırarak
+        takvimde boşluk kalmasını engeller (Akıllı Boşluk Doldurma).
+        """
+        active_items = self.db.get_all_active_scheduled_queue()
+        target_idx = None
+        for i, item in enumerate(active_items):
+            if item["id"] == queue_id:
+                target_idx = i
+                break
+
+        if target_idx is None:
+            return {"success": False, "error": "Klip bulunamadı", "shifted_count": 0}
+
+        deleted_item = active_items[target_idx]
+        self.db.delete_from_autopilot_queue(queue_id)
+
+        # Sonraki elemanları 1 önceki slot zamanına kaydır
+        target_slot_time = deleted_item["scheduled_at"]
+        shifted = []
+        for i in range(target_idx + 1, len(active_items)):
+            curr_item = active_items[i]
+            curr_scheduled_time = curr_item["scheduled_at"]
+            # DB güncelle
+            self.db.update_autopilot_queue_scheduled_time(curr_item["id"], target_slot_time)
+            shifted.append({
+                "id": curr_item["id"],
+                "title": curr_item["title"],
+                "new_time": target_slot_time
+            })
+            # Bir sonraki eleman için hedef zaman bu elemanın eski zamanı olur
+            target_slot_time = curr_scheduled_time
+
+        logger.info("Removed queue item '{}' and shifted {} items forward to fill gap.", deleted_item["title"], len(shifted))
+
+        return {
+            "success": True,
+            "deleted_title": deleted_item["title"],
+            "shifted_count": len(shifted),
+            "shifted_items": shifted,
+        }
+
+    def get_calendar_days_data(self, days_ahead: int = 14) -> List[Dict[str, Any]]:
+        """
+        Gelecek N gün için tarih bazında planlanmış videoları ve slot durumlarını gruplar.
+        """
+        now_local = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=self.tz_offset)
+        today = now_local.date()
+
+        queue = self.db.get_all_active_scheduled_queue()
+
+        # Parse items by local date
+        items_by_date: Dict[str, List[Dict[str, Any]]] = {}
+        for item in queue:
+            sched = item.get("scheduled_at", "")
+            try:
+                dt_utc = datetime.datetime.fromisoformat(sched.replace("Z", "+00:00"))
+                dt_local = dt_utc + datetime.timedelta(hours=self.tz_offset)
+                date_key = dt_local.date().isoformat()
+                time_str = dt_local.strftime("%H:%M")
+                item_copy = dict(item)
+                item_copy["local_time"] = time_str
+                item_copy["local_dt"] = dt_local
+                items_by_date.setdefault(date_key, []).append(item_copy)
+            except Exception:
+                continue
+
+        days_data = []
+        for d in range(days_ahead):
+            current_date = today + datetime.timedelta(days=d)
+            date_str = current_date.isoformat()
+            day_items = items_by_date.get(date_str, [])
+
+            # Label
+            if d == 0:
+                day_label = f"Bugün ({current_date.strftime('%d %b')})"
+            elif d == 1:
+                day_label = f"Yarın ({current_date.strftime('%d %b')})"
+            else:
+                day_label = current_date.strftime("%d %b %a")
+
+            days_data.append({
+                "date": current_date,
+                "date_str": date_str,
+                "label": day_label,
+                "item_count": len(day_items),
+                "items": day_items,
+            })
+
+        return days_data
+
+
 
     # ------------------------------------------------------------------
     # AutoPilot Cycle Execution

@@ -310,3 +310,57 @@ def test_run_cycle_upload_error_fallbacks_to_queued(
     assert len(queue) == 1
     assert queue[0]["status"] == "QUEUED"  # Stokta kaldı!
 
+
+
+def test_remove_and_refill_gap_shifts_subsequent_items(manager, auto_db):
+    auto_db.save_video({"id": "v_gap", "title": "Gap Test Video"})
+
+    # 3 video ekle
+    q1 = auto_db.add_to_autopilot_queue(
+        video_id="v_gap", clip_id="c1", channel_url="http://yt.com",
+        title="Video 1 (13:00)", render_path="/tmp/1.mp4", thumbnail_path="",
+        viral_score=92, scheduled_at="2026-08-25T10:00:00Z", status="SCHEDULED"
+    )
+    q2 = auto_db.add_to_autopilot_queue(
+        video_id="v_gap", clip_id="c2", channel_url="http://yt.com",
+        title="Video 2 (18:00)", render_path="/tmp/2.mp4", thumbnail_path="",
+        viral_score=94, scheduled_at="2026-08-25T15:00:00Z", status="SCHEDULED"
+    )
+    q3 = auto_db.add_to_autopilot_queue(
+        video_id="v_gap", clip_id="c3", channel_url="http://yt.com",
+        title="Video 3 (22:00)", render_path="/tmp/3.mp4", thumbnail_path="",
+        viral_score=96, scheduled_at="2026-08-25T19:00:00Z", status="SCHEDULED"
+    )
+
+    # 1. videoyu sil -> 2 ve 3 öne kaymalı!
+    res = manager.remove_and_refill_gap(q1)
+    assert res["success"] is True
+    assert res["deleted_title"] == "Video 1 (13:00)"
+    assert res["shifted_count"] == 2
+
+    # Kalan kuyruğu kontrol et
+    remaining = auto_db.get_all_active_scheduled_queue()
+    assert len(remaining) == 2
+    # Video 2 artık 13:00'te (10:00 UTC) olmalı
+    assert remaining[0]["id"] == q2
+    assert remaining[0]["scheduled_at"] == "2026-08-25T10:00:00Z"
+    # Video 3 artık 18:00'de (15:00 UTC) olmalı
+    assert remaining[1]["id"] == q3
+    assert remaining[1]["scheduled_at"] == "2026-08-25T15:00:00Z"
+
+
+def test_get_calendar_days_data(manager, auto_db):
+    auto_db.save_video({"id": "v_cal", "title": "Cal Test"})
+    # Add an item
+    auto_db.add_to_autopilot_queue(
+        video_id="v_cal", clip_id="c_cal", channel_url="http://yt.com",
+        title="Today's Video", render_path="/tmp/cal.mp4", thumbnail_path="",
+        viral_score=93, scheduled_at="2026-08-23T10:00:00Z", status="SCHEDULED"
+    )
+
+    days = manager.get_calendar_days_data(days_ahead=7)
+    assert len(days) == 7
+    assert "label" in days[0]
+    assert "item_count" in days[0]
+
+

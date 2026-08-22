@@ -649,19 +649,46 @@ class DatabaseManager:
             row = conn.execute(sql).fetchone()
         return row["scheduled_at"] if row else None
 
+    def delete_from_autopilot_queue(self, queue_id: str) -> None:
+
+        """Kuyruk öğesini veritabanından siler."""
+        sql = "DELETE FROM autopilot_queue WHERE id = ?;"
+        with self._connect() as conn:
+            conn.execute(sql, (queue_id,))
+            conn.commit()
+        logger.info("Deleted autopilot queue item: {}", queue_id)
+
+    def update_autopilot_queue_scheduled_time(self, queue_id: str, scheduled_at: str) -> None:
+        """Kuyruk öğesinin planlanan yayın saatini günceller."""
+        sql = "UPDATE autopilot_queue SET scheduled_at = ? WHERE id = ?;"
+        with self._connect() as conn:
+            conn.execute(sql, (scheduled_at, queue_id))
+            conn.commit()
+        logger.debug("Updated autopilot queue {} scheduled_at={}", queue_id, scheduled_at)
+
+    def get_all_active_scheduled_queue(self) -> List[Dict[str, Any]]:
+        """Planlanmış ve stoktaki tüm klipleri kronolojik sırayla döner."""
+        sql = "SELECT * FROM autopilot_queue WHERE status IN ('QUEUED', 'SCHEDULED') ORDER BY scheduled_at ASC;"
+        with self._connect() as conn:
+            rows = conn.execute(sql).fetchall()
+        return [dict(r) for r in rows]
+
     # ------------------------------------------------------------------
     # Clear
     # ------------------------------------------------------------------
 
-    def clear_database(self) -> None:
-        """Clear all videos, clips, and renders records."""
+    def clear_database(self, keep_tracked_channels: bool = True) -> None:
+        """Clear videos, clips, renders, heatmap patterns and autopilot queue."""
         with self._connect() as conn:
             conn.execute("DELETE FROM renders;")
             conn.execute("DELETE FROM clips;")
             conn.execute("DELETE FROM videos;")
             conn.execute("DELETE FROM heatmap_patterns;")
             conn.execute("DELETE FROM autopilot_queue;")
+            if not keep_tracked_channels:
+                conn.execute("DELETE FROM tracked_channels;")
             conn.commit()
-        logger.info("Cleared all records from database.")
+        logger.info("Cleared records from database (keep_tracked_channels={}).", keep_tracked_channels)
+
 
 
