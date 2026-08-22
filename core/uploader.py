@@ -30,8 +30,11 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 
-# OAuth scopes required for uploading videos and setting thumbnails
-_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# OAuth scopes required for uploading videos, setting thumbnails, and managing playlists
+_SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube",
+]
 
 _SETUP_INSTRUCTIONS = """
 YouTube API credentials not found at '{path}'.
@@ -131,6 +134,47 @@ class YouTubeUploader:
     # Upload
     # ------------------------------------------------------------------
 
+    def get_playlists(self) -> list[dict]:
+        """Return the authenticated user's playlists as [{id, title}]."""
+        creds = self._get_credentials()
+        youtube = build("youtube", "v3", credentials=creds)
+        playlists = []
+        next_page = None
+        while True:
+            resp = youtube.playlists().list(
+                part="snippet",
+                mine=True,
+                maxResults=50,
+                pageToken=next_page,
+            ).execute()
+            for item in resp.get("items", []):
+                playlists.append({
+                    "id": item["id"],
+                    "title": item["snippet"]["title"],
+                })
+            next_page = resp.get("nextPageToken")
+            if not next_page:
+                break
+        return playlists
+
+    def add_to_playlist(self, video_id: str, playlist_id: str) -> None:
+        """Insert video_id into the given playlist."""
+        creds = self._get_credentials()
+        youtube = build("youtube", "v3", credentials=creds)
+        youtube.playlistItems().insert(
+            part="snippet",
+            body={
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": {
+                        "kind": "youtube#video",
+                        "videoId": video_id,
+                    },
+                }
+            },
+        ).execute()
+        logger.info(f"Added video {video_id} to playlist {playlist_id}.")
+
     def upload_short(
         self,
         video_path: str,
@@ -139,6 +183,9 @@ class YouTubeUploader:
         tags: Optional[list[str]] = None,
         thumbnail_path: Optional[str] = None,
         made_for_kids: bool = False,
+        language: str = "tr",
+        location_description: str = "Istanbul, Turkey",
+        playlist_id: Optional[str] = None,
     ) -> dict:
         """
         Upload a video file as a YouTube Short.
@@ -150,6 +197,9 @@ class YouTubeUploader:
             tags: List of tag strings.
             thumbnail_path: Optional path to .jpg thumbnail file to attach.
             made_for_kids: Whether the video is made for children.
+            language: BCP-47 language code for video & audio (default "tr").
+            location_description: Human-readable recording location for geo-tag.
+            playlist_id: If set, video is added to this YouTube playlist after upload.
 
         Returns:
             dict with keys:
@@ -180,10 +230,15 @@ class YouTubeUploader:
                 "description": shorts_description,
                 "tags": tags or [],
                 "categoryId": "20",  # Gaming
+                "defaultLanguage": language,
+                "defaultAudioLanguage": language,
             },
             "status": {
                 "privacyStatus": "public",
                 "selfDeclaredMadeForKids": made_for_kids,
+            },
+            "recordingDetails": {
+                "locationDescription": location_description,
             },
         }
 
@@ -196,7 +251,7 @@ class YouTubeUploader:
 
         logger.info(f"Uploading '{title}' to YouTube…")
         request = youtube.videos().insert(
-            part="snippet,status",
+            part="snippet,status,recordingDetails",
             body=body,
             media_body=media,
         )
@@ -227,11 +282,19 @@ class YouTubeUploader:
             except Exception as e:
                 logger.warning(f"Could not upload custom thumbnail: {e}")
 
+        if playlist_id:
+            try:
+                self.add_to_playlist(video_id, playlist_id)
+                logger.success(f"Added to playlist {playlist_id}.")
+            except Exception as e:
+                logger.warning(f"Could not add to playlist: {e}")
+
         return {
             "video_id": video_id,
             "url": url,
             "status": upload_status,
         }
+
 
     # ------------------------------------------------------------------
     # Helpers

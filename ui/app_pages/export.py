@@ -27,6 +27,14 @@ with tab_yt:
         if uploader.is_authenticated():
             st.success("YouTube Hesabı Bağlandı ve Yetkilendirildi", icon=":material/check_circle:")
             
+            # Load playlists once per session
+            if "yt_playlists" not in st.session_state:
+                with st.spinner("Oynatma listeleri yükleniyor..."):
+                    try:
+                        st.session_state.yt_playlists = uploader.get_playlists()
+                    except Exception:
+                        st.session_state.yt_playlists = []
+
             # Find available rendered clips
             rendered_files = glob.glob("outputs/clips/**/*.mp4", recursive=True)
             rendered_files = [f for f in rendered_files if not os.path.basename(f).startswith("raw_cut_")]
@@ -67,7 +75,6 @@ with tab_yt:
                 # State keys for AI metadata
                 meta_key = f"meta_{selected_file}"
                 if meta_key not in st.session_state:
-                    # Default heuristic fallback
                     raw_title = clip_info.get("title") or os.path.basename(selected_file).replace(".mp4", "").replace("_", " ")
                     st.session_state[meta_key] = {
                         "title": f"{raw_title[:80]} #Shorts #Gaming",
@@ -97,6 +104,19 @@ with tab_yt:
                 if "provider" in st.session_state[meta_key]:
                     st.caption(f"✨ Son Üretim Motoru: **{st.session_state[meta_key]['provider']}**")
 
+                # Playlist selector
+                playlists = st.session_state.get("yt_playlists", [])
+                playlist_options = {"— Oynatma Listesi Seçme —": None}
+                for pl in playlists:
+                    playlist_options[f"📁 {pl['title']}"] = pl["id"]
+                
+                selected_playlist_label = st.selectbox(
+                    "Oynatma Listesine Ekle (İsteğe Bağlı)",
+                    options=list(playlist_options.keys()),
+                    help="Videoyu yükledikten sonra seçili oynatma listesine otomatik eklenir."
+                )
+                selected_playlist_id = playlist_options[selected_playlist_label]
+
                 # Upload Form
                 with st.form("upload_form"):
                     col_f1, col_f2 = st.columns([3, 2])
@@ -122,6 +142,12 @@ with tab_yt:
                             height=150
                         )
 
+                    # Fixed settings info
+                    st.info(
+                        "⚙️ **Sabit Ayarlar:** Herkese Açık · Türkçe · İstanbul, Türkiye · Çocuklara Yönelik Değil",
+                        icon=":material/settings:"
+                    )
+
                     submitted = st.form_submit_button("YouTube'a Yükle", type="primary", icon=":material/upload:", width="stretch")
                     if submitted:
                         with st.spinner("Video ve kapak resmi YouTube sunucularına yükleniyor..."):
@@ -131,13 +157,21 @@ with tab_yt:
                                     title=title,
                                     description=desc,
                                     tags=[t.strip() for t in tags.split(",") if t.strip()],
-                                    thumbnail_path=thumb_path if thumb_path and os.path.exists(thumb_path) else None
+                                    thumbnail_path=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
+                                    made_for_kids=False,
+                                    language="tr",
+                                    location_description="Istanbul, Turkey",
+                                    playlist_id=selected_playlist_id,
                                 )
-                                st.success(f"Yükleme Başarılı! Video URL: {res['url']}", icon=":material/verified:")
+                                msg = f"Yükleme Başarılı! Video URL: {res['url']}"
+                                if selected_playlist_id:
+                                    msg += f"\n\n📁 **{selected_playlist_label}** oynatma listesine eklendi."
+                                st.success(msg, icon=":material/verified:")
                             except Exception as e:
                                 st.error(f"Yükleme başarısız: {e}")
             else:
                 st.info("Henüz renderlanmış klip bulunamadı. Önce 'Analiz & Edit' sayfasından bir klip oluşturun.", icon=":material/info:")
+
 
         else:
             st.warning("YouTube Hesabı Doğrulaması Gerekiyor (OAuth2)", icon=":material/lock:")

@@ -114,9 +114,6 @@ def test_upload_short_success(mock_get_creds, mock_build, mock_media_upload, upl
     mock_build.return_value = mock_youtube
     
     mock_request = mock.MagicMock()
-    # next_chunk returns (status, response)
-    # first call: (progress, None)
-    # second call: (None, response)
     mock_status = mock.MagicMock()
     mock_status.progress.return_value = 0.5
     mock_request.next_chunk.side_effect = [
@@ -129,7 +126,9 @@ def test_upload_short_success(mock_get_creds, mock_build, mock_media_upload, upl
         video_path=str(video_path),
         title="My Title",
         description="My description without tag",
-        tags=["gaming", "minecraft"]
+        tags=["gaming", "minecraft"],
+        language="tr",
+        location_description="Istanbul, Turkey",
     )
     
     assert res == {
@@ -143,6 +142,62 @@ def test_upload_short_success(mock_get_creds, mock_build, mock_media_upload, upl
     body = insert_kwargs["body"]
     assert "#Shorts" in body["snippet"]["description"]
     assert body["snippet"]["title"] == "My Title"
+    # Check new fields
+    assert body["snippet"]["defaultLanguage"] == "tr"
+    assert body["snippet"]["defaultAudioLanguage"] == "tr"
+    assert body["recordingDetails"]["locationDescription"] == "Istanbul, Turkey"
+    assert "recordingDetails" in insert_kwargs["part"]
+
+
+@mock.patch("core.uploader.MediaFileUpload")
+@mock.patch("core.uploader.build")
+@mock.patch.object(YouTubeUploader, "_get_credentials")
+def test_upload_short_with_playlist(mock_get_creds, mock_build, mock_media_upload, uploader, tmp_path):
+    video_path = tmp_path / "test.mp4"
+    video_path.write_text("dummy")
+
+    mock_get_creds.return_value = mock.MagicMock()
+    mock_youtube = mock.MagicMock()
+    mock_build.return_value = mock_youtube
+
+    mock_request = mock.MagicMock()
+    mock_request.next_chunk.side_effect = [
+        (None, {"id": "vid_123", "status": {"uploadStatus": "uploaded"}})
+    ]
+    mock_youtube.videos().insert.return_value = mock_request
+
+    uploader.upload_short(
+        video_path=str(video_path),
+        title="Playlist Test",
+        playlist_id="PLtest123",
+    )
+
+    # Verify add_to_playlist was called via playlistItems().insert()
+    mock_youtube.playlistItems().insert.assert_called_once()
+    call_body = mock_youtube.playlistItems().insert.call_args[1]["body"]
+    assert call_body["snippet"]["playlistId"] == "PLtest123"
+    assert call_body["snippet"]["resourceId"]["videoId"] == "vid_123"
+
+
+@mock.patch("core.uploader.build")
+@mock.patch.object(YouTubeUploader, "_get_credentials")
+def test_get_playlists(mock_get_creds, mock_build, uploader):
+    mock_get_creds.return_value = mock.MagicMock()
+    mock_youtube = mock.MagicMock()
+    mock_build.return_value = mock_youtube
+
+    mock_youtube.playlists().list().execute.return_value = {
+        "items": [
+            {"id": "PL1", "snippet": {"title": "Games"}},
+            {"id": "PL2", "snippet": {"title": "Highlights"}},
+        ]
+    }
+
+    playlists = uploader.get_playlists()
+    assert len(playlists) == 2
+    assert playlists[0] == {"id": "PL1", "title": "Games"}
+    assert playlists[1] == {"id": "PL2", "title": "Highlights"}
+
 
 def test_generate_description_contains_hook():
     clip = {
@@ -169,3 +224,4 @@ def test_generate_description_no_hook_or_reason():
     assert "📺 Source: Stream" in desc
     assert "🎯" not in desc
     assert "💬" not in desc
+
