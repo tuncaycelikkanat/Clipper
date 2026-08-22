@@ -89,9 +89,10 @@ else:
             with col_thumb:
                 thumb = item.get("thumbnail_path")
                 if thumb and os.path.exists(thumb):
-                    st.image(thumb, use_container_width=True)
+                    st.image(thumb, width="stretch")
                 else:
-                    st.image("https://via.placeholder.com/320x180.png?text=Shorts+Klip", use_container_width=True)
+                    st.image("https://via.placeholder.com/320x180.png?text=Shorts+Klip", width="stretch")
+
 
             # 2. Video Detayları
             with col_details:
