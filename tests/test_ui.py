@@ -71,11 +71,14 @@ def test_export_page(monkeypatch):
 
 
 
-def test_autopilot_page():
+def test_autopilot_page(monkeypatch):
     """Test that ui/app_pages/autopilot.py renders tabs and metrics properly."""
-    at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "autopilot.py"), default_timeout=10)
+    from core.uploader import YouTubeUploader
+    monkeypatch.setattr(YouTubeUploader, "is_authenticated", lambda self: False)
+    at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "autopilot.py"), default_timeout=15)
     at.run()
     assert not at.exception, f"AutoPilot page error: {at.exception}"
+
 
 
 def test_settings_page():

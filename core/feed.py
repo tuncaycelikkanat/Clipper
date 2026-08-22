@@ -30,6 +30,15 @@ class ChannelFeed:
         "ignoreerrors": True,
     }
 
+    @staticmethod
+    def normalize_channel_url(url: str) -> str:
+        """Kanal URL'sini sonuna /videos ekleyerek video sekmesine yönlendirir."""
+        clean = url.strip().rstrip("/")
+        if ("youtube.com" in clean or "youtu.be" in clean) and "list=" not in clean:
+            if not any(clean.endswith(tab) for tab in ("/videos", "/shorts", "/streams", "/playlists", "/featured", "/community")):
+                clean += "/videos"
+        return clean
+
     @classmethod
     def get_channel_videos(
         cls,
@@ -47,47 +56,53 @@ class ChannelFeed:
             max_count:   Maximum number of videos to return (default 20).
 
         Returns:
-            List of video dicts sorted newest-first::
-
-                [
-                    {
-                        'id':          str,   # YouTube video ID
-                        'url':         str,   # Full watch URL
-                        'title':       str,
-                        'upload_date': str,   # 'YYYYMMDD' or ''
-                        'duration':    int,   # seconds (0 if unknown)
-                        'view_count':  int,
-                    },
-                    ...
-                ]
-
-        Raises:
-            RuntimeError: If yt-dlp cannot extract the channel/playlist.
+            List of video dicts sorted newest-first
         """
+        normalized_url = cls.normalize_channel_url(channel_url)
         opts = dict(cls._BASE_OPTS)
-        opts["playlistend"] = max_count
+        opts["playlistend"] = max_count * 2  # Biraz fazla çekip filtrele
 
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(channel_url, download=False)
+                info = ydl.extract_info(normalized_url, download=False)
         except Exception as exc:
-            raise RuntimeError(
-                f"Kanal/oynatma listesi bilgileri alınamadı: {exc}"
-            ) from exc
+            # Fallback to original url if normalized failed
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(channel_url, download=False)
+            except Exception:
+                raise RuntimeError(
+                    f"Kanal/oynatma listesi bilgileri alınamadı: {exc}"
+                ) from exc
 
         if info is None:
             raise RuntimeError(
                 f"yt-dlp kanal URL'sinden veri döndürmedi: {channel_url}"
             )
 
-        entries = info.get("entries") or []
-        videos: List[Dict[str, Any]] = []
-
-        for entry in entries:
-            if entry is None:
+        raw_entries = info.get("entries") or []
+        # Flatten nested entries (e.g. tabs)
+        entries: List[Dict[str, Any]] = []
+        for e in raw_entries:
+            if not e:
                 continue
-            vid_id = entry.get("id") or ""
+            if isinstance(e, dict) and "entries" in e and isinstance(e["entries"], list):
+                entries.extend([sub for sub in e["entries"] if sub])
+            else:
+                entries.append(e)
+
+        videos: List[Dict[str, Any]] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            vid_id = str(entry.get("id") or "").strip()
             if not vid_id:
+                continue
+
+            # Kanal ID'lerini (UC...) veya oynatma listesi sekme başlıklarını filtrele
+            if vid_id.startswith("UC") and len(vid_id) >= 20:
+                continue
+            if entry.get("ie_key") in ("YoutubeTab", "YoutubeChannel") or (entry.get("_type") == "playlist" and "entries" not in entry):
                 continue
 
             videos.append(
@@ -101,6 +116,7 @@ class ChannelFeed:
                 }
             )
 
+
         # Sort newest-first by upload_date string ('YYYYMMDD'); empty dates go last.
         videos.sort(
             key=lambda v: v["upload_date"] if v["upload_date"] else "00000000",
@@ -108,9 +124,10 @@ class ChannelFeed:
         )
 
         logger.info(
-            "get_channel_videos: %d video alındı (URL: %s)", len(videos), channel_url
+            "get_channel_videos: %d geçerli video alındı (URL: %s)", len(videos), channel_url
         )
         return videos[:max_count]
+
 
     @classmethod
     def get_new_videos(
