@@ -139,3 +139,111 @@ def test_candidate_ranker_empty_heatmap_but_has_item():
     
     assert res[0]["signals"]["has_heatmap"] is True
     assert res[0]["signals"]["heatmap_val"] > 0.0
+
+
+def test_candidate_ranker_with_comments():
+    ranker = CandidateRanker(top_n=2)
+    times = np.linspace(0, 100, 100)
+    audio_spikes = np.zeros(100)
+    silence_bursts = np.zeros(100)
+    audio_spikes[50] = 0.5
+    silence_bursts[50] = 0.5
+
+    comments = [
+        {"text": "00:50 efsane komik sahne koptum 😂", "like_count": 10},
+        {"text": "@00:52 ahahaha 😂", "like_count": 5},
+    ]
+
+    res = ranker.fuse_signals_and_generate_candidates(
+        times=times,
+        audio_spikes=audio_spikes,
+        silence_bursts=silence_bursts,
+        heatmap=[],
+        transcript=[],
+        total_duration=100,
+        comments=comments,
+    )
+
+    assert len(res) > 0
+    candidate_50 = next((c for c in res if abs(c["peak_time"] - 50) <= 5), None)
+    assert candidate_50 is not None
+    assert candidate_50["signals"]["comment_reaction"] == "FUNNY"
+    assert candidate_50["signals"]["comment_count"] == 2
+    assert candidate_50["signals"]["comment_density"] > 0.0
+
+
+def test_candidate_ranker_with_comments_and_heatmap():
+    ranker = CandidateRanker(top_n=2)
+    times = np.linspace(0, 100, 100)
+    audio_spikes = np.ones(100) * 0.5
+    silence_bursts = np.ones(100) * 0.5
+    heatmap = [{"start_time": 40.0, "end_time": 60.0, "value": 0.9}]
+    comments = [{"text": "00:50 harika vuruş 🔥", "like_count": 10}]
+
+    res = ranker.fuse_signals_and_generate_candidates(
+        times=times,
+        audio_spikes=audio_spikes,
+        silence_bursts=silence_bursts,
+        heatmap=heatmap,
+        transcript=[],
+        total_duration=100,
+        comments=comments,
+    )
+
+    assert len(res) > 0
+    c = res[0]
+    assert c["signals"]["has_heatmap"] is True
+    assert c["signals"]["comment_reaction"] == "EPIC"
+
+
+def test_candidate_ranker_with_db_predicted_heatmap():
+    from unittest.mock import MagicMock
+    mock_db = MagicMock()
+    mock_db.get_videos_with_heatmap_patterns.return_value = []
+
+    ranker = CandidateRanker(top_n=2, db=mock_db)
+    times = np.linspace(0, 100, 100)
+    audio_spikes = np.zeros(100)
+    silence_bursts = np.zeros(100)
+    audio_spikes[30] = 1.0
+    silence_bursts[30] = 1.0
+
+    res = ranker.fuse_signals_and_generate_candidates(
+        times=times,
+        audio_spikes=audio_spikes,
+        silence_bursts=silence_bursts,
+        heatmap=[],
+        transcript=[],
+        total_duration=100,
+        video_id="v_test",
+        view_count=5000,
+    )
+
+    assert len(res) > 0
+    assert res[0]["signals"]["heatmap_source"] in ["predicted", "real"]
+
+
+def test_candidate_ranker_with_db_real_heatmap_hidden_viral():
+    from unittest.mock import MagicMock
+    mock_db = MagicMock()
+
+    ranker = CandidateRanker(top_n=2, db=mock_db)
+    times = np.linspace(0, 100, 100)
+    audio_spikes = np.ones(100) * 0.3
+    silence_bursts = np.ones(100) * 0.3
+    heatmap = [{"start_time": 20.0, "end_time": 40.0, "value": 0.95}]
+
+    res = ranker.fuse_signals_and_generate_candidates(
+        times=times,
+        audio_spikes=audio_spikes,
+        silence_bursts=silence_bursts,
+        heatmap=heatmap,
+        transcript=[],
+        total_duration=100,
+        view_count=5000,  # low views -> triggers hidden viral
+    )
+
+    assert len(res) > 0
+    assert res[0]["signals"]["has_heatmap"] is True
+
+

@@ -76,3 +76,31 @@ def test_get_video_data_exception(mock_ytdl):
 
     with pytest.raises(RuntimeError, match="Video bilgileri çekilemedi: Network Error"):
         YouTubeExtractor.get_video_data("dQw4w9WgXcQ")
+
+
+@patch('core.extractor.yt_dlp.YoutubeDL')
+def test_get_video_comments_success(mock_ytdl):
+    mock_instance = MagicMock()
+    mock_ytdl.return_value.__enter__.return_value = mock_instance
+    mock_instance.extract_info.return_value = {
+        "comments": [
+            {"text": "05:32 efsane", "like_count": 12, "author": "user1"},
+            {"text": "güzel video", "like_count": 0, "author": "user2"},
+        ]
+    }
+
+    comments = YouTubeExtractor.get_video_comments("dQw4w9WgXcQ")
+    assert len(comments) == 2
+    assert comments[0]["text"] == "05:32 efsane"
+    assert comments[0]["like_count"] == 12
+
+
+@patch('core.extractor.yt_dlp.YoutubeDL')
+def test_get_video_comments_exception(mock_ytdl):
+    mock_instance = MagicMock()
+    mock_ytdl.return_value.__enter__.return_value = mock_instance
+    mock_instance.extract_info.side_effect = Exception("Disabled comments")
+
+    comments = YouTubeExtractor.get_video_comments("dQw4w9WgXcQ")
+    assert comments == []
+

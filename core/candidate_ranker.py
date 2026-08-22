@@ -32,11 +32,12 @@ class CandidateRanker:
         total_duration: int,
         video_id: Optional[str] = None,
         view_count: int = 0,
+        comments: Optional[List[Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Fuses signals on a unified timeline, clusters peaks, and extracts Top-N candidates.
-        When no real heatmap is available and a DB is provided, uses HeatmapPredictor
-        to generate a predicted heatmap curve.
+        Supports Audio Spikes, Silence-Burst, Heatmap (Real/Predicted), Transcripts,
+        and YouTube Comment Mining with reaction detection.
         """
 
         if len(times) == 0:
@@ -47,7 +48,26 @@ class CandidateRanker:
         predicted_confidence = 0.0
         hidden_viral_peaks: list = []
 
-        # 1. Interpolate Heatmap onto audio timeline if present
+        # 1. Process Comments (if provided)
+        comment_curve = np.zeros(n_points)
+        comment_clusters: List[Dict[str, Any]] = []
+        has_comments = False
+        if comments:
+            try:
+                from core.comment_miner import CommentMiner
+                miner = CommentMiner()
+                comment_res = miner.process_comments(
+                    comments=comments,
+                    total_duration=float(total_duration),
+                    timeline_times=times,
+                )
+                comment_curve = comment_res.get("comment_signal", np.zeros(n_points))
+                comment_clusters = comment_res.get("timestamp_clusters", [])
+                has_comments = len(comment_clusters) > 0
+            except Exception:
+                comment_curve = np.zeros(n_points)
+
+        # 2. Interpolate Heatmap onto audio timeline if present
         heatmap_curve = np.zeros(n_points)
         if has_heatmap:
             h_times = np.array([(p["start_time"] + p["end_time"]) / 2.0 for p in heatmap])
@@ -92,17 +112,29 @@ class CandidateRanker:
             except Exception:
                 heatmap_curve = np.zeros(n_points)
 
-        # 2. Weighted Score Fusion
-        if has_heatmap:
-            # Gerçek heatmap: tam ağırlık
+        # 3. Weighted Score Fusion (Adaptive)
+        if has_heatmap and has_comments:
+            composite_score = (
+                (audio_spikes * 0.35) +
+                (silence_bursts * 0.25) +
+                (heatmap_curve * 0.25) +
+                (comment_curve * 0.15)
+            )
+        elif has_heatmap:
             composite_score = (
                 (audio_spikes * 0.40) +
                 (silence_bursts * 0.30) +
                 (heatmap_curve * 0.30)
             )
+        elif predicted_confidence > 0 and has_comments:
+            composite_score = (
+                (audio_spikes * 0.40) +
+                (silence_bursts * 0.25) +
+                (heatmap_curve * 0.15 * predicted_confidence) +
+                (comment_curve * 0.20)
+            )
         elif predicted_confidence > 0:
-            # Tahmini heatmap: confidence ile ölçeklendirilmiş ağırlık
-            heatmap_weight = 0.30 * predicted_confidence   # max 0.195
+            heatmap_weight = 0.30 * predicted_confidence
             audio_weight = 0.55 + (0.30 - heatmap_weight) * 0.55
             silence_weight = 0.45 + (0.30 - heatmap_weight) * 0.45
             total_w = audio_weight + silence_weight + heatmap_weight
@@ -111,12 +143,18 @@ class CandidateRanker:
                 (silence_bursts * silence_weight / total_w) +
                 (heatmap_curve * heatmap_weight / total_w)
             )
+        elif has_comments:
+            composite_score = (
+                (audio_spikes * 0.45) +
+                (silence_bursts * 0.35) +
+                (comment_curve * 0.20)
+            )
         else:
-            # Sadece ses sinyalleri
             composite_score = (
                 (audio_spikes * 0.55) +
                 (silence_bursts * 0.45)
             )
+
 
 
         # 3. Peak Finding & Cluster Merging
@@ -172,7 +210,15 @@ class CandidateRanker:
             transcript_snippet = " ".join(matching_text).strip()
 
             # Signal breakdown for Gemini inspection
-            idx_near = np.argmin(np.abs(times - peak_t))
+            idx_near = int(np.argmin(np.abs(times - peak_t)))
+
+            # Find matching comment cluster if any
+            matched_comment_cl = None
+            for cl in comment_clusters:
+                if abs(cl["time"] - peak_t) <= half_win:
+                    matched_comment_cl = cl
+                    break
+
             candidates.append({
                 "candidate_id": cand_id,
                 "peak_time": round(float(peak_t), 1),
@@ -192,17 +238,22 @@ class CandidateRanker:
                         "predicted" if predicted_confidence > 0 else "none"
                     ),
                     "predicted_confidence": round(predicted_confidence, 2),
+                    "comment_density": round(float(comment_curve[idx_near]), 2) if has_comments else 0.0,
+                    "comment_reaction": matched_comment_cl.get("dominant_reaction") if matched_comment_cl else None,
+                    "comment_count": matched_comment_cl.get("count", 0) if matched_comment_cl else 0,
                 },
                 "hidden_viral": any(
                     abs(hvp["time"] - peak_t) <= self.candidate_window_sec / 2.0
                     for hvp in hidden_viral_peaks
                 ),
+                "comment_samples": matched_comment_cl.get("samples", []) if matched_comment_cl else [],
                 "transcript_snippet": transcript_snippet or "Ses/Tepki ağırlıklı an (Konuşma transkripti yok)"
             })
 
         # Attach global hidden_viral_peaks list to first candidate for reference
         if candidates and hidden_viral_peaks:
             candidates[0]["_hidden_viral_peaks"] = hidden_viral_peaks
+
 
         # Order candidates chronologically for readability
         candidates.sort(key=lambda x: x["start_time"])

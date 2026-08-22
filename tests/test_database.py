@@ -117,6 +117,39 @@ def test_clear_database(temp_db):
     temp_db.init_db()
     temp_db.save_video({"id": "v1"})
     temp_db.save_clips("v1", [{"rank": 1}])
+    temp_db.save_heatmap_pattern("v1", "c1", 0.8, 0.4, 0.35, {"game": "GTA"})
     temp_db.clear_database()
     assert len(temp_db.get_unprocessed_videos()) == 0
     assert len(temp_db.get_clips_for_video("v1")) == 0
+    assert len(temp_db.get_videos_with_heatmap_patterns()) == 0
+
+
+def test_save_and_get_heatmap_patterns(temp_db):
+    temp_db.init_db()
+    temp_db.save_video({"id": "v1"})
+    temp_db.save_video({"id": "v2"})
+
+    temp_db.save_heatmap_pattern(
+        video_id="v1",
+        channel_id="chan_1",
+        spike_heatmap_corr=0.75,
+        silence_heatmap_corr=0.45,
+        peak_ratio=0.30,
+        heatmap_meta={"samples": 100},
+    )
+    temp_db.save_heatmap_pattern(
+        video_id="v2",
+        channel_id="chan_2",
+        spike_heatmap_corr=0.60,
+        silence_heatmap_corr=0.35,
+        peak_ratio=0.25,
+    )
+
+    all_patterns = temp_db.get_videos_with_heatmap_patterns()
+    assert len(all_patterns) == 2
+
+    chan1_patterns = temp_db.get_videos_with_heatmap_patterns(channel_id="chan_1")
+    assert len(chan1_patterns) == 1
+    assert chan1_patterns[0]["video_id"] == "v1"
+    assert chan1_patterns[0]["spike_heatmap_corr"] == 0.75
+

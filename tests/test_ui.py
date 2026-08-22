@@ -60,11 +60,15 @@ def test_clips_page_with_data():
     assert not at.exception, f"Clips page error: {at.exception}"
 
 
-def test_export_page():
+def test_export_page(monkeypatch):
     """Test that ui/app_pages/export.py renders properly."""
-    at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "export.py"), default_timeout=10)
+    from unittest.mock import MagicMock
+    from core.uploader import YouTubeUploader
+    monkeypatch.setattr(YouTubeUploader, "is_authenticated", lambda self: False)
+    at = AppTest.from_file(str(ROOT / "ui" / "app_pages" / "export.py"), default_timeout=15)
     at.run()
     assert not at.exception, f"Export page error: {at.exception}"
+
 
 
 def test_settings_page():

@@ -59,6 +59,40 @@ class YouTubeExtractor:
             "heatmap": heatmap
         }
 
+    @classmethod
+    def get_video_comments(cls, url: str, max_comments: int = 50) -> List[Dict[str, Any]]:
+        """
+        Fetches top comments for a video using yt-dlp.
+        Returns a list of dicts: [{'text': str, 'like_count': int, 'author': str}]
+        """
+        cleaned_url = cls.clean_url(url)
+        ydl_opts = {
+            'skip_download': True,
+            'quiet': True,
+            'no_warnings': True,
+            'getcomments': True,
+            'extractor_args': {
+                'youtube': {
+                    'max_comments': [str(max_comments), 'all', '0', '0']
+                }
+            },
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(cleaned_url, download=False)
+                comments_raw = info.get("comments") or []
+                formatted = []
+                for c in comments_raw:
+                    formatted.append({
+                        "text": c.get("text", "") or "",
+                        "like_count": int(c.get("like_count", 0) or 0),
+                        "author": c.get("author", "") or "",
+                    })
+                return formatted
+        except Exception:
+            return []
+
     @staticmethod
     def format_seconds(seconds: float) -> str:
         """Formats seconds into mm:ss or hh:mm:ss string."""
@@ -68,3 +102,4 @@ class YouTubeExtractor:
         if h > 0:
             return f"{h:02d}:{m:02d}:{s:02d}"
         return f"{m:02d}:{s:02d}"
+
