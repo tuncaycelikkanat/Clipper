@@ -66,6 +66,21 @@ try:
                         if pd.notna(clip.get("hook_caption")) and clip["hook_caption"]:
                             st.info(f"**Kanca:** \"{clip['hook_caption']}\"", icon=":material/campaign:")
 
+                        # Platform Scores
+                        try:
+                            from core.platform_scorer import PlatformScorer
+                            p_scorer = PlatformScorer()
+                            p_res = p_scorer.score_clip(dict(clip))
+                            st.markdown(
+                                f"🎯 **Shorts:** %{p_res['shorts']} · "
+                                f"🎵 **TikTok:** %{p_res['tiktok']} · "
+                                f"📸 **Reels:** %{p_res['reels']} · "
+                                f"🐦 **X:** %{p_res['twitter']}"
+                            )
+                        except Exception:
+                            pass
+
+
                     with col_actions:
                         # Check if a render exists on disk
                         clip_renders = renders_df[renders_df["clip_id"] == clip["id"]] if not renders_df.empty else pd.DataFrame()
