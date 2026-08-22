@@ -94,6 +94,18 @@ CREATE TABLE IF NOT EXISTS renders (
 );
 """
 
+_DDL_HEATMAP_PATTERNS = """
+CREATE TABLE IF NOT EXISTS heatmap_patterns (
+    video_id              TEXT PRIMARY KEY REFERENCES videos(id) ON DELETE CASCADE,
+    channel_id            TEXT,
+    spike_heatmap_corr    REAL,
+    silence_heatmap_corr  REAL,
+    peak_ratio            REAL,
+    heatmap_meta_json     TEXT,
+    recorded_at           TEXT
+);
+"""
+
 
 # ---------------------------------------------------------------------------
 # DatabaseManager
@@ -133,6 +145,7 @@ class DatabaseManager:
             conn.execute(_DDL_CLIPS)
             conn.execute(_DDL_CHANNELS)
             conn.execute(_DDL_RENDERS)
+            conn.execute(_DDL_HEATMAP_PATTERNS)
             conn.commit()
         logger.info("Database initialised at {}", self.db_path)
 
@@ -374,11 +387,90 @@ class DatabaseManager:
         logger.debug("Upserted channel id={}", chan_id)
         return chan_id
 
+    def save_heatmap_pattern(
+        self,
+        video_id: str,
+        channel_id: str,
+        spike_heatmap_corr: float,
+        silence_heatmap_corr: float,
+        peak_ratio: float,
+        heatmap_meta: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Bir videonun ses→heatmap korelasyon verilerini saklar.
+        HeatmapPredictor tarafından model öğrenmesi için kullanılır.
+
+        Args:
+            video_id:              YouTube video ID
+            channel_id:            Kanal ID
+            spike_heatmap_corr:    Ses spike ile heatmap korelasyonu (-1 ile 1)
+            silence_heatmap_corr:  Sessizlik patlaması ile heatmap korelasyonu
+            peak_ratio:            Toplam sürenin kaçında heatmap zirvesi var (0-1)
+            heatmap_meta:          Ek meta veriler (JSON olarak saklanır)
+        """
+        meta_json = json.dumps(heatmap_meta or {}, ensure_ascii=False)
+        sql = """
+            INSERT INTO heatmap_patterns
+                (video_id, channel_id, spike_heatmap_corr, silence_heatmap_corr,
+                 peak_ratio, heatmap_meta_json, recorded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(video_id) DO UPDATE SET
+                channel_id           = excluded.channel_id,
+                spike_heatmap_corr   = excluded.spike_heatmap_corr,
+                silence_heatmap_corr = excluded.silence_heatmap_corr,
+                peak_ratio           = excluded.peak_ratio,
+                heatmap_meta_json    = excluded.heatmap_meta_json,
+                recorded_at          = excluded.recorded_at;
+        """
+        with self._connect() as conn:
+            conn.execute(
+                sql,
+                (video_id, channel_id, spike_heatmap_corr,
+                 silence_heatmap_corr, peak_ratio, meta_json, _utcnow()),
+            )
+            conn.commit()
+        logger.debug("Saved heatmap pattern for video {}", video_id)
+
+    def get_videos_with_heatmap_patterns(
+        self, channel_id: Optional[str] = None, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Geçmiş heatmap korelasyon kayıtlarını döner.
+        HeatmapPredictor model öğrenmesi için kullanır.
+
+        Args:
+            channel_id: Filtrelenecek kanal ID (None ise tüm kanallar)
+            limit:      Maksimum kayıt sayısı
+
+        Returns:
+            heatmap_patterns satırlarının listesi
+        """
+        if channel_id:
+            sql = """
+                SELECT * FROM heatmap_patterns
+                WHERE channel_id = ?
+                ORDER BY recorded_at DESC LIMIT ?;
+            """
+            params: tuple = (channel_id, limit)
+        else:
+            sql = "SELECT * FROM heatmap_patterns ORDER BY recorded_at DESC LIMIT ?;"
+            params = (limit,)
+
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    # ------------------------------------------------------------------
+    # Clear
+    # ------------------------------------------------------------------
+
     def clear_database(self) -> None:
         """Clear all videos, clips, and renders records."""
         with self._connect() as conn:
             conn.execute("DELETE FROM renders;")
             conn.execute("DELETE FROM clips;")
             conn.execute("DELETE FROM videos;")
+            conn.execute("DELETE FROM heatmap_patterns;")
             conn.commit()
         logger.info("Cleared all records from database.")
+

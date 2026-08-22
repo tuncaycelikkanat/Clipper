@@ -1,6 +1,11 @@
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
+
 from core.extractor import YouTubeExtractor
+
+if TYPE_CHECKING:
+    from core.database import DatabaseManager
+
 
 class CandidateRanker:
     """Combines multimodal signals (Audio Spikes, Silence-Burst, Heatmap, Transcripts) into Top-N Candidates."""
@@ -9,11 +14,13 @@ class CandidateRanker:
         self,
         candidate_window_sec: int = 35,
         merge_threshold_sec: int = 8,
-        top_n: int = 15
+        top_n: int = 15,
+        db: Optional["DatabaseManager"] = None,
     ):
         self.candidate_window_sec = candidate_window_sec
         self.merge_threshold_sec = merge_threshold_sec
         self.top_n = top_n
+        self._db = db
 
     def fuse_signals_and_generate_candidates(
         self,
@@ -22,16 +29,23 @@ class CandidateRanker:
         silence_bursts: np.ndarray,
         heatmap: List[Dict[str, float]],
         transcript: List[Dict[str, Any]],
-        total_duration: int
+        total_duration: int,
+        video_id: Optional[str] = None,
+        view_count: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Fuses signals on a unified timeline, clusters peaks, and extracts Top-N candidates.
+        When no real heatmap is available and a DB is provided, uses HeatmapPredictor
+        to generate a predicted heatmap curve.
         """
+
         if len(times) == 0:
             return []
 
         has_heatmap = len(heatmap) > 0
         n_points = len(times)
+        predicted_confidence = 0.0
+        hidden_viral_peaks: list = []
 
         # 1. Interpolate Heatmap onto audio timeline if present
         heatmap_curve = np.zeros(n_points)
@@ -41,18 +55,69 @@ class CandidateRanker:
             if len(h_times) > 0:
                 heatmap_curve = np.interp(times, h_times, h_vals, left=0.0, right=0.0)
 
+            # Gizli viral tespiti (gerçek heatmap varken de çalışır)
+            if self._db is not None and view_count > 0:
+                try:
+                    from core.heatmap_predictor import HeatmapPredictor
+                    predictor = HeatmapPredictor(self._db)
+                    hidden_viral_peaks = predictor.detect_hidden_viral_from_real(
+                        heatmap, view_count
+                    )
+                except Exception:
+                    pass
+
+        elif self._db is not None:
+            # Heatmap yok → HeatmapPredictor ile tahmin et
+            try:
+                from core.heatmap_predictor import HeatmapPredictor
+                predictor = HeatmapPredictor(self._db)
+                prediction = predictor.predict(
+                    audio_times=times,
+                    audio_spikes=audio_spikes,
+                    silence_bursts=silence_bursts,
+                    total_duration=float(total_duration),
+                    video_id=video_id,
+                    view_count=view_count,
+                )
+                pred_heatmap = prediction["heatmap"]
+                predicted_confidence = prediction["confidence"]
+                hidden_viral_peaks = prediction["hidden_viral_peaks"]
+
+                if pred_heatmap:
+                    ph_times = np.array(
+                        [(p["start_time"] + p["end_time"]) / 2.0 for p in pred_heatmap]
+                    )
+                    ph_vals = np.array([p["value"] for p in pred_heatmap])
+                    heatmap_curve = np.interp(times, ph_times, ph_vals, left=0.0, right=0.0)
+            except Exception:
+                heatmap_curve = np.zeros(n_points)
+
         # 2. Weighted Score Fusion
         if has_heatmap:
+            # Gerçek heatmap: tam ağırlık
             composite_score = (
                 (audio_spikes * 0.40) +
                 (silence_bursts * 0.30) +
                 (heatmap_curve * 0.30)
             )
+        elif predicted_confidence > 0:
+            # Tahmini heatmap: confidence ile ölçeklendirilmiş ağırlık
+            heatmap_weight = 0.30 * predicted_confidence   # max 0.195
+            audio_weight = 0.55 + (0.30 - heatmap_weight) * 0.55
+            silence_weight = 0.45 + (0.30 - heatmap_weight) * 0.45
+            total_w = audio_weight + silence_weight + heatmap_weight
+            composite_score = (
+                (audio_spikes * audio_weight / total_w) +
+                (silence_bursts * silence_weight / total_w) +
+                (heatmap_curve * heatmap_weight / total_w)
+            )
         else:
+            # Sadece ses sinyalleri
             composite_score = (
                 (audio_spikes * 0.55) +
                 (silence_bursts * 0.45)
             )
+
 
         # 3. Peak Finding & Cluster Merging
         # Filter points above threshold (e.g. 0.25)
@@ -122,11 +187,24 @@ class CandidateRanker:
                     "audio_spike": round(float(audio_spikes[idx_near]), 2),
                     "silence_burst": round(float(silence_bursts[idx_near]), 2),
                     "has_heatmap": has_heatmap,
-                    "heatmap_val": round(float(heatmap_curve[idx_near]), 2) if has_heatmap else 0.0
+                    "heatmap_val": round(float(heatmap_curve[idx_near]), 2),
+                    "heatmap_source": "real" if has_heatmap else (
+                        "predicted" if predicted_confidence > 0 else "none"
+                    ),
+                    "predicted_confidence": round(predicted_confidence, 2),
                 },
+                "hidden_viral": any(
+                    abs(hvp["time"] - peak_t) <= self.candidate_window_sec / 2.0
+                    for hvp in hidden_viral_peaks
+                ),
                 "transcript_snippet": transcript_snippet or "Ses/Tepki ağırlıklı an (Konuşma transkripti yok)"
             })
+
+        # Attach global hidden_viral_peaks list to first candidate for reference
+        if candidates and hidden_viral_peaks:
+            candidates[0]["_hidden_viral_peaks"] = hidden_viral_peaks
 
         # Order candidates chronologically for readability
         candidates.sort(key=lambda x: x["start_time"])
         return candidates
+
