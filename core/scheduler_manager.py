@@ -167,8 +167,9 @@ class SchedulerManager:
         """
         jobs = []
         for job in self._scheduler.get_jobs():
-            next_run = job.next_run_time
+            next_run = getattr(job, "next_run_time", None)
             jobs.append(
+
                 {
                     "id": job.id,
                     "name": job.name,

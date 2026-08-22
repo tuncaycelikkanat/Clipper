@@ -200,15 +200,19 @@ class HeatmapPredictor:
         silence_corrs: List[float] = []
         for record in history:
             try:
-                meta = json.loads(record.get("heatmap_meta_json") or "{}")
-                sc = meta.get("spike_heatmap_corr")
-                slc = meta.get("silence_heatmap_corr")
+                sc = record.get("spike_heatmap_corr")
+                slc = record.get("silence_heatmap_corr")
+                if sc is None or slc is None:
+                    meta = json.loads(record.get("heatmap_meta_json") or "{}")
+                    sc = sc if sc is not None else meta.get("spike_heatmap_corr")
+                    slc = slc if slc is not None else meta.get("silence_heatmap_corr")
                 if sc is not None:
                     spike_corrs.append(float(sc))
                 if slc is not None:
                     silence_corrs.append(float(slc))
-            except (json.JSONDecodeError, ValueError):
+            except (json.JSONDecodeError, ValueError, TypeError):
                 continue
+
 
         if not spike_corrs:
             return {}

@@ -69,6 +69,7 @@ class ClipperPipeline:
         enhance_colors: bool = True,
         api_key: Optional[str] = None,
         progress_callback: Optional[Any] = None,
+        db: Optional[DatabaseManager] = None,
     ) -> List[Dict[str, Any]]:
         """Execute the full pipeline for a single YouTube URL.
 
@@ -82,27 +83,8 @@ class ClipperPipeline:
         6. **Cut** – FFmpeg render with colour, subtitles, and hook card.
 
         Everything is saved to the database; render paths are returned.
-
-        Args:
-            url:              YouTube video URL or 11-char video ID.
-            target_clips:     How many final clips to produce (default 3).
-            render_mode:      FFmpeg preset – ``"square_1x1_black"``,
-                              ``"shorts_9x16_black"``, ``"shorts_9x16_blur"``,
-                              or ``"original_16x9"``.
-            add_subtitles:    Burn Karaoke subtitles into the output.
-            add_hook_card:    Overlay the first-3-second hook title card.
-            enhance_colors:   Apply vibrancy/contrast colour grading.
-            api_key:          Gemini API key (falls back to ``GEMINI_API_KEY``
-                              environment variable).
-            progress_callback: Optional callable ``(msg: str) -> None`` that
-                               receives human-readable progress strings.
-
-        Returns:
-            List of result dicts, each containing at minimum:
-            ``rank``, ``title``, ``render_path``, ``start_time``,
-            ``end_time``, ``duration``.
         """
-        pipeline = cls()
+        pipeline = cls(db=db)
         return pipeline._execute(
             url=url,
             target_clips=target_clips,
@@ -113,6 +95,8 @@ class ClipperPipeline:
             api_key=api_key,
             progress_callback=progress_callback,
         )
+
+
 
     # ------------------------------------------------------------------
     # Internal implementation
@@ -209,9 +193,11 @@ class ClipperPipeline:
         self._log("🎯 [5/6] Aligning cut points…", cb)
         aligner = AlignmentEngine()
         for clip in selected_clips:
+            raw_s = float(clip.get("start_time", clip.get("suggested_start", 0.0)))
+            raw_e = float(clip.get("end_time", clip.get("suggested_end", raw_s + 30.0)))
             refined_start, refined_end = aligner.refine_cut_points(
-                start_time=clip["start_time"],
-                end_time=clip["end_time"],
+                start_time=raw_s,
+                end_time=raw_e,
                 times=signals["times"],
                 rms=rms,
                 transcript=transcript,
@@ -220,6 +206,7 @@ class ClipperPipeline:
             clip["end_time"] = refined_end
             clip["duration"] = round(refined_end - refined_start, 1)
         self._log("   ✓ Cut points refined", cb)
+
 
         # Persist clips to DB
         clip_ids = self.db.save_clips(video_id, selected_clips)
