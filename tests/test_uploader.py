@@ -209,19 +209,17 @@ def test_generate_description_contains_hook():
     }
     desc = YouTubeUploader.generate_description(clip, "My Minecraft Stream")
     assert "Wait for the end!" in desc
-    assert "Gaming" in desc
-    assert "Epic fail" in desc
     assert "My Minecraft Stream" in desc
+    assert "#Shorts" in desc
 
 def test_generate_description_no_hook_or_reason():
     clip = {
-        "category": "IRL",
+        "category": "FUNNY",
         "start_formatted": "00:00",
         "end_formatted": "00:30"
     }
     desc = YouTubeUploader.generate_description(clip, "Stream")
-    assert "📌 Category: IRL" in desc
-    assert "📺 Source: Stream" in desc
-    assert "🎯" not in desc
-    assert "💬" not in desc
+    assert "🎬 Orijinal İçerik: Stream" in desc
+    assert "#Shorts" in desc
+
 

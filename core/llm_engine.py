@@ -55,15 +55,15 @@ class GeminiHighlightEngine:
             })
 
         system_instruction = (
-            "Sen YouTube Shorts, TikTok ve Instagram Reels için milyonlar izlenen Gaming / Yayın klipleri seçen "
-            "profesyonel bir video editörüsün. Sana sinyal işleme (ses patlamaları, sessizlikten çığlığa geçiş, "
-            "izleyici tekrar yoğunluğu) ile tespit edilmiş aday klip havuzu verilecek.\n"
+            "Sen YouTube Shorts, TikTok ve Instagram Reels için milyonlar izlenen Gaming / Yayın kesitleri seçen "
+            "profesyonel bir video editörüsün. Sana sinyal işleme ile tespit edilmiş aday klip havuzu verilecek.\n\n"
             "GÖREVİN:\n"
-            "1. Tüm adayları bağlamsal olarak incele, sahte alarmları (sadece gürültü olan boş anları) ele ('DROP').\n"
-            "2. Gerçekten viral olabilecek en iyi anları ('KEEP') olarak işaretle ve en yüksek puandan sırala.\n"
-            "3. Her klip için aksiyonun başladığı ve bittiği en doğru başlangıç/bitiş saniyelerini öner.\n"
-            "4. Dikkat çekici bir başlık, ilk 3 saniye kanca yazısı (Hook) ve kategori belirle."
+            "1. Boş gürültüleri ele ('DROP'), sadece izleyicinin durup izleyeceği veya güleceği anları ('KEEP') seç.\n"
+            "2. Başlık ve Kanca (Hook) için ASLA robotik 'İnanılmaz!', 'Şok etti!', 'Tarihi an!' gibi AI klişeleri KULLANMA!\n"
+            "3. Tamamen samimi bir oyuncunun/izleyicinin ağzından doğal Türkçe başlıklar yaz (Örn: 'Burada ölürsem oyunu silerim dedi ve...', '1v4 pozisyonda gelen o panik', 'Gülmekten öldüğüm o an 😂').\n"
+            "4. İlk 3 saniye kancasını ekranda büyük puntolu dikkat çekici bir cümle olarak hazırla."
         )
+
 
         dna_section = ""
         if channel_dna:

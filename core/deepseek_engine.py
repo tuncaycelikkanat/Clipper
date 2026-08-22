@@ -182,22 +182,28 @@ Lütfen şu JSON formatında yanıt ver:
         video_title: str = "",
         api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Generate high-CTR viral Turkish title, SEO description, and tags using DeepSeek."""
+        """Generate high-CTR organic, human-like Turkish title, interactive description, and tags using DeepSeek."""
         client, model, provider_label = cls.get_client_and_model(api_key)
 
         system_prompt = (
-            "Sen Türkiye'nin en popüler YouTube Shorts ve TikTok Gaming Klip / Kesit kanalının baş editörüsün.\n"
-            "Görevin: Verilen oyun klibi için ASLA robotik 'AI slop' olmayan, "
-            "tamamen Türk internet jargonuna, mizahına ve oyunun dinamiklerine uygun "
-            "viral başlık, kısa açıklama ve etiketler üretmek. Yanıtı saf JSON olarak döndür.\n\n"
-            "KRİTİK KURALLAR:\n"
-            "1. PERSPEKTİF (ÇOK ÖNEMLİ): Bu kanal bir OYUN KLİP / HIGHLIGHT kanalıdır, videodaki yayıncının/oyuncunun kendisi DEĞİLDİR! "
-            "Asla 'ben yaptım', 'zorladığım anlar', 'bizim ekibimiz' gibi 1. tekil/çoğul şahıs ağzıyla konuşma! "
-            "Olayı izleyici/editör gözüyle 3. şahıs olarak anlat (Örn: 'Hawk Pawk'ın akılalmaz araba uçurma anı! 😂'). "
-            "Açıklamanın sonuna '🎬 Orijinal: [Kanal/Video Adı]' atfı ekle.\n"
-            "2. AÇIKLAMA UZUNLUĞU: Açıklama ASLA uzun makale veya paragraf olmamalıdır! Maksimum 2 KISA CÜMLE + Orijinal İçerik Atfı + 5 hashtag (#OyunAdi #Shorts #Gaming vb.).\n"
-            "3. BAŞLIK FORMATI: En fazla 90 karakter, dilbilgisel olarak tam ve akıcı Türkçe cümle, dikkat çekici kelimelerde BÜYÜK HARF vurgusu, 2 ilgili emoji ve sonunda '#Shorts' etiketi olmalıdır.\n"
-            "4. ETİKETLER (Tags): Oyunun tam adını, klibin konusunu, oyun mekaniğini ve Türkçe oyun terimlerini içeren 10-14 adet spesifik etiket."
+            "Sen Türkiye'nin en popüler Twitch ve YouTube Gaming klip kanallarını yöneten kıdemli bir Shorts/TikTok editörüsün.\n\n"
+            "GÖREVİN:\n"
+            "Verilen oyun klibi için ASLA robotik, yapay zeka kokan ('İnanılmaz An!', 'Şok Etti!', 'Tarihi An!', 'Bunu Kimse Beklemiyordu') "
+            "klişeler KULLANMADAN; tamamen gerçek bir oyun/yayın izleyicisinin ağzından samimi, dikkat çekici, merak uyandıran veya güldüren "
+            "organik başlık, açıklama ve etiketler üretmek.\n\n"
+            "İNSANSI BAŞLIK REHBERİ (Aşağıdaki tarzlardan duruma en uygun olanını seç):\n"
+            "1. Doğal Reaksiyon / Durum: 'Burada ölürsem oyunu silerim dedi ve...', 'Hiç beklemediğim yerden çıktı ahahah', 'Son saniyede gelen o panik'\n"
+            "2. Merak / Olay Örgüsü: 'O pozisyonda ne yapmaya çalıştı acaba?', '1 canla kurtulduğu o an', 'Oyunun en saçma bug'ı olabilir'\n"
+            "3. İzleyiciye Soru / Tartışma: 'Sizce burada şans mı var bilek mi?', 'Bu pozisyonda ne yapardınız?'\n"
+            "4. Format Kuralı: Maksimum 80-90 karakter, doğal konuşma dili, 1-2 samimi emoji (😂, 💀, 🤦‍♂️, 🔥, 🎯, 😭) ve sonunda '#Shorts'. "
+            "ASLA BÜTÜN KELİMELERİ BÜYÜK HARFLE YAZMA (Caps Lock abartma).\n\n"
+            "İNSANSI AÇIKLAMA REHBERİ:\n"
+            "- Asla 'Category: GAMING' veya 'Açıklama: ...' gibi teknik veya robotik kalıplar kullanma!\n"
+            "- 1-2 cümlelik samimi ve eğlenceli olay özeti + izleyiciye yorum sorusu (etkileşim için).\n"
+            "- Temiz kaynak bilgisi: '🎬 Orijinal: [Kanal/Video Adı]'\n"
+            "- 4-6 adet temiz ve ilgili hashtag (#oyunadi #gaming #shorts #kesitler #oyun vb.).\n\n"
+            "ETİKETLER (Tags):\n"
+            "- Oyunun tam adı, yayıncının adı, klipteki olayın terimleri (örn: ['valorant', 'clutch', 'ace', 'twitch türkiye', 'oyun kesitleri'])."
         )
 
         user_prompt = f"""
@@ -207,11 +213,11 @@ Klip Bilgileri:
 - Kategori: {category}
 - Kanca Cümle / Olay: "{hook_caption}"
 
-Lütfen şu JSON formatında yanıt ver:
+Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
 {{
-  "title": "AKICI, MERAK UYANDIRAN TAM TÜRKÇE CÜMLE! 🚗💥 #Shorts",
-  "description": "2 cümlelik kısa komik kanca ve özet.\\n\\n🎬 Orijinal: {video_title}\\n\\n#Oyun #Shorts #Gaming #Viral #Highlights",
-  "tags": ["oyunun_tam_adi", "klipteki_olay", "turkce_oyun_terimleri", "nis_etiketler"]
+  "title": "Samimi, merak uyandıran veya güldüren doğal Türkçe başlık 😂 #Shorts",
+  "description": "Arkadan geleni fark etmeyince olanlar oldu ahahah. Sizce bu pozisyonda ne yapmalıydı?\\n\\n🎬 Orijinal: {video_title}\\n\\n#oyun #shorts #gaming #kesitler #komik",
+  "tags": ["oyun_adi", "yayin_kesitleri", "gaming", "shorts", "turkce_oyun"]
 }}
 """
 
@@ -223,7 +229,7 @@ Lütfen şu JSON formatında yanıt ver:
                     {"role": "user", "content": user_prompt},
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.7,
+                temperature=0.75,
                 max_tokens=1000,
             )
             raw_text = response.choices[0].message.content or "{}"
@@ -231,10 +237,11 @@ Lütfen şu JSON formatında yanıt ver:
             logger.info(f"{provider_label} successfully generated Shorts copy for '{clip_title}'")
             return {
                 "title": data.get("title", f"{clip_title} #Shorts"),
-                "description": data.get("description", f"{hook_caption}\n\n#Shorts"),
+                "description": data.get("description", f"{hook_caption}\n\n🎬 Orijinal: {video_title}\n\n#Shorts #Gaming"),
                 "tags": data.get("tags", [video_title.lower(), "shorts", "gaming"]),
                 "provider": provider_label,
             }
         except Exception as exc:
             logger.error(f"{provider_label} API error: {exc}")
             raise
+

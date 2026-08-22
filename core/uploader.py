@@ -312,22 +312,24 @@ class YouTubeUploader:
         Returns:
             Formatted description string.
         """
-        hook = clip.get("hook_caption", "")
-        category = clip.get("category", "GAMING")
-        reason = clip.get("reason", "")
-        start_fmt = clip.get("start_formatted", "")
-        end_fmt = clip.get("end_formatted", "")
+        hook = clip.get("hook_caption", "").strip()
+        category = str(clip.get("category", "GAMING")).upper()
 
-        lines = []
         if hook:
-            lines.append(f"🎯 {hook}")
-        lines.append("")
-        lines.append(f"📌 Category: {category}")
-        if reason:
-            lines.append(f"💬 {reason}")
-        lines.append("")
-        lines.append(f"📺 Source: {video_title}  [{start_fmt} – {end_fmt}]")
-        lines.append("")
-        lines.append("#Shorts #Gaming #Highlights #GamingClips")
+            opener = f"{hook} 😂 Sizce burada ne yapılmalıydı?"
+        elif any(c in category for c in ["FUNNY", "FAIL"]):
+            opener = "Gülmekten yarıldığım anlardan biri ahahah. Sizce kim haklı? Yorumlara yazın 👇"
+        elif any(c in category for c in ["CLUTCH", "EPIC"]):
+            opener = "Böyle bir son saniye pozisyonunda ne yapardınız? Yorumlarda buluşalım 👇"
+        else:
+            opener = "Yayın sırasında yaşanan o efsane an! Düşüncelerinizi yorumlara bekliyorum."
 
+        lines = [
+            opener,
+            "",
+            f"🎬 Orijinal İçerik: {video_title}",
+            "",
+            "#Shorts #Gaming #OyunKesitleri #Oyun #Trending",
+        ]
         return "\n".join(lines)
+
