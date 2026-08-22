@@ -67,7 +67,23 @@ class CandidateRanker:
             except Exception:
                 comment_curve = np.zeros(n_points)
 
-        # 2. Interpolate Heatmap onto audio timeline if present
+        # 2. Process Transcript Density (if transcript provided)
+        transcript_curve = np.zeros(n_points)
+        has_transcript_density = False
+        if transcript:
+            try:
+                from core.transcript_density import TranscriptDensityAnalyzer
+                t_analyzer = TranscriptDensityAnalyzer()
+                transcript_curve = t_analyzer.compute_density_curve(
+                    transcript_segments=transcript,
+                    timeline_times=times,
+                    total_duration=float(total_duration),
+                )
+                has_transcript_density = bool(np.any(transcript_curve > 0.05))
+            except Exception:
+                transcript_curve = np.zeros(n_points)
+
+        # 3. Interpolate Heatmap onto audio timeline if present
         heatmap_curve = np.zeros(n_points)
         if has_heatmap:
             h_times = np.array([(p["start_time"] + p["end_time"]) / 2.0 for p in heatmap])
@@ -112,48 +128,44 @@ class CandidateRanker:
             except Exception:
                 heatmap_curve = np.zeros(n_points)
 
-        # 3. Weighted Score Fusion (Adaptive)
-        if has_heatmap and has_comments:
+        # 4. Weighted Score Fusion (Adaptive Multimodal)
+        t_w = 0.15 if has_transcript_density else 0.0
+        c_w = 0.15 if has_comments else 0.0
+
+        if has_heatmap:
+            rem = max(0.20, 1.0 - (0.30 + t_w + c_w))
+            audio_w = rem * (0.40 / 0.70)
+            silence_w = rem * (0.30 / 0.70)
             composite_score = (
-                (audio_spikes * 0.35) +
-                (silence_bursts * 0.25) +
-                (heatmap_curve * 0.25) +
-                (comment_curve * 0.15)
-            )
-        elif has_heatmap:
-            composite_score = (
-                (audio_spikes * 0.40) +
-                (silence_bursts * 0.30) +
-                (heatmap_curve * 0.30)
-            )
-        elif predicted_confidence > 0 and has_comments:
-            composite_score = (
-                (audio_spikes * 0.40) +
-                (silence_bursts * 0.25) +
-                (heatmap_curve * 0.15 * predicted_confidence) +
-                (comment_curve * 0.20)
+                (audio_spikes * audio_w) +
+                (silence_bursts * silence_w) +
+                (heatmap_curve * 0.30) +
+                (transcript_curve * t_w) +
+                (comment_curve * c_w)
             )
         elif predicted_confidence > 0:
-            heatmap_weight = 0.30 * predicted_confidence
-            audio_weight = 0.55 + (0.30 - heatmap_weight) * 0.55
-            silence_weight = 0.45 + (0.30 - heatmap_weight) * 0.45
-            total_w = audio_weight + silence_weight + heatmap_weight
+            h_w = 0.20 * predicted_confidence
+            rem = max(0.30, 1.0 - (h_w + t_w + c_w))
+            audio_w = rem * 0.55
+            silence_w = rem * 0.45
             composite_score = (
-                (audio_spikes * audio_weight / total_w) +
-                (silence_bursts * silence_weight / total_w) +
-                (heatmap_curve * heatmap_weight / total_w)
-            )
-        elif has_comments:
-            composite_score = (
-                (audio_spikes * 0.45) +
-                (silence_bursts * 0.35) +
-                (comment_curve * 0.20)
+                (audio_spikes * audio_w) +
+                (silence_bursts * silence_w) +
+                (heatmap_curve * h_w) +
+                (transcript_curve * t_w) +
+                (comment_curve * c_w)
             )
         else:
+            rem = max(0.40, 1.0 - (t_w + c_w))
+            audio_w = rem * 0.55
+            silence_w = rem * 0.45
             composite_score = (
-                (audio_spikes * 0.55) +
-                (silence_bursts * 0.45)
+                (audio_spikes * audio_w) +
+                (silence_bursts * silence_w) +
+                (transcript_curve * t_w) +
+                (comment_curve * c_w)
             )
+
 
 
 
@@ -204,10 +216,13 @@ class CandidateRanker:
             matching_text = []
             if transcript:
                 for seg in transcript:
-                    if seg["end"] >= start_t and seg["start"] <= end_t:
-                        matching_text.append(seg["text"])
+                    seg_start = float(seg.get("start", 0.0))
+                    seg_end = float(seg.get("end", seg_start + float(seg.get("duration", 0.0))))
+                    if seg_end >= start_t and seg_start <= end_t:
+                        matching_text.append(seg.get("text", ""))
 
             transcript_snippet = " ".join(matching_text).strip()
+
 
             # Signal breakdown for Gemini inspection
             idx_near = int(np.argmin(np.abs(times - peak_t)))
@@ -241,6 +256,7 @@ class CandidateRanker:
                     "comment_density": round(float(comment_curve[idx_near]), 2) if has_comments else 0.0,
                     "comment_reaction": matched_comment_cl.get("dominant_reaction") if matched_comment_cl else None,
                     "comment_count": matched_comment_cl.get("count", 0) if matched_comment_cl else 0,
+                    "transcript_density": round(float(transcript_curve[idx_near]), 2) if has_transcript_density else 0.0,
                 },
                 "hidden_viral": any(
                     abs(hvp["time"] - peak_t) <= self.candidate_window_sec / 2.0

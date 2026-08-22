@@ -247,3 +247,30 @@ def test_candidate_ranker_with_db_real_heatmap_hidden_viral():
     assert res[0]["signals"]["has_heatmap"] is True
 
 
+def test_candidate_ranker_with_transcript_density():
+    ranker = CandidateRanker(top_n=2)
+    times = np.linspace(0, 100, 100)
+    audio_spikes = np.zeros(100)
+    silence_bursts = np.zeros(100)
+    audio_spikes[50] = 0.5
+    silence_bursts[50] = 0.5
+
+    transcript = [
+        {"text": "LAN OHA ÇÜŞ NASIL VURDU EFSANE!!!", "start": 48.0, "duration": 5.0}
+    ]
+
+    res = ranker.fuse_signals_and_generate_candidates(
+        times=times,
+        audio_spikes=audio_spikes,
+        silence_bursts=silence_bursts,
+        heatmap=[],
+        transcript=transcript,
+        total_duration=100,
+    )
+
+    assert len(res) > 0
+    c = res[0]
+    assert c["signals"]["transcript_density"] > 0.0
+
+
+
