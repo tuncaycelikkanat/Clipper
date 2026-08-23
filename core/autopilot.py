@@ -14,7 +14,9 @@ from __future__ import annotations
 import datetime
 import os
 import re
+import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 
 from loguru import logger
 
@@ -653,9 +655,16 @@ class AutoPilotManager:
             part="snippet,status,contentDetails"
         ).execute()
 
+        from difflib import SequenceMatcher
+
         synced_count = 0
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self.db._connect() as conn:
+            # Mevcut gerçek klipleri hafızaya al
+            existing_clips = conn.execute(
+                "SELECT id, video_id, title, start_time, end_time FROM clips WHERE id NOT LIKE 'clip_%';"
+            ).fetchall()
+
             for v in v_res.get("items", []):
                 st = v.get("status", {})
                 sn = v.get("snippet", {})
@@ -664,18 +673,34 @@ class AutoPilotManager:
                 pub_at = st.get("publishAt")
                 privacy = st.get("privacyStatus")
 
-                conn.execute("""
-                    INSERT INTO videos (id, url, title, uploader, duration, view_count, status, processed_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                    ON CONFLICT(id) DO UPDATE SET title=excluded.title;
-                """, (v_id, f"https://youtube.com/watch?v={v_id}", title, "YouTube Channel", 60, 0, "PROCESSED"))
+                # Başlığa göre en uygun orijinal klibi bul
+                clean_q = re.sub(r'[^\w\s]', '', title.lower().replace('#shorts', '')).strip()
+                matched_clip_id = None
+                matched_video_id = v_id
+                best_score = 0.0
 
-                clip_id = f"clip_{v_id}"
-                conn.execute("""
-                    INSERT INTO clips (id, video_id, rank, title, start_time, end_time, duration, score, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                    ON CONFLICT(id) DO UPDATE SET title=excluded.title;
-                """, (clip_id, v_id, 1, title, 0.0, 59.0, 59.0, 95))
+                for c_id, c_vid, c_title, s, e in existing_clips:
+                    clean_c = re.sub(r'[^\w\s]', '', (c_title or "").lower()).strip()
+                    ratio = SequenceMatcher(None, clean_q, clean_c).ratio()
+                    if ratio > best_score and ratio >= 0.35:
+                        best_score = ratio
+                        matched_clip_id = c_id
+                        matched_video_id = c_vid
+
+                # Eğer eşleşen klip bulunamadıysa varsayılan kayıt oluştur
+                if not matched_clip_id:
+                    matched_clip_id = f"clip_{v_id}"
+                    conn.execute("""
+                        INSERT INTO videos (id, url, title, uploader, duration, view_count, status, processed_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                        ON CONFLICT(id) DO UPDATE SET title=excluded.title;
+                    """, (v_id, f"https://youtube.com/watch?v={v_id}", title, "YouTube Channel", 60, 0, "PROCESSED"))
+
+                    conn.execute("""
+                        INSERT INTO clips (id, video_id, rank, title, start_time, end_time, duration, score, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                        ON CONFLICT(id) DO UPDATE SET title=excluded.title;
+                    """, (matched_clip_id, v_id, 1, title, 0.0, 59.0, 59.0, 95))
 
                 if pub_at:
                     sched_time = pub_at
@@ -694,12 +719,13 @@ class AutoPilotManager:
                     (id, video_id, clip_id, channel_url, title, render_path, thumbnail_path, viral_score, scheduled_at, status, youtube_url, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));
                 """, (
-                    q_id, v_id, clip_id, "https://youtube.com", title, "", thumb, 95, sched_time, status, f"https://youtube.com/shorts/{v_id}"
+                    q_id, matched_video_id, matched_clip_id, "https://youtube.com", title, "", thumb, 95, sched_time, status, f"https://youtube.com/shorts/{v_id}"
                 ))
                 synced_count += 1
 
             conn.commit()
         return synced_count
+
 
 
 
