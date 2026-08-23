@@ -109,17 +109,37 @@ class VideoCutter:
                     'format': 'mp4/best',
                     'download_ranges': yt_dlp.utils.download_range_func(None, [(start_time, end_time)]),
                     'outtmpl': temp_raw_cut,
-                    'force_keyframes_at_cuts': True,
+                    'force_keyframes_at_cuts': False,
                     'overwrites': True,
                     'quiet': True,
                     'no_warnings': True,
                     'extractor_args': {'youtube': {'player_client': ['android']}},
                 }
-                with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
-                    ydl.download([url])
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
+                        ydl.download([url])
+                except Exception:
+                    pass
+
+        # Fallback: If raw cut is missing or 0 bytes
+        if not os.path.exists(temp_raw_cut) or os.path.getsize(temp_raw_cut) == 0:
+            try:
+                with yt_dlp.YoutubeDL({'format': 'best[ext=mp4]/best', 'quiet': True, 'extractor_args': {'youtube': {'player_client': ['android', 'web']}}}) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    stream_url = info.get('url') if info else None
+                if stream_url:
+                    dur = max(1.0, end_time - start_time)
+                    subprocess.run(
+                        ['ffmpeg', '-y', '-ss', str(start_time), '-t', str(dur), '-i', stream_url, '-c', 'copy', temp_raw_cut],
+                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+            except Exception:
+                pass
 
         if not os.path.exists(temp_raw_cut) or os.path.getsize(temp_raw_cut) == 0:
             raise RuntimeError("Ham video kesiti oluşturulamadı.")
+
+
 
         # ------------------------------------------------------------------
         # Step 2: Prepare Subtitles (choose Whisper or YouTube ASR)

@@ -173,30 +173,37 @@ def test_exchange_code_for_token_error(mock_post):
         )
 
 
-@patch("tiktok_uploader.upload.upload_video")
-def test_upload_video_session_cookie_success(mock_tu_upload, tmp_path):
+@patch("subprocess.run")
+def test_upload_video_session_cookie_success(mock_subproc, tmp_path):
     uploader = TikTokUploader(session_id="fake_session_123", access_token="")
     assert uploader.is_authenticated() is True
 
     video_file = tmp_path / "tt_cookie.mp4"
     video_file.write_bytes(b"data")
 
-    mock_tu_upload.return_value = [{"status": "success"}]
+    mock_res = MagicMock()
+    mock_res.returncode = 0
+    mock_res.stdout = "SUCCESS"
+    mock_subproc.return_value = mock_res
 
     res = uploader.upload_video(str(video_file), title="Cookie Clip")
     assert res["status"] == "uploaded"
     assert res["publish_id"] == "cookie_session_post"
-    mock_tu_upload.assert_called_once()
+    mock_subproc.assert_called_once()
 
 
-@patch("tiktok_uploader.upload.upload_video")
-def test_upload_video_session_cookie_error(mock_tu_upload, tmp_path):
+@patch("subprocess.run")
+def test_upload_video_session_cookie_error(mock_subproc, tmp_path):
     uploader = TikTokUploader(session_id="fake_session_123", access_token="")
     video_file = tmp_path / "tt_cookie2.mp4"
     video_file.write_bytes(b"data")
 
-    mock_tu_upload.side_effect = Exception("Browser automation failed")
+    mock_res = MagicMock()
+    mock_res.returncode = 1
+    mock_res.stderr = "Login failed"
+    mock_subproc.return_value = mock_res
 
     with pytest.raises(RuntimeError, match="TikTok çerez ile yükleme başarısız"):
         uploader.upload_video(str(video_file), title="Cookie Clip")
+
 

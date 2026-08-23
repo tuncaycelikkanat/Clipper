@@ -248,23 +248,51 @@ class TikTokUploader:
         # 1. Session ID (Çerez ile Onaysız Web Yüklemesi)
         if self.session_id:
             try:
-                from concurrent.futures import ThreadPoolExecutor
-                logger.info("Uploading video to TikTok via sessionid cookie (isolated worker thread)…")
+                import json
+                import subprocess
+                import sys
 
-                def _do_upload():
-                    from tiktok_uploader.upload import upload_video as tu_upload
-                    return tu_upload(
-                        filename=str(path),
-                        description=title,
-                        sessionid=self.session_id,
-                        browser="chromium",
-                        headless=True,
-                    )
+                logger.info("Uploading video to TikTok via session cookie (clean worker process)…")
+                # Run in clean isolated OS process to eliminate Streamlit asyncio loop conflicts
+                worker_code = f"""
+import sys
+from tiktok_uploader.upload import upload_video
 
-                with ThreadPoolExecutor(max_workers=1) as executor:
-                    res = executor.submit(_do_upload).result(timeout=180)
+cookies_list = [
+    {{
+        "name": "sessionid",
+        "value": {json.dumps(self.session_id)},
+        "domain": ".tiktok.com",
+        "path": "/",
+    }}
+]
 
-                logger.success(f"TikTok videosu yüklendi! Sonuç: {res}")
+try:
+    res = upload_video(
+        filename={json.dumps(str(path))},
+        description={json.dumps(title)},
+        cookies_list=cookies_list,
+        browser="chromium",
+        headless=True,
+    )
+    print("SUCCESS")
+except Exception as e:
+    print(f"ERROR: {{e}}", file=sys.stderr)
+    sys.exit(1)
+"""
+                proc = subprocess.run(
+                    [sys.executable, "-c", worker_code],
+                    capture_output=True,
+                    text=True,
+                    timeout=240,
+                )
+
+                if proc.returncode != 0:
+                    err_msg = proc.stderr.strip() or proc.stdout.strip()
+                    logger.error(f"TikTok worker failed: {err_msg}")
+                    raise RuntimeError(f"TikTok yükleme hatası: {err_msg}")
+
+                logger.success("TikTok videosu başarıyla yüklendi!")
                 return {
                     "publish_id": "cookie_session_post",
                     "status": "uploaded",
@@ -273,6 +301,7 @@ class TikTokUploader:
             except Exception as tu_err:
                 logger.error(f"TikTok session upload error: {tu_err}")
                 raise RuntimeError(f"TikTok çerez ile yükleme başarısız: {tu_err}")
+
 
         # 2. Content Posting API v2 (OAuth Token ile Yükleme)
         init_res = self.init_video_upload(

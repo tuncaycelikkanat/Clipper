@@ -107,7 +107,8 @@ def test_cut_clip_download_fails(mock_ytdl, mock_getsize, mock_exists, cutter):
             clip_id="abc"
         )
     
-    assert mock_ytdl.call_count == 2 # Called fallback
+    assert mock_ytdl.call_count >= 2 # Called fallback
+
 
 
 @patch("core.cutter.os.path.exists")
