@@ -712,6 +712,16 @@ class AutoPilotManager:
                     sched_time = now_iso
                     status = "QUEUED"
 
+                yt_url = f"https://youtube.com/shorts/{v_id}"
+                # Mükerrer kayıt kontrolü
+                exists = conn.execute(
+                    "SELECT id FROM autopilot_queue WHERE youtube_url=? OR (title=? AND scheduled_at=?);",
+                    (yt_url, title, sched_time)
+                ).fetchone()
+
+                if exists:
+                    continue
+
                 thumb = sn.get("thumbnails", {}).get("high", {}).get("url", "")
                 q_id = str(uuid.uuid4())
                 conn.execute("""
@@ -719,9 +729,10 @@ class AutoPilotManager:
                     (id, video_id, clip_id, channel_url, title, render_path, thumbnail_path, viral_score, scheduled_at, status, youtube_url, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));
                 """, (
-                    q_id, matched_video_id, matched_clip_id, "https://youtube.com", title, "", thumb, 95, sched_time, status, f"https://youtube.com/shorts/{v_id}"
+                    q_id, matched_video_id, matched_clip_id, "https://youtube.com", title, "", thumb, 95, sched_time, status, yt_url
                 ))
                 synced_count += 1
+
 
             conn.commit()
         return synced_count
