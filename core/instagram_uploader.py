@@ -83,6 +83,13 @@ class InstagramUploader:
         resp = requests.post(url, params=params, timeout=30)
         data = resp.json()
 
+        # Meta Graph API: If scheduled_publish_time fails due to whitelist restrictions, fall back to instant publish
+        if (resp.status_code != 200 or "id" not in data) and scheduled_publish_time:
+            logger.warning("Meta scheduled upload failed with whitelist requirement. Falling back to instant Reels publication…")
+            params.pop("scheduled_publish_time", None)
+            resp = requests.post(url, params=params, timeout=30)
+            data = resp.json()
+
         if resp.status_code != 200 or "id" not in data:
             error_msg = data.get("error", {}).get("message", resp.text)
             raise RuntimeError(f"Instagram Reels container oluşturulamadı: {error_msg}")
@@ -91,6 +98,7 @@ class InstagramUploader:
             "container_id": data["id"],
             "upload_url": data.get("uri"),  # Resumable upload URI
         }
+
 
     def upload_binary_to_container(
         self,

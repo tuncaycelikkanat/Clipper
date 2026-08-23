@@ -255,7 +255,12 @@ class TikTokUploader:
                 logger.info("Uploading video to TikTok via session cookie (clean worker process)…")
                 worker_code = f"""
 import sys
+from tiktok_uploader import config
 from tiktok_uploader.upload import upload_video
+
+# Increase page load and interaction timeouts
+config.explicit_wait = 90
+config.implicit_wait = 60
 
 try:
     res = upload_video(
@@ -270,6 +275,7 @@ except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
     sys.exit(1)
 """
+
                 proc = subprocess.run(
                     [sys.executable, "-c", worker_code],
                     capture_output=True,
