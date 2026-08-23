@@ -115,7 +115,8 @@ class InstagramUploader:
         file_size = path.stat().st_size
         headers = {
             "Authorization": f"OAuth {self.access_token}",
-            "file_offset": "0",
+            "offset": "0",
+            "file_size": str(file_size),
             "Content-Length": str(file_size),
             "Content-Type": "application/octet-stream",
         }
@@ -127,6 +128,7 @@ class InstagramUploader:
             raise RuntimeError(f"Video binary Meta sunucusuna yüklenemedi: {resp.text}")
 
         return True
+
 
     def check_container_status(self, container_id: str, timeout: int = 180, interval: int = 5) -> str:
         """
