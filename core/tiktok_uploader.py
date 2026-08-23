@@ -253,25 +253,15 @@ class TikTokUploader:
                 import sys
 
                 logger.info("Uploading video to TikTok via session cookie (clean worker process)…")
-                # Run in clean isolated OS process to eliminate Streamlit asyncio loop conflicts
                 worker_code = f"""
 import sys
 from tiktok_uploader.upload import upload_video
-
-cookies_list = [
-    {{
-        "name": "sessionid",
-        "value": {json.dumps(self.session_id)},
-        "domain": ".tiktok.com",
-        "path": "/",
-    }}
-]
 
 try:
     res = upload_video(
         filename={json.dumps(str(path))},
         description={json.dumps(title)},
-        cookies_list=cookies_list,
+        sessionid={json.dumps(self.session_id)},
         browser="chromium",
         headless=True,
     )

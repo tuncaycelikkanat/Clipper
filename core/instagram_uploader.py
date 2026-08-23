@@ -31,21 +31,15 @@ class InstagramUploader:
         access_token: Optional[str] = None,
         instagram_account_id: Optional[str] = None,
     ) -> None:
-        """
-        Initialize Instagram Uploader.
-
-        Args:
-            access_token: Meta User/Page Access Token with `instagram_content_publish` scope.
-                          Defaults to `INSTAGRAM_ACCESS_TOKEN` env var.
-            instagram_account_id: Instagram Business/Creator Account ID (IG User ID).
-                                  Defaults to `INSTAGRAM_ACCOUNT_ID` env var.
-        """
+        # Always reload .env so refreshed tokens are picked up without restarting Streamlit
+        load_dotenv(override=True)
         self.access_token = (
             access_token if access_token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
         )
         self.account_id = (
             instagram_account_id if instagram_account_id is not None else os.environ.get("INSTAGRAM_ACCOUNT_ID", "").strip()
         )
+
 
 
     def is_authenticated(self) -> bool:
