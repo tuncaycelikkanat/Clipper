@@ -783,14 +783,89 @@ class AutoPilotManager:
         "next_run": None,
     }
 
+    def publish_due_socials(self) -> int:
+        """
+        Zamanı gelmiş (scheduled_at <= now) ve henüz Instagram'a yüklenmemiş
+        videoları otomatik olarak Instagram Reels'e yükler.
+        """
+        if not self.instagram.is_authenticated():
+            return 0
+
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with self.db._connect() as conn:
+            due_items = conn.execute("""
+                SELECT id, video_id, clip_id, title, render_path, scheduled_at 
+                FROM autopilot_queue 
+                WHERE scheduled_at <= ? AND (instagram_synced IS NULL OR instagram_synced = 0)
+                ORDER BY scheduled_at ASC;
+            """, (now_iso,)).fetchall()
+
+        if not due_items:
+            return 0
+
+        logger.info(f"⏰ [Zamanlayıcı] Yayın zamanı gelmiş {len(due_items)} video Instagram Reels'e yükleniyor…")
+        published_count = 0
+        cutter = VideoCutter()
+
+        for row in due_items:
+            q_id, video_id, clip_id, title, render_path, sched_at = row
+            try:
+                # 1. Video render dosyasını hazırla
+                if not render_path or not os.path.exists(render_path):
+                    with self.db._connect() as conn:
+                        clip_row = None
+                        if clip_id:
+                            clip_row = conn.execute("SELECT start_time, end_time, hook_caption, title FROM clips WHERE id=?", (clip_id,)).fetchone()
+                        if not clip_row:
+                            clip_row = conn.execute("SELECT start_time, end_time, hook_caption, title FROM clips WHERE video_id=? ORDER BY score DESC LIMIT 1", (video_id,)).fetchone()
+
+                    if clip_row:
+                        s_time, e_time, hook, clip_title = clip_row
+                        render_path = cutter.cut_clip(
+                            url=f"https://www.youtube.com/watch?v={video_id}",
+                            start_time=float(s_time),
+                            end_time=float(e_time),
+                            clip_id=f"auto_ig_{video_id}",
+                            video_title=clip_title or title,
+                            hook_caption=hook or "",
+                            render_mode="shorts_9x16_black",
+                            add_subtitles=True,
+                            add_hook_card=True,
+                            enhance_colors=True,
+                            use_whisper=True,
+                        )
+                    else:
+                        continue
+
+                if not render_path or not os.path.exists(render_path):
+                    continue
+
+                # 2. Instagram Reels Yükle
+                ig_caption = InstagramUploader.generate_caption({"title": title}, video_title=title)
+                ig_res = self.instagram.upload_reel(video_path=render_path, caption=ig_caption, share_to_feed=True)
+                published_count += 1
+                logger.success(f"✅ [Zamanlayıcı] Instagram Reels yayınlandı: {title} -> {ig_res.get('url')}")
+
+                with self.db._connect() as conn:
+                    conn.execute(
+                        "UPDATE autopilot_queue SET instagram_synced=1, instagram_url=? WHERE id=?",
+                        (ig_res.get("url", ""), q_id)
+                    )
+                    conn.commit()
+
+            except Exception as e:
+                logger.error(f"❌ [Zamanlayıcı] Instagram yükleme hatası ({title}): {e}")
+
+        return published_count
+
     @classmethod
     def start_background_worker(
         cls,
-        interval_hours: float = 2.0,
+        interval_hours: float = 0.25,  # Her 15 dakikada bir kontrol et
         api_key: Optional[str] = None,
         db: Optional[DatabaseManager] = None,
     ) -> bool:
-        """7/24 arka plan nöbetçisini başlatır. Belirtilen aralıkla kanalları otomatik tarar."""
+        """7/24 arka plan nöbetçisini başlatır. Belirtilen aralıkla kanalları tarar ve zamanı gelenleri Instagram'a yükler."""
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
             from apscheduler.triggers.interval import IntervalTrigger
@@ -808,12 +883,16 @@ class AutoPilotManager:
             logger.info("🤖 [AutoPilot Nöbetçi] Otomatik periyodik kontrol başladı…")
             cls._worker_info["last_run"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             try:
+                # 1. Zamanı gelmiş Reels videolarını yükle
+                manager.publish_due_socials()
+                # 2. Yeni videoları tara ve kuyruğa ekle
                 manager.run_cycle(api_key=api_key)
             except Exception as e:
                 logger.error("Background AutoPilot cycle error: {}", e)
 
         scheduler = BackgroundScheduler(job_defaults={"coalesce": True, "max_instances": 1})
-        trigger = IntervalTrigger(hours=interval_hours)
+        # Dakika veya saat bazlı interval
+        trigger = IntervalTrigger(minutes=max(5, int(interval_hours * 60)))
         scheduler.add_job(_cycle_job, trigger=trigger, id="autopilot_periodic_check", replace_existing=True)
         scheduler.start()
 
@@ -822,6 +901,7 @@ class AutoPilotManager:
         cls._worker_info["interval_hours"] = interval_hours
         logger.info("Background AutoPilot worker başlatıldı (Aralık: {} saat).", interval_hours)
         return True
+
 
     @classmethod
     def stop_background_worker(cls) -> bool:

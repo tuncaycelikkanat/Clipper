@@ -47,14 +47,47 @@ with col_sync2:
             st.success(f"{n} adet YouTube Shorts videosu takvime aktarıldı!")
             st.rerun()
 with col_sync3:
-    if st.button("🔄 Reels & TikTok", icon=":material/sync:", type="primary", width="stretch", help="Listedeki videoları Reels ve TikTok'a yükler."):
-        with st.status("Klipler Instagram ve TikTok'a senkronlanıyor…", expanded=True) as status_box:
-            res = autopilot.sync_queue_to_socials(progress_callback=lambda m: status_box.write(m))
-            status_box.update(label=f"Senkronizasyon Tamamlandı! ({res['instagram_success']} Reels, {res['tiktok_success']} TikTok)", state="complete")
-        st.toast("Tüm klipler Instagram ve TikTok'a senkronlandı!", icon="🎉")
-        st.rerun()
+# ------------------------------------------------------------------
+# 7/24 Otomatik Zamanlayıcı & Nöbetçi Kartı
+# ------------------------------------------------------------------
+worker_info = AutoPilotManager.get_background_worker_info()
+is_worker_running = worker_info.get("running", False)
+
+sched_box = st.container(border=True)
+with sched_box:
+    s_col1, s_col2, s_col3 = st.columns([2.5, 1.2, 1.0], vertical_alignment="center")
+    with s_col1:
+        st.markdown(
+            f"**⏰ 7/24 Sosyal Medya Zamanlayıcısı:** "
+            f"{'🟢 **Aktif (Her 15 dk kontrol)**' if is_worker_running else '⚪ **Durduruldu**'}"
+        )
+        st.caption(
+            "YouTube'da planlanan videonun günü ve saati (13:00 / 18:00 / 22:00) geldiğinde "
+            "bu nöbetçi videoyu otomatik olarak **Instagram Reels**'e tam vaktinde yükler."
+        )
+    with s_col2:
+        if is_worker_running:
+            if st.button("⏹️ Nöbetçiyi Durdur", type="secondary", width="stretch"):
+                AutoPilotManager.stop_background_worker()
+                st.toast("Zamanlayıcı durduruldu.", icon="⏸️")
+                st.rerun()
+        else:
+            if st.button("▶️ Nöbetçiyi Başlat", type="primary", width="stretch"):
+                AutoPilotManager.start_background_worker(interval_hours=0.25, db=db)
+                st.toast("7/24 Otomatik zamanlayıcı başlatıldı!", icon="🚀")
+                st.rerun()
+    with s_col3:
+        if st.button("⚡ Şimdi Kontrol Et", help="Saati gelmiş videolar varsa hemen Instagram'a atar", width="stretch"):
+            with st.spinner("Zamanı gelmiş videolar kontrol ediliyor…"):
+                pub_cnt = autopilot.publish_due_socials()
+                if pub_cnt > 0:
+                    st.success(f"{pub_cnt} adet videonun saati gelmişti ve Instagram'a yüklendi!")
+                else:
+                    st.info("Şu an için saati gelmiş bekleyen video yok.")
+                st.rerun()
 
 st.divider()
+
 
 
 
