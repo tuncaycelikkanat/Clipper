@@ -47,6 +47,41 @@ with st.container(border=True):
         else:
             st.info("İsteğe Bağlı", icon=":material/info:")
 
+# Section 1b: Social Media Integrations (Meta & TikTok)
+with st.container(border=True):
+    st.subheader("Sosyal Medya Yayınlama API'leri (Meta & TikTok)", anchor=False)
+    st.caption("Meta Graph API (Instagram Reels) ve TikTok Content Posting API entegrasyon durumları.")
+
+    ig_token = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
+    ig_acc = os.environ.get("INSTAGRAM_ACCOUNT_ID", "")
+    masked_ig = (ig_token[:8] + "..." + ig_token[-4:]) if ig_token else "Tanımlanmamış"
+
+    col_ig1, col_ig2 = st.columns([3, 1], vertical_alignment="center")
+    with col_ig1:
+        st.text_input("INSTAGRAM_ACCESS_TOKEN (Meta Graph API)", value=masked_ig, disabled=True,
+                      help="Instagram Business/Creator hesabı için kalıcı Graph API access token.")
+    with col_ig2:
+        if ig_token and ig_acc:
+            st.success(f"Aktif (ID: {ig_acc})", icon=":material/check_circle:")
+        elif ig_token:
+            st.warning("Account ID Eksik", icon=":material/warning:")
+        else:
+            st.info("İsteğe Bağlı", icon=":material/info:")
+
+    tt_token = os.environ.get("TIKTOK_ACCESS_TOKEN", "")
+    masked_tt = (tt_token[:8] + "..." + tt_token[-4:]) if tt_token else "Tanımlanmamış"
+
+    col_tt1, col_tt2 = st.columns([3, 1], vertical_alignment="center")
+    with col_tt1:
+        st.text_input("TIKTOK_ACCESS_TOKEN (TikTok Direct Post API v2)", value=masked_tt, disabled=True,
+                      help="TikTok Developer Direct Post API v2 Bearer token.")
+    with col_tt2:
+        if tt_token:
+            st.success("Aktif", icon=":material/check_circle:")
+        else:
+            st.info("İsteğe Bağlı", icon=":material/info:")
+
+
 # Section 2: Disk & Cache Management
 with st.container(border=True):
     st.subheader("Önbellek & Disk Yönetimi", anchor=False)
