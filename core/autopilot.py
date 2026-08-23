@@ -520,12 +520,20 @@ class AutoPilotManager:
             # 1. Video dosyasını doğrula, yoksa kes
             if not render_path or not os.path.exists(render_path):
                 cb("   ⏳ Video render dosyası hazırlanıyor…")
+                clip_id = item.get("clip_id")
                 clip_row = None
                 with self.db._connect() as conn:
-                    clip_row = conn.execute(
-                        "SELECT start_time, end_time, hook_caption, title FROM clips WHERE video_id=? ORDER BY score DESC LIMIT 1",
-                        (video_id,)
-                    ).fetchone()
+                    if clip_id:
+                        clip_row = conn.execute(
+                            "SELECT start_time, end_time, hook_caption, title FROM clips WHERE id=?",
+                            (clip_id,)
+                        ).fetchone()
+                    if not clip_row:
+                        clip_row = conn.execute(
+                            "SELECT start_time, end_time, hook_caption, title FROM clips WHERE video_id=? ORDER BY score DESC LIMIT 1",
+                            (video_id,)
+                        ).fetchone()
+
 
                 if clip_row:
                     s_time, e_time, hook, clip_title = clip_row
