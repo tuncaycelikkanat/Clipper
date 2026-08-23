@@ -579,49 +579,74 @@ class AutoPilotManager:
                 except Exception:
                     sched_unix = None
 
+            q_item_id = item.get("id")
+            ig_already = bool(item.get("instagram_synced"))
+            tt_already = bool(item.get("tiktok_synced"))
+
             # 3. Instagram Reels Yükle / Planla
             if self.instagram.is_authenticated():
-                try:
-                    ig_caption = InstagramUploader.generate_caption(
-                        {"title": title, "hook_caption": item.get("hook_caption", "")},
-                        video_title=title
-                    )
-                    if sched_unix:
-                        cb(f"   📸 Instagram Reels zamanlanıyor (@ {sched_iso})…")
-                    else:
-                        cb("   📸 Instagram Reels hemen yayına alınıyor…")
+                if ig_already:
+                    cb("   📸 Instagram Reels zaten yüklendi, atlanıyor.")
+                else:
+                    try:
+                        ig_caption = InstagramUploader.generate_caption(
+                            {"title": title, "hook_caption": item.get("hook_caption", "")},
+                            video_title=title
+                        )
+                        if sched_unix:
+                            cb(f"   📸 Instagram Reels zamanlanıyor (@ {sched_iso})…")
+                        else:
+                            cb("   📸 Instagram Reels hemen yayına alınıyor…")
 
-                    ig_res = self.instagram.upload_reel(
-                        video_path=render_path,
-                        caption=ig_caption,
-                        share_to_feed=True,
-                        scheduled_publish_time=sched_unix,
-                    )
-                    summary["instagram_success"] += 1
-                    cb(f"   ✅ Instagram Reels başarılı: {ig_res.get('url')}")
-                except Exception as ig_err:
-                    logger.error(f"Instagram upload error for {title}: {ig_err}")
-                    summary["errors"].append(f"Instagram ({title}): {ig_err}")
+                        ig_res = self.instagram.upload_reel(
+                            video_path=render_path,
+                            caption=ig_caption,
+                            share_to_feed=True,
+                            scheduled_publish_time=sched_unix,
+                        )
+                        summary["instagram_success"] += 1
+                        cb(f"   ✅ Instagram Reels başarılı: {ig_res.get('url')}")
+                        if q_item_id:
+                            with self.db._connect() as conn:
+                                conn.execute(
+                                    "UPDATE autopilot_queue SET instagram_synced=1, instagram_url=? WHERE id=?",
+                                    (ig_res.get("url", ""), q_item_id)
+                                )
+                                conn.commit()
+                    except Exception as ig_err:
+                        logger.error(f"Instagram upload error for {title}: {ig_err}")
+                        summary["errors"].append(f"Instagram ({title}): {ig_err}")
 
             # 4. TikTok Yükle
             if self.tiktok.is_authenticated():
-                try:
-                    cb("   🎵 TikTok videosu yükleniyor…")
-                    tt_title = TikTokUploader.generate_caption(
-                        {"title": title, "hook_caption": item.get("hook_caption", "")}
-                    )
-                    tt_res = self.tiktok.upload_video(
-                        video_path=render_path,
-                        title=tt_title,
-                    )
-                    summary["tiktok_success"] += 1
-                    cb(f"   ✅ TikTok videosu yüklendi! ID: {tt_res.get('publish_id')}")
-                except Exception as tt_err:
-                    logger.error(f"TikTok upload error for {title}: {tt_err}")
-                    summary["errors"].append(f"TikTok ({title}): {tt_err}")
+                if tt_already:
+                    cb("   🎵 TikTok videosu zaten yüklendi, atlanıyor.")
+                else:
+                    try:
+                        cb("   🎵 TikTok videosu yükleniyor…")
+                        tt_title = TikTokUploader.generate_caption(
+                            {"title": title, "hook_caption": item.get("hook_caption", "")}
+                        )
+                        tt_res = self.tiktok.upload_video(
+                            video_path=render_path,
+                            title=tt_title,
+                        )
+                        summary["tiktok_success"] += 1
+                        cb(f"   ✅ TikTok videosu yüklendi! ID: {tt_res.get('publish_id')}")
+                        if q_item_id:
+                            with self.db._connect() as conn:
+                                conn.execute(
+                                    "UPDATE autopilot_queue SET tiktok_synced=1, tiktok_url=? WHERE id=?",
+                                    (tt_res.get("url", ""), q_item_id)
+                                )
+                                conn.commit()
+                    except Exception as tt_err:
+                        logger.error(f"TikTok upload error for {title}: {tt_err}")
+                        summary["errors"].append(f"TikTok ({title}): {tt_err}")
 
         cb(f"\n🎉 Eşzamanlama tamamlandı! ({summary['instagram_success']} Instagram, {summary['tiktok_success']} TikTok)")
         return summary
+
 
     def sync_from_youtube_channel(self, max_results: int = 50) -> int:
         """
