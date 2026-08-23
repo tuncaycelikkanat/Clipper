@@ -24,6 +24,8 @@ class TikTokUploader:
         self,
         access_token: Optional[str] = None,
         open_id: Optional[str] = None,
+        client_key: Optional[str] = None,
+        client_secret: Optional[str] = None,
     ) -> None:
         """
         Initialize TikTok Uploader.
@@ -33,6 +35,8 @@ class TikTokUploader:
                           Defaults to `TIKTOK_ACCESS_TOKEN` env var.
             open_id: TikTok User Open ID.
                      Defaults to `TIKTOK_OPEN_ID` env var.
+            client_key: TikTok Client Key.
+            client_secret: TikTok Client Secret.
         """
         self.access_token = (
             access_token if access_token is not None else os.environ.get("TIKTOK_ACCESS_TOKEN", "").strip()
@@ -40,11 +44,69 @@ class TikTokUploader:
         self.open_id = (
             open_id if open_id is not None else os.environ.get("TIKTOK_OPEN_ID", "").strip()
         )
-
+        self.client_key = (
+            client_key if client_key is not None else os.environ.get("TIKTOK_CLIENT_KEY", "").strip()
+        )
+        self.client_secret = (
+            client_secret if client_secret is not None else os.environ.get("TIKTOK_CLIENT_SECRET", "").strip()
+        )
 
     def is_authenticated(self) -> bool:
         """Return True if access token is available."""
         return bool(self.access_token)
+
+    @classmethod
+    def get_authorization_url(
+        cls,
+        client_key: str,
+        redirect_uri: str = "https://tuncaycelikkanat.github.io/Clipper/",
+        scope: str = "user.info.basic,video.upload,video.publish",
+        state: str = "clipper_auth",
+    ) -> str:
+        """Generate the TikTok OAuth2 Authorization URL."""
+        import urllib.parse
+        params = {
+            "client_key": client_key,
+            "scope": scope,
+            "response_type": "code",
+            "redirect_uri": redirect_uri,
+            "state": state,
+        }
+        return f"https://www.tiktok.com/v2/auth/authorize/?{urllib.parse.urlencode(params)}"
+
+    @classmethod
+    def exchange_code_for_token(
+        cls,
+        code: str,
+        client_key: str,
+        client_secret: str,
+        redirect_uri: str = "https://tuncaycelikkanat.github.io/Clipper/",
+    ) -> Dict[str, Any]:
+        """Exchange an authorization code for a TikTok User Access Token."""
+        url = f"{cls.BASE_URL}/oauth/token/"
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        data = {
+            "client_key": client_key,
+            "client_secret": client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+        }
+        resp = requests.post(url, headers=headers, data=data, timeout=30)
+        res_json = resp.json()
+
+        if "data" in res_json and "access_token" in res_json["data"]:
+            token_data = res_json["data"]
+            return {
+                "access_token": token_data["access_token"],
+                "open_id": token_data.get("open_id", ""),
+                "refresh_token": token_data.get("refresh_token", ""),
+                "expires_in": token_data.get("expires_in", 86400),
+            }
+
+        error_msg = res_json.get("error", {}).get("message", resp.text)
+        raise RuntimeError(f"TikTok token değişimi başarısız: {error_msg}")
+
 
     def init_video_upload(
         self,

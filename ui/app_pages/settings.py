@@ -69,6 +69,8 @@ with st.container(border=True):
             st.info("İsteğe Bağlı", icon=":material/info:")
 
     tt_token = os.environ.get("TIKTOK_ACCESS_TOKEN", "")
+    tt_key = os.environ.get("TIKTOK_CLIENT_KEY", "")
+    tt_secret = os.environ.get("TIKTOK_CLIENT_SECRET", "")
     masked_tt = (tt_token[:8] + "..." + tt_token[-4:]) if tt_token else "Tanımlanmamış"
 
     col_tt1, col_tt2 = st.columns([3, 1], vertical_alignment="center")
@@ -80,6 +82,40 @@ with st.container(border=True):
             st.success("Aktif", icon=":material/check_circle:")
         else:
             st.info("İsteğe Bağlı", icon=":material/info:")
+
+    if tt_key and tt_secret and not tt_token:
+        with st.expander("🔗 TikTok Hesabını Tek Tıkla Bağla (OAuth2)", expanded=True):
+            st.caption("TikTok Developer Client Key & Secret kaydedildi. Aşağıdaki butona tıklayıp hesabına izin ver.")
+            from core.tiktok_uploader import TikTokUploader
+            auth_url = TikTokUploader.get_authorization_url(client_key=tt_key)
+            st.link_button("🚀 TikTok İle Giriş Yap & Yetkilendir", auth_url, icon=":material/login:", type="primary")
+
+            st.write("Yetkilendirmeden sonra yönlendirildiğin adres çubuğundaki linki (veya `code=...` kısmını) buraya yapıştır:")
+            auth_code_input = st.text_input("Yönlendirme Linki veya Code", placeholder="https://tuncaycelikkanat.github.io/Clipper/?code=...")
+            if st.button("Token'ı Al ve Kaydet", icon=":material/key:", key="btn_exchange_tt"):
+                if auth_code_input:
+                    # Extract code if full URL was pasted
+                    code = auth_code_input.strip()
+                    if "code=" in code:
+                        code = code.split("code=")[1].split("&")[0]
+                    try:
+                        token_res = TikTokUploader.exchange_code_for_token(
+                            code=code,
+                            client_key=tt_key,
+                            client_secret=tt_secret,
+                        )
+                        act = token_res["access_token"]
+                        open_id = token_res.get("open_id", "")
+                        # Save to .env
+                        with open(".env", "a") as f:
+                            f.write(f"\nTIKTOK_ACCESS_TOKEN={act}\nTIKTOK_OPEN_ID={open_id}\n")
+                        os.environ["TIKTOK_ACCESS_TOKEN"] = act
+                        os.environ["TIKTOK_OPEN_ID"] = open_id
+                        st.success(f"🎉 TikTok Hesabı Başarıyla Bağlandı! (Open ID: {open_id})", icon=":material/verified:")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Token alınamadı: {e}", icon=":material/error:")
+
 
 
 # Section 2: Disk & Cache Management

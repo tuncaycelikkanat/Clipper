@@ -98,19 +98,75 @@ def test_generate_caption():
 
 @patch.object(TikTokUploader, "init_video_upload")
 @patch.object(TikTokUploader, "upload_video_binary")
-def test_upload_video_end_to_end(mock_bin, mock_init, tt_uploader, tmp_path):
-    video = tmp_path / "tt_sample.mp4"
-    video.write_bytes(b"sample_tiktok_data")
+@patch.object(TikTokUploader, "check_publish_status")
+def test_upload_video_end_to_end(mock_check, mock_binary, mock_init, tt_uploader, tmp_path):
+    video_file = tmp_path / "tt_clip2.mp4"
+    video_file.write_bytes(b"tiktok_test_binary")
 
-    mock_init.return_value = {"publish_id": "p123", "upload_url": "https://upload.tiktok.com/p123"}
-    mock_bin.return_value = True
+    mock_init.return_value = {
+        "publish_id": "pub_e2e_1",
+        "upload_url": "https://upload.tiktok.com/pub_e2e_1",
+    }
+    mock_binary.return_value = True
+    mock_check.return_value = {"status": "PUBLISH_COMPLETE"}
 
-    res = tt_uploader.upload_video(str(video), title="Sample Title")
-    assert res["publish_id"] == "p123"
+    res = tt_uploader.upload_video(
+        video_path=str(video_file),
+        title="Test Reel",
+    )
     assert res["status"] == "uploaded"
+    assert res["publish_id"] == "pub_e2e_1"
+
 
 
 def test_upload_video_file_not_found(tt_uploader):
     with pytest.raises(FileNotFoundError):
-        tt_uploader.upload_video("/non/existent/path.mp4", title="Title")
+        tt_uploader.upload_video("/non/existent/path/vid.mp4", title="Title")
 
+
+def test_get_authorization_url():
+    url = TikTokUploader.get_authorization_url(client_key="test_key_123")
+    assert "https://www.tiktok.com/v2/auth/authorize/" in url
+    assert "client_key=test_key_123" in url
+    assert "video.publish" in url
+
+
+@patch("requests.post")
+def test_exchange_code_for_token_success(mock_post):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "data": {
+            "access_token": "act.test_token_123",
+            "open_id": "_000test_open_id",
+            "refresh_token": "rft.test_refresh_123",
+            "expires_in": 86400,
+        },
+        "error": {"code": "ok", "message": ""},
+    }
+    mock_post.return_value = mock_resp
+
+    res = TikTokUploader.exchange_code_for_token(
+        code="auth_code_xyz",
+        client_key="k1",
+        client_secret="s1",
+    )
+    assert res["access_token"] == "act.test_token_123"
+    assert res["open_id"] == "_000test_open_id"
+
+
+@patch("requests.post")
+def test_exchange_code_for_token_error(mock_post):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 400
+    mock_resp.json.return_value = {
+        "error": {"code": "invalid_grant", "message": "Code expired"}
+    }
+    mock_post.return_value = mock_resp
+
+    with pytest.raises(RuntimeError, match="TikTok token değişimi başarısız"):
+        TikTokUploader.exchange_code_for_token(
+            code="expired_code",
+            client_key="k1",
+            client_secret="s1",
+        )
