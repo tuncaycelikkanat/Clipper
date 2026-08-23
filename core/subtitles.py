@@ -94,8 +94,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             last_end_time = e_rel
 
-        # 2. Group into strict 3-word batches
-        batch_size = 3
+        # 2. Group into dynamic 2-word batches for fast-paced viral synchronization
+        batch_size = 2
         word_batches = []
         for i in range(0, len(all_timed_words), batch_size):
             word_batches.append(all_timed_words[i:i + batch_size])
@@ -137,28 +137,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         video_height: int = 1080,
         font_size: int = 34,
         margin_v: int = 120,
+        max_words_per_batch: int = 2,
     ) -> str:
         """
-        Creates max 3-word, single-line Karaoke subtitles from exact Whisper word timestamps.
+        Creates ultra-responsive 1-2 word Karaoke subtitles from exact Whisper word timestamps.
 
-        Unlike generate_ass_file (which estimates per-word timing from segment boundaries),
-        this method uses the precise start/end timestamps produced by faster-whisper's
-        word_timestamps=True mode.  No overlap correction is necessary because the source
-        data already has non-overlapping word boundaries.
-
-        Args:
-            word_segments:   List of {'word': str, 'start': float, 'end': float} dicts.
-                             'start'/'end' are absolute seconds within the original video.
-            clip_start_sec:  Clip start in seconds (absolute).
-            clip_end_sec:    Clip end in seconds (absolute).
-            output_path:     File path for the output .ass file.
-            video_width:     PlayResX for the ASS header.
-            video_height:    PlayResY for the ASS header.
-            font_size:       Base font size for the karaoke style.
-            margin_v:        Vertical margin (pixels from the bottom edge).
-
-        Returns:
-            output_path (the path written to).
+        Uses the precise start/end timestamps produced by faster-whisper's
+        word_timestamps=True mode. Optimized for rapid Turkish speech and gaming screams.
         """
         ass_header = f"""[Script Info]
 ScriptType: v4.00+
@@ -202,8 +187,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             relative_words.append(TimedWord(text=text, start=s_rel, end=e_rel))
 
-        # 2. Group into max-3-word batches
-        batch_size = 3
+        # 2. Group into punchy 2-word batches for immediate screen pacing
+        batch_size = max(1, min(max_words_per_batch, 3))
         word_batches: List[List[TimedWord]] = [
             relative_words[i : i + batch_size]
             for i in range(0, len(relative_words), batch_size)
@@ -229,6 +214,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 events.append(
                     f"Dialogue: 0,{start_str},{end_str},ShortsKaraoke,,0,0,0,,{formatted_line}"
                 )
+
 
         full_content = ass_header + "\n".join(events)
         with open(output_path, "w", encoding="utf-8") as f:

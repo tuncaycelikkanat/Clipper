@@ -32,9 +32,10 @@ class VideoCutter:
         add_subtitles: bool = True,
         add_hook_card: bool = True,
         enhance_colors: bool = True,
-        use_whisper: bool = False,
+        use_whisper: bool = True,
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> str:
+
         """
         Full-featured programmatic video editor:
         - Stream seek extraction
