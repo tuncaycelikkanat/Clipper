@@ -228,15 +228,15 @@ class TikTokUploader:
     def upload_video(
         self,
         video_path: str,
-        title: str,
-        privacy_level: str = "PUBLIC_TO_EVERYONE",
+        title: str = "",
+        privacy_level: str = "SELF_ONLY",
         disable_duet: bool = False,
-        disable_stitch: bool = False,
         disable_comment: bool = False,
-        cover_timestamp_ms: int = 1000,
+        disable_stitch: bool = False,
+        schedule: Optional[datetime.datetime] = None,
     ) -> Dict[str, Any]:
         """
-        Full workflow: Init Post -> Upload Video Binary -> Check Status.
+        Upload local video file to TikTok. Supports immediate upload and future scheduling.
         """
         path = Path(video_path).resolve()
         if not path.exists():
@@ -252,9 +252,10 @@ class TikTokUploader:
                 import subprocess
                 import sys
 
-                logger.info("Uploading video to TikTok via session cookie (clean worker process)…")
+                sched_iso_val = schedule.isoformat() if schedule else "None"
+                logger.info(f"Uploading video to TikTok via session cookie (Schedule: {sched_iso_val})…")
                 worker_code = f"""
-import sys
+import sys, datetime
 from tiktok_uploader import config
 from tiktok_uploader.upload import upload_video
 
@@ -262,11 +263,15 @@ from tiktok_uploader.upload import upload_video
 config.explicit_wait = 90
 config.implicit_wait = 60
 
+sched_raw = {json.dumps(sched_iso_val)}
+sched_dt = datetime.datetime.fromisoformat(sched_raw) if sched_raw != "None" else None
+
 try:
     res = upload_video(
         filename={json.dumps(str(path))},
         description={json.dumps(title)},
         sessionid={json.dumps(self.session_id)},
+        schedule=sched_dt,
         browser="chromium",
         headless=True,
     )

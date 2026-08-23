@@ -617,19 +617,24 @@ class AutoPilotManager:
                         logger.error(f"Instagram upload error for {title}: {ig_err}")
                         summary["errors"].append(f"Instagram ({title}): {ig_err}")
 
-            # 4. TikTok Yükle
+            # 4. TikTok Yükle / Planla
             if self.tiktok.is_authenticated():
                 if tt_already:
                     cb("   🎵 TikTok videosu zaten yüklendi, atlanıyor.")
                 else:
                     try:
-                        cb("   🎵 TikTok videosu yükleniyor…")
+                        if sched_unix and sched_dt:
+                            cb(f"   🎵 TikTok videosu zamanlanıyor (@ {sched_iso})…")
+                        else:
+                            cb("   🎵 TikTok videosu hemen yayına alınıyor…")
+
                         tt_title = TikTokUploader.generate_caption(
                             {"title": title, "hook_caption": item.get("hook_caption", "")}
                         )
                         tt_res = self.tiktok.upload_video(
                             video_path=render_path,
                             title=tt_title,
+                            schedule=sched_dt if sched_unix else None,
                         )
                         summary["tiktok_success"] += 1
                         cb(f"   ✅ TikTok videosu yüklendi! ID: {tt_res.get('publish_id')}")
@@ -643,6 +648,7 @@ class AutoPilotManager:
                     except Exception as tt_err:
                         logger.error(f"TikTok upload error for {title}: {tt_err}")
                         summary["errors"].append(f"TikTok ({title}): {tt_err}")
+
 
         cb(f"\n🎉 Eşzamanlama tamamlandı! ({summary['instagram_success']} Instagram, {summary['tiktok_success']} TikTok)")
         return summary
