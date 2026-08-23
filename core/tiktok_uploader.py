@@ -16,12 +16,14 @@ from loguru import logger
 
 
 class TikTokUploader:
-    """Official TikTok Content Posting API v2 client."""
+    """Official TikTok Content Posting API v2 client and session uploader."""
 
     BASE_URL = "https://open.tiktokapis.com/v2"
 
     def __init__(
+
         self,
+        session_id: Optional[str] = None,
         access_token: Optional[str] = None,
         open_id: Optional[str] = None,
         client_key: Optional[str] = None,
@@ -30,7 +32,13 @@ class TikTokUploader:
         """
         Initialize TikTok Uploader.
 
+        Supports both:
+        1. Session ID (Cookie-based, zero developer onboarding required)
+        2. Content Posting API v2 (OAuth Bearer Token)
+
         Args:
+            session_id: TikTok sessionid cookie value from web browser.
+                        Defaults to `TIKTOK_SESSION_ID` env var.
             access_token: TikTok User Access Token with `video.publish` or `video.upload` scope.
                           Defaults to `TIKTOK_ACCESS_TOKEN` env var.
             open_id: TikTok User Open ID.
@@ -38,6 +46,9 @@ class TikTokUploader:
             client_key: TikTok Client Key.
             client_secret: TikTok Client Secret.
         """
+        self.session_id = (
+            session_id if session_id is not None else os.environ.get("TIKTOK_SESSION_ID", "").strip()
+        )
         self.access_token = (
             access_token if access_token is not None else os.environ.get("TIKTOK_ACCESS_TOKEN", "").strip()
         )
@@ -52,8 +63,9 @@ class TikTokUploader:
         )
 
     def is_authenticated(self) -> bool:
-        """Return True if access token is available."""
-        return bool(self.access_token)
+        """Return True if session_id or access_token is available."""
+        return bool(self.session_id or self.access_token)
+
 
     @classmethod
     def get_authorization_url(
@@ -229,6 +241,28 @@ class TikTokUploader:
         file_size = path.stat().st_size
         logger.info(f"Uploading video to TikTok ({file_size / (1024*1024):.1f} MB)…")
 
+        # 1. Session ID (Çerez ile Onaysız Web Yüklemesi)
+        if self.session_id:
+            try:
+                from tiktok_uploader.upload import upload_video as tu_upload
+                logger.info("Uploading video to TikTok via sessionid cookie…")
+                res = tu_upload(
+                    filename=str(path),
+                    description=title,
+                    sessionid=self.session_id,
+                    headless=True,
+                )
+                logger.success(f"TikTok videosu yüklendi! Sonuç: {res}")
+                return {
+                    "publish_id": "cookie_session_post",
+                    "status": "uploaded",
+                    "url": "https://www.tiktok.com",
+                }
+            except Exception as tu_err:
+                logger.error(f"TikTok session upload error: {tu_err}")
+                raise RuntimeError(f"TikTok çerez ile yükleme başarısız: {tu_err}")
+
+        # 2. Content Posting API v2 (OAuth Token ile Yükleme)
         init_res = self.init_video_upload(
             file_size=file_size,
             title=title,
@@ -248,8 +282,9 @@ class TikTokUploader:
         return {
             "publish_id": publish_id,
             "status": "uploaded",
-            "url": f"https://www.tiktok.com",  # TikTok doesn't immediately return web URL until processed
+            "url": "https://www.tiktok.com",
         }
+
 
     @staticmethod
     def generate_caption(clip: Dict[str, Any], video_title: str = "") -> str:

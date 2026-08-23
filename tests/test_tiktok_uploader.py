@@ -170,3 +170,32 @@ def test_exchange_code_for_token_error(mock_post):
             client_key="k1",
             client_secret="s1",
         )
+
+
+@patch("tiktok_uploader.upload.upload_video")
+def test_upload_video_session_cookie_success(mock_tu_upload, tmp_path):
+    uploader = TikTokUploader(session_id="fake_session_123", access_token="")
+    assert uploader.is_authenticated() is True
+
+    video_file = tmp_path / "tt_cookie.mp4"
+    video_file.write_bytes(b"data")
+
+    mock_tu_upload.return_value = [{"status": "success"}]
+
+    res = uploader.upload_video(str(video_file), title="Cookie Clip")
+    assert res["status"] == "uploaded"
+    assert res["publish_id"] == "cookie_session_post"
+    mock_tu_upload.assert_called_once()
+
+
+@patch("tiktok_uploader.upload.upload_video")
+def test_upload_video_session_cookie_error(mock_tu_upload, tmp_path):
+    uploader = TikTokUploader(session_id="fake_session_123", access_token="")
+    video_file = tmp_path / "tt_cookie2.mp4"
+    video_file.write_bytes(b"data")
+
+    mock_tu_upload.side_effect = Exception("Browser automation failed")
+
+    with pytest.raises(RuntimeError, match="TikTok çerez ile yükleme başarısız"):
+        uploader.upload_video(str(video_file), title="Cookie Clip")
+
