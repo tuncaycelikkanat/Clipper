@@ -248,15 +248,21 @@ class TikTokUploader:
         # 1. Session ID (Çerez ile Onaysız Web Yüklemesi)
         if self.session_id:
             try:
-                from tiktok_uploader.upload import upload_video as tu_upload
-                logger.info("Uploading video to TikTok via sessionid cookie…")
-                res = tu_upload(
-                    filename=str(path),
-                    description=title,
-                    sessionid=self.session_id,
-                    browser="chromium",
-                    headless=True,
-                )
+                from concurrent.futures import ThreadPoolExecutor
+                logger.info("Uploading video to TikTok via sessionid cookie (isolated worker thread)…")
+
+                def _do_upload():
+                    from tiktok_uploader.upload import upload_video as tu_upload
+                    return tu_upload(
+                        filename=str(path),
+                        description=title,
+                        sessionid=self.session_id,
+                        browser="chromium",
+                        headless=True,
+                    )
+
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    res = executor.submit(_do_upload).result(timeout=180)
 
                 logger.success(f"TikTok videosu yüklendi! Sonuç: {res}")
                 return {
