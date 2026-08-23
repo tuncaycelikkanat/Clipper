@@ -384,4 +384,43 @@ def test_background_worker_lifecycle(auto_db):
     assert AutoPilotManager.is_background_worker_running() is False
 
 
+def test_sync_queue_to_socials_empty(manager):
+    res = manager.sync_queue_to_socials()
+    assert res["processed"] == 0
+    assert res["instagram_success"] == 0
+
+
+@patch("core.tiktok_uploader.TikTokUploader.upload_video")
+@patch("core.tiktok_uploader.TikTokUploader.is_authenticated")
+@patch("core.instagram_uploader.InstagramUploader.upload_reel")
+@patch("core.instagram_uploader.InstagramUploader.is_authenticated")
+def test_sync_queue_to_socials_success(mock_ig_auth, mock_ig_upload, mock_tt_auth, mock_tt_upload, manager, auto_db, tmp_path):
+    mock_ig_auth.return_value = True
+    mock_ig_upload.return_value = {"url": "https://instagram.com/reel/123"}
+    mock_tt_auth.return_value = True
+    mock_tt_upload.return_value = {"publish_id": "pub_tt_456"}
+
+    fake_video = tmp_path / "sync_video.mp4"
+    fake_video.write_bytes(b"sample_data")
+
+    auto_db.save_video({"id": "v_sync", "title": "Sync Test"})
+    auto_db.add_to_autopilot_queue(
+        video_id="v_sync",
+        clip_id="c_sync",
+        channel_url="http://yt.com",
+        title="Sync Clip",
+        render_path=str(fake_video),
+        thumbnail_path="",
+        viral_score=95,
+        scheduled_at="2026-08-25T10:00:00Z",
+        status="SCHEDULED",
+    )
+
+    res = manager.sync_queue_to_socials()
+    assert res["processed"] == 1
+    assert res["instagram_success"] == 1
+    assert res["tiktok_success"] == 1
+
+
+
 

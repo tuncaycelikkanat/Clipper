@@ -37,7 +37,19 @@ with col_m2:
 with col_m3:
     st.metric("Günlük Paylaşım Slotları", "13:00 / 18:00 / 22:00")
 
+col_sync1, col_sync2 = st.columns([2.5, 1.5], vertical_alignment="center")
+with col_sync1:
+    st.info("💡 YouTube'a planlanmış tüm klipleri aynı saatleriyle **Instagram Reels (@tuncaysclips)** ve **TikTok** hesaplarına da senkronlayabilirsiniz.")
+with col_sync2:
+    if st.button("🔄 Tümünü Reels & TikTok'a Senkronla", icon=":material/sync:", type="primary", width="stretch"):
+        with st.status("Klipler Instagram ve TikTok'a senkronlanıyor…", expanded=True) as status_box:
+            res = autopilot.sync_queue_to_socials(progress_callback=lambda m: status_box.write(m))
+            status_box.update(label=f"Senkronizasyon Tamamlandı! ({res['instagram_success']} Reels, {res['tiktok_success']} TikTok)", state="complete")
+        st.toast("Tüm klipler Instagram ve TikTok'a senkronlandı!", icon="🎉")
+        st.rerun()
+
 st.divider()
+
 
 # ------------------------------------------------------------------
 # Üst Kısım: Gün Gün Kaydırmalı Seçici

@@ -20,6 +20,9 @@ from loguru import logger
 
 from core.feed import ChannelFeed
 from core.instagram_uploader import InstagramUploader
+from core.cutter import VideoCutter
+from core.database import DatabaseManager
+from core.deepseek_engine import DeepSeekEngine
 from core.notifier import Notifier
 from core.pipeline import ClipperPipeline
 from core.thumbnail import ThumbnailGenerator
@@ -482,6 +485,134 @@ class AutoPilotManager:
 
         cb(f"🎉 [AutoPilot Döngüsü Bitti] {summary['clips_stockpiled']} klip stoklandı, {summary['clips_scheduled']} klip zamanlandı.")
         return summary
+
+
+    def sync_queue_to_socials(
+        self,
+        progress_callback: Optional[Callable[[str], None]] = None,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        Iterates through all queued/scheduled clips in the database and pushes them to Instagram Reels and TikTok.
+        - If scheduled_at is in the future (> 15 mins), schedules it for that exact timestamp on Instagram Reels.
+        - If scheduled_at is past or immediate, publishes immediately.
+        - Uploads to TikTok.
+        """
+        cb = progress_callback or (lambda msg: None)
+        queue_items = self.db.get_autopilot_queue()
+        summary = {"processed": 0, "instagram_success": 0, "tiktok_success": 0, "errors": []}
+
+        if not queue_items:
+            cb("Kuyrukta yayınlanacak klip bulunamadı.")
+            return summary
+
+        cb(f"🚀 Toplam {len(queue_items)} adet klip Instagram ve TikTok'a senkronlanıyor…")
+        cutter = VideoCutter()
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+        for idx, item in enumerate(queue_items[:limit], 1):
+            title = item.get("title", "Klip")
+            render_path = item.get("render_path")
+            video_id = item.get("video_id")
+            sched_iso = item.get("scheduled_at")
+            cb(f"\n[{idx}/{len(queue_items)}] {title}")
+
+            # 1. Video dosyasını doğrula, yoksa kes
+            if not render_path or not os.path.exists(render_path):
+                cb("   ⏳ Video render dosyası hazırlanıyor…")
+                clip_row = None
+                with self.db._connect() as conn:
+                    clip_row = conn.execute(
+                        "SELECT start_time, end_time, hook_caption, title FROM clips WHERE video_id=? ORDER BY score DESC LIMIT 1",
+                        (video_id,)
+                    ).fetchone()
+
+                if clip_row:
+                    s_time, e_time, hook, clip_title = clip_row
+                    try:
+                        render_path = cutter.cut_clip(
+                            url=f"https://www.youtube.com/watch?v={video_id}",
+                            start_time=float(s_time),
+                            end_time=float(e_time),
+                            clip_id=f"sync_{video_id}_{idx}",
+                            video_title=clip_title or title,
+                            hook_caption=hook or "",
+                            render_mode="shorts_9x16_black",
+                            add_subtitles=True,
+                            add_hook_card=True,
+                            enhance_colors=True,
+                            use_whisper=True,
+                            progress_callback=cb,
+                        )
+                        item["render_path"] = render_path
+                    except Exception as cut_err:
+                        logger.error(f"Render failed for {video_id}: {cut_err}")
+                        summary["errors"].append(f"{title} render hatası: {cut_err}")
+                        continue
+                else:
+                    cb("   ⚠️ Klip zamanlaması veritabanında bulunamadı, atlanıyor.")
+                    continue
+
+            if not render_path or not os.path.exists(render_path):
+                continue
+
+            summary["processed"] += 1
+
+            # 2. Zamanlama Hesabı (Meta Graph API: 15 dk - 75 gün)
+            sched_unix = None
+            if sched_iso:
+                try:
+                    sched_dt = datetime.datetime.fromisoformat(sched_iso.replace("Z", "+00:00"))
+                    diff_sec = (sched_dt - now_utc).total_seconds()
+                    if 900 <= diff_sec <= 6480000:
+                        sched_unix = int(sched_dt.timestamp())
+                except Exception:
+                    sched_unix = None
+
+            # 3. Instagram Reels Yükle / Planla
+            if self.instagram.is_authenticated():
+                try:
+                    ig_caption = InstagramUploader.generate_caption(
+                        {"title": title, "hook_caption": item.get("hook_caption", "")},
+                        video_title=title
+                    )
+                    if sched_unix:
+                        cb(f"   📸 Instagram Reels zamanlanıyor (@ {sched_iso})…")
+                    else:
+                        cb("   📸 Instagram Reels hemen yayına alınıyor…")
+
+                    ig_res = self.instagram.upload_reel(
+                        video_path=render_path,
+                        caption=ig_caption,
+                        share_to_feed=True,
+                        scheduled_publish_time=sched_unix,
+                    )
+                    summary["instagram_success"] += 1
+                    cb(f"   ✅ Instagram Reels başarılı: {ig_res.get('url')}")
+                except Exception as ig_err:
+                    logger.error(f"Instagram upload error for {title}: {ig_err}")
+                    summary["errors"].append(f"Instagram ({title}): {ig_err}")
+
+            # 4. TikTok Yükle
+            if self.tiktok.is_authenticated():
+                try:
+                    cb("   🎵 TikTok videosu yükleniyor…")
+                    tt_title = TikTokUploader.generate_caption(
+                        {"title": title, "hook_caption": item.get("hook_caption", "")}
+                    )
+                    tt_res = self.tiktok.upload_video(
+                        video_path=render_path,
+                        title=tt_title,
+                    )
+                    summary["tiktok_success"] += 1
+                    cb(f"   ✅ TikTok videosu yüklendi! ID: {tt_res.get('publish_id')}")
+                except Exception as tt_err:
+                    logger.error(f"TikTok upload error for {title}: {tt_err}")
+                    summary["errors"].append(f"TikTok ({title}): {tt_err}")
+
+        cb(f"\n🎉 Eşzamanlama tamamlandı! ({summary['instagram_success']} Instagram, {summary['tiktok_success']} TikTok)")
+        return summary
+
 
     # ------------------------------------------------------------------
     # 7/24 Arka Plan Nöbetçisi (Background Daemon)
