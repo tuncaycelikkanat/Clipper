@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import requests
+from dotenv import load_dotenv
 from loguru import logger
+
+load_dotenv()
+
 
 
 class TikTokUploader:
@@ -250,8 +254,10 @@ class TikTokUploader:
                     filename=str(path),
                     description=title,
                     sessionid=self.session_id,
+                    browser="chromium",
                     headless=True,
                 )
+
                 logger.success(f"TikTok videosu yüklendi! Sonuç: {res}")
                 return {
                     "publish_id": "cookie_session_post",

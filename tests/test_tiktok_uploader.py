@@ -10,7 +10,7 @@ from core.tiktok_uploader import TikTokUploader
 
 @pytest.fixture
 def tt_uploader():
-    return TikTokUploader(access_token="fake_tiktok_token_abc")
+    return TikTokUploader(access_token="fake_tiktok_token_abc", session_id="")
 
 
 def test_is_authenticated_true(tt_uploader):
@@ -18,8 +18,9 @@ def test_is_authenticated_true(tt_uploader):
 
 
 def test_is_authenticated_false():
-    uploader = TikTokUploader(access_token="")
+    uploader = TikTokUploader(access_token="", session_id="")
     assert uploader.is_authenticated() is False
+
 
 
 @patch("requests.post")
