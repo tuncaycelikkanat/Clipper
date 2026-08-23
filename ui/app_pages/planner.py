@@ -37,7 +37,7 @@ with col_m2:
 with col_m3:
     st.metric("Günlük Paylaşım Slotları", "13:00 / 18:00 / 22:00")
 
-col_sync1, col_sync2, col_sync3 = st.columns([2.0, 1.2, 1.2], vertical_alignment="center")
+col_sync1, col_sync2 = st.columns([2.5, 1.5], vertical_alignment="center")
 with col_sync1:
     st.info("💡 YouTube'a planlanmış klipleri **Instagram Reels (@tuncaysclips)** ve **TikTok** hesaplarına senkronlayabilirsiniz.")
 with col_sync2:
@@ -46,10 +46,11 @@ with col_sync2:
             n = autopilot.sync_from_youtube_channel()
             st.success(f"{n} adet YouTube Shorts videosu takvime aktarıldı!")
             st.rerun()
-with col_sync3:
+
 # ------------------------------------------------------------------
 # 7/24 Otomatik Zamanlayıcı & Nöbetçi Kartı
 # ------------------------------------------------------------------
+
 worker_info = AutoPilotManager.get_background_worker_info()
 is_worker_running = worker_info.get("running", False)
 
