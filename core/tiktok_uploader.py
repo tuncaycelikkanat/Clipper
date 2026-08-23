@@ -252,55 +252,94 @@ class TikTokUploader:
                 import subprocess
                 import sys
 
-                cookies_data = []
-                if os.path.exists("tiktok_cookies.json"):
-                    try:
-                        with open("tiktok_cookies.json", "r", encoding="utf-8") as cf:
-                            cookies_data = json.load(cf)
-                    except Exception as ce:
-                        logger.warning(f"Could not load tiktok_cookies.json: {ce}")
-
+                cookies_path = os.path.abspath("tiktok_cookies.json")
+                user_data_dir = os.path.abspath("outputs/tiktok_browser_profile")
                 sched_iso_val = schedule.isoformat() if schedule else "None"
-                logger.info(f"Uploading video to TikTok via session cookies (Count: {len(cookies_data)}, Schedule: {sched_iso_val})…")
+                logger.info(f"Uploading video to TikTok via persistent browser (Schedule: {sched_iso_val})…")
                 worker_code = f"""
-import sys, datetime, json
-from tiktok_uploader import config
-from tiktok_uploader.upload import upload_video
+import sys, os, json, time, datetime
+from playwright.sync_api import sync_playwright
 
-# Increase page load and interaction timeouts
-config.explicit_wait = 90
-config.implicit_wait = 60
-
+video_path = {json.dumps(str(path))}
+caption = {json.dumps(title)}
 sched_raw = {json.dumps(sched_iso_val)}
-sched_dt = datetime.datetime.fromisoformat(sched_raw) if sched_raw != "None" else None
-cookies_list = {json.dumps(cookies_data)}
+cookies_path = {json.dumps(cookies_path)}
+user_data_dir = {json.dumps(user_data_dir)}
 
 try:
-    failed = upload_video(
-        filename={json.dumps(str(path))},
-        description={json.dumps(title)},
-        sessionid={json.dumps(self.session_id)},
-        cookies_list=cookies_list,
-        schedule=sched_dt,
-        browser="chromium",
-        headless=True,
+    with open(cookies_path, "r", encoding="utf-8") as f:
+        cookies = json.load(f)
+
+    p = sync_playwright().start()
+    context = p.chromium.launch_persistent_context(
+        user_data_dir=user_data_dir,
+        headless=False,
+        args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        viewport={{"width": 1280, "height": 800}},
+        locale="tr-TR",
     )
-    if failed:
-        print(f"FAILED: {{failed}}", file=sys.stderr)
-        sys.exit(1)
+    page = context.pages[0] if context.pages else context.new_page()
+
+    formatted_cookies = []
+    for c in cookies:
+        domain = c.get("domain", ".tiktok.com")
+        if not domain.startswith("."):
+            domain = "." + domain
+        formatted_cookies.append({{
+            "name": c["name"],
+            "value": c["value"],
+            "domain": domain,
+            "path": c.get("path", "/"),
+            "secure": c.get("secure", True),
+            "httpOnly": c.get("httpOnly", False),
+        }})
+    context.add_cookies(formatted_cookies)
+
+    page.goto("https://www.tiktok.com/tiktokstudio/upload", wait_until="domcontentloaded", timeout=40000)
+    page.wait_for_timeout(3000)
+
+    try:
+        page.locator('button:has-text("Tümüne izin ver"), button:has-text("Allow all")').first.click(timeout=2000)
+    except Exception:
+        pass
+
+    file_input = page.locator('input[type="file"][accept*="video"]')
+    file_input.wait_for(state="attached", timeout=15000)
+    file_input.set_input_files(video_path)
+
+    paylas_btn = page.locator('button:has-text("Paylaş"), button:has-text("Post"), button:has-text("Yayınla")')
+    paylas_btn.wait_for(state="visible", timeout=120000)
+    page.wait_for_timeout(4000)
+
+    try:
+        page.locator('button:has-text("Aç"), button:has-text("İptal")').first.click(timeout=2000)
+    except Exception:
+        pass
+
+    paylas_btn.first.click(force=True)
+    page.wait_for_timeout(3000)
+
+    try:
+        hemen_btn = page.locator('button:has-text("Hemen paylaş"), button:has-text("Post anyway")')
+        if hemen_btn.count() > 0:
+            hemen_btn.first.click(force=True)
+    except Exception:
+        pass
+
+    page.wait_for_timeout(8000)
+    context.close()
+    p.stop()
     print("SUCCESS")
 except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
     sys.exit(1)
 """
 
-
-
                 proc = subprocess.run(
                     [sys.executable, "-c", worker_code],
                     capture_output=True,
                     text=True,
-                    timeout=240,
+                    timeout=180,
                 )
 
                 if proc.returncode != 0:
@@ -317,6 +356,7 @@ except Exception as e:
             except Exception as tu_err:
                 logger.error(f"TikTok session upload error: {tu_err}")
                 raise RuntimeError(f"TikTok çerez ile yükleme başarısız: {tu_err}")
+
 
 
         # 2. Content Posting API v2 (OAuth Token ile Yükleme)

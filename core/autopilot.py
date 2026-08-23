@@ -840,21 +840,41 @@ class AutoPilotManager:
                 if not render_path or not os.path.exists(render_path):
                     continue
 
-                # 2. Instagram Reels Yükle
-                ig_caption = InstagramUploader.generate_caption({"title": title}, video_title=title)
-                ig_res = self.instagram.upload_reel(video_path=render_path, caption=ig_caption, share_to_feed=True)
-                published_count += 1
-                logger.success(f"✅ [Zamanlayıcı] Instagram Reels yayınlandı: {title} -> {ig_res.get('url')}")
+                # 2. Instagram Reels Yükle (Eğer henüz yüklenmediyse)
+                if self.instagram.is_authenticated():
+                    try:
+                        ig_caption = InstagramUploader.generate_caption({"title": title}, video_title=title)
+                        ig_res = self.instagram.upload_reel(video_path=render_path, caption=ig_caption, share_to_feed=True)
+                        published_count += 1
+                        logger.success(f"✅ [Zamanlayıcı] Instagram Reels yayınlandı: {title} -> {ig_res.get('url')}")
 
-                with self.db._connect() as conn:
-                    conn.execute(
-                        "UPDATE autopilot_queue SET instagram_synced=1, instagram_url=? WHERE id=?",
-                        (ig_res.get("url", ""), q_id)
-                    )
-                    conn.commit()
+                        with self.db._connect() as conn:
+                            conn.execute(
+                                "UPDATE autopilot_queue SET instagram_synced=1, instagram_url=? WHERE id=?",
+                                (ig_res.get("url", ""), q_id)
+                            )
+                            conn.commit()
+                    except Exception as ig_err:
+                        logger.error(f"❌ [Zamanlayıcı] Instagram yükleme hatası ({title}): {ig_err}")
+
+                # 3. TikTok Videosu Yükle (Eğer henüz yüklenmediyse)
+                if self.tiktok.is_authenticated():
+                    try:
+                        tt_caption = TikTokUploader.generate_caption({"title": title}, video_title=title)
+                        tt_res = self.tiktok.upload_video(video_path=render_path, title=tt_caption)
+                        logger.success(f"✅ [Zamanlayıcı] TikTok videosu yayınlandı: {title}")
+
+                        with self.db._connect() as conn:
+                            conn.execute(
+                                "UPDATE autopilot_queue SET tiktok_synced=1 WHERE id=?",
+                                (q_id,)
+                            )
+                            conn.commit()
+                    except Exception as tt_err:
+                        logger.error(f"❌ [Zamanlayıcı] TikTok yükleme hatası ({title}): {tt_err}")
 
             except Exception as e:
-                logger.error(f"❌ [Zamanlayıcı] Instagram yükleme hatası ({title}): {e}")
+                logger.error(f"❌ [Zamanlayıcı] Sosyal medya yükleme hatası ({title}): {e}")
 
         return published_count
 
