@@ -613,6 +613,87 @@ class AutoPilotManager:
         cb(f"\n🎉 Eşzamanlama tamamlandı! ({summary['instagram_success']} Instagram, {summary['tiktok_success']} TikTok)")
         return summary
 
+    def sync_from_youtube_channel(self, max_results: int = 50) -> int:
+        """
+        YouTube kanalında daha önce yüklenmiş / planlanmış Shorts videolarını çeker
+        ve yayın takvimi veritabanına aktarır.
+        """
+        if not self.uploader.is_authenticated():
+            raise RuntimeError("YouTube kimlik bilgileri eksik veya doğrulanmamış.")
+
+        from googleapiclient.discovery import build
+        creds = self.uploader._get_credentials()
+        youtube = build("youtube", "v3", credentials=creds)
+
+        ch_res = youtube.channels().list(mine=True, part="contentDetails").execute()
+        if not ch_res.get("items"):
+            return 0
+        uploads_playlist_id = ch_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+
+        pl_res = youtube.playlistItems().list(
+            playlistId=uploads_playlist_id,
+            part="snippet,contentDetails",
+            maxResults=max_results,
+        ).execute()
+
+        video_ids = [item["contentDetails"]["videoId"] for item in pl_res.get("items", [])]
+        if not video_ids:
+            return 0
+
+        v_res = youtube.videos().list(
+            id=",".join(video_ids),
+            part="snippet,status,contentDetails"
+        ).execute()
+
+        synced_count = 0
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with self.db._connect() as conn:
+            for v in v_res.get("items", []):
+                st = v.get("status", {})
+                sn = v.get("snippet", {})
+                v_id = v["id"]
+                title = sn.get("title", "Shorts")
+                pub_at = st.get("publishAt")
+                privacy = st.get("privacyStatus")
+
+                conn.execute("""
+                    INSERT INTO videos (id, url, title, uploader, duration, view_count, status, processed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(id) DO UPDATE SET title=excluded.title;
+                """, (v_id, f"https://youtube.com/watch?v={v_id}", title, "YouTube Channel", 60, 0, "PROCESSED"))
+
+                clip_id = f"clip_{v_id}"
+                conn.execute("""
+                    INSERT INTO clips (id, video_id, rank, title, start_time, end_time, duration, score, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(id) DO UPDATE SET title=excluded.title;
+                """, (clip_id, v_id, 1, title, 0.0, 59.0, 59.0, 95))
+
+                if pub_at:
+                    sched_time = pub_at
+                    status = "SCHEDULED"
+                elif privacy == "public":
+                    sched_time = sn.get("publishedAt", now_iso)
+                    status = "PUBLISHED"
+                else:
+                    sched_time = now_iso
+                    status = "QUEUED"
+
+                thumb = sn.get("thumbnails", {}).get("high", {}).get("url", "")
+                q_id = str(uuid.uuid4())
+                conn.execute("""
+                    INSERT INTO autopilot_queue 
+                    (id, video_id, clip_id, channel_url, title, render_path, thumbnail_path, viral_score, scheduled_at, status, youtube_url, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));
+                """, (
+                    q_id, v_id, clip_id, "https://youtube.com", title, "", thumb, 95, sched_time, status, f"https://youtube.com/shorts/{v_id}"
+                ))
+                synced_count += 1
+
+            conn.commit()
+        return synced_count
+
+
 
     # ------------------------------------------------------------------
     # 7/24 Arka Plan Nöbetçisi (Background Daemon)
