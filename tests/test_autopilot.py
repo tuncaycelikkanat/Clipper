@@ -364,3 +364,24 @@ def test_get_calendar_days_data(manager, auto_db):
     assert "item_count" in days[0]
 
 
+def test_background_worker_lifecycle(auto_db):
+    AutoPilotManager.stop_background_worker()
+    assert AutoPilotManager.is_background_worker_running() is False
+
+    started = AutoPilotManager.start_background_worker(interval_hours=1.0, db=auto_db)
+    assert started is True
+    assert AutoPilotManager.is_background_worker_running() is True
+
+    # Double start is safe
+    assert AutoPilotManager.start_background_worker(interval_hours=1.0, db=auto_db) is True
+
+    info = AutoPilotManager.get_background_worker_info()
+    assert info["running"] is True
+    assert info["interval_hours"] == 1.0
+
+    stopped = AutoPilotManager.stop_background_worker()
+    assert stopped is True
+    assert AutoPilotManager.is_background_worker_running() is False
+
+
+

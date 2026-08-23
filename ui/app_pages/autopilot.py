@@ -58,6 +58,46 @@ with col_m4:
 st.divider()
 
 # ------------------------------------------------------------------
+# 7/24 Arka Plan Nöbetçisi (Daemon) Kontrolü
+# ------------------------------------------------------------------
+with st.container(border=True):
+    col_w1, col_w2, col_w3 = st.columns([4, 2, 2], vertical_alignment="center")
+    worker_info = AutoPilotManager.get_background_worker_info()
+    is_running = worker_info.get("running", False)
+
+    with col_w1:
+        st.markdown("### 🤖 7/24 Otonom Arka Plan Nöbetçisi")
+        if is_running:
+            st.caption(f"🟢 **Aktif:** Bot arka planda {worker_info.get('interval_hours', 2)} saatte bir kanalları otomatik tarayıp yeni videoları işliyor.")
+        else:
+            st.caption("🔴 **Durduruldu:** Otomatik arka plan taraması kapalı. Başlatırsanız yeni videolar otomatik işlenir.")
+
+    with col_w2:
+        interval_choice = st.selectbox(
+            "Kontrol Sıklığı",
+            options=[1.0, 2.0, 4.0, 6.0, 12.0],
+            index=1,
+            format_func=lambda x: f"Her {int(x)} Saatte Bir",
+            disabled=is_running,
+            label_visibility="collapsed",
+        )
+
+    with col_w3:
+        if not is_running:
+            if st.button("▶️ Nöbetçiyi Başlat", type="primary", use_container_width=True):
+                AutoPilotManager.start_background_worker(interval_hours=interval_choice, db=db)
+                st.success("7/24 Nöbetçi başlatıldı!")
+                st.rerun()
+        else:
+            if st.button("⏸️ Nöbetçiyi Durdur", type="secondary", use_container_width=True):
+                AutoPilotManager.stop_background_worker()
+                st.warning("Nöbetçi durduruldu.")
+                st.rerun()
+
+st.divider()
+
+
+# ------------------------------------------------------------------
 # Tablar: Kanallar, Kuyruk, Ayarlar
 # ------------------------------------------------------------------
 tab_channels, tab_queue, tab_settings = st.tabs([

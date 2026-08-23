@@ -440,3 +440,83 @@ class AutoPilotManager:
 
         cb(f"🎉 [AutoPilot Döngüsü Bitti] {summary['clips_stockpiled']} klip stoklandı, {summary['clips_scheduled']} klip zamanlandı.")
         return summary
+
+    # ------------------------------------------------------------------
+    # 7/24 Arka Plan Nöbetçisi (Background Daemon)
+    # ------------------------------------------------------------------
+
+    _worker_scheduler: Optional[Any] = None
+    _worker_info: Dict[str, Any] = {
+        "running": False,
+        "interval_hours": 2.0,
+        "last_run": None,
+        "next_run": None,
+    }
+
+    @classmethod
+    def start_background_worker(
+        cls,
+        interval_hours: float = 2.0,
+        api_key: Optional[str] = None,
+        db: Optional[DatabaseManager] = None,
+    ) -> bool:
+        """7/24 arka plan nöbetçisini başlatır. Belirtilen aralıkla kanalları otomatik tarar."""
+        try:
+            from apscheduler.schedulers.background import BackgroundScheduler
+            from apscheduler.triggers.interval import IntervalTrigger
+        except ImportError:
+            logger.error("APScheduler bulunamadı.")
+            return False
+
+        if cls._worker_scheduler and cls._worker_scheduler.running:
+            logger.info("Background AutoPilot worker zaten çalışıyor.")
+            return True
+
+        manager = cls(db=db)
+
+        def _cycle_job():
+            logger.info("🤖 [AutoPilot Nöbetçi] Otomatik periyodik kontrol başladı…")
+            cls._worker_info["last_run"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            try:
+                manager.run_cycle(api_key=api_key)
+            except Exception as e:
+                logger.error("Background AutoPilot cycle error: {}", e)
+
+        scheduler = BackgroundScheduler(job_defaults={"coalesce": True, "max_instances": 1})
+        trigger = IntervalTrigger(hours=interval_hours)
+        scheduler.add_job(_cycle_job, trigger=trigger, id="autopilot_periodic_check", replace_existing=True)
+        scheduler.start()
+
+        cls._worker_scheduler = scheduler
+        cls._worker_info["running"] = True
+        cls._worker_info["interval_hours"] = interval_hours
+        logger.info("Background AutoPilot worker başlatıldı (Aralık: {} saat).", interval_hours)
+        return True
+
+    @classmethod
+    def stop_background_worker(cls) -> bool:
+        """Arka plan nöbetçisini durdurur."""
+        if cls._worker_scheduler and cls._worker_scheduler.running:
+            cls._worker_scheduler.shutdown(wait=False)
+            cls._worker_scheduler = None
+            cls._worker_info["running"] = False
+            logger.info("Background AutoPilot worker durduruldu.")
+            return True
+        return False
+
+    @classmethod
+    def is_background_worker_running(cls) -> bool:
+        """Arka plan nöbetçisinin aktif olup olmadığını döner."""
+        return bool(cls._worker_scheduler and cls._worker_scheduler.running)
+
+    @classmethod
+    def get_background_worker_info(cls) -> Dict[str, Any]:
+        """Nöbetçi durum bilgilerini döner."""
+        info = dict(cls._worker_info)
+        info["running"] = cls.is_background_worker_running()
+        if cls._worker_scheduler and cls._worker_scheduler.running:
+            job = cls._worker_scheduler.get_job("autopilot_periodic_check")
+            if job and getattr(job, "next_run_time", None):
+                info["next_run"] = str(job.next_run_time)
+        return info
+
