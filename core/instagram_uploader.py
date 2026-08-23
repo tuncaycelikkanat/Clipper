@@ -31,20 +31,28 @@ class InstagramUploader:
         access_token: Optional[str] = None,
         instagram_account_id: Optional[str] = None,
     ) -> None:
-        # Always reload .env so refreshed tokens are picked up without restarting Streamlit
         load_dotenv(override=True)
-        self.access_token = (
-            access_token if access_token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
-        )
-        self.account_id = (
-            instagram_account_id if instagram_account_id is not None else os.environ.get("INSTAGRAM_ACCOUNT_ID", "").strip()
-        )
+        self._explicit_token = access_token
+        self._explicit_account = instagram_account_id
 
+    @property
+    def access_token(self) -> str:
+        if self._explicit_token:
+            return self._explicit_token
+        load_dotenv(override=True)
+        return os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
 
+    @property
+    def account_id(self) -> str:
+        if self._explicit_account:
+            return self._explicit_account
+        load_dotenv(override=True)
+        return os.environ.get("INSTAGRAM_ACCOUNT_ID", "").strip()
 
     def is_authenticated(self) -> bool:
         """Return True if both access token and account ID are present."""
         return bool(self.access_token and self.account_id)
+
 
     def create_resumable_container(
         self,

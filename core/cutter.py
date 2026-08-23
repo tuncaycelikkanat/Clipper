@@ -83,10 +83,20 @@ class VideoCutter:
 
         temp_raw_cut = os.path.join(self.output_dir, f"raw_cut_{clip_id}_{int(start_time)}s.mp4")
 
+        # Helper to check if file is a valid non-empty media file
+        def is_valid_cut_file(p: str) -> bool:
+            return os.path.exists(p) and os.path.getsize(p) > 50000
+
         # ------------------------------------------------------------------
-        # Step 1: Fast Stream Seeking Cut (if not already on disk)
+        # Step 1: Fast Stream Seeking Cut (if not already valid on disk)
         # ------------------------------------------------------------------
-        if not os.path.exists(temp_raw_cut) or os.path.getsize(temp_raw_cut) == 0:
+        if not is_valid_cut_file(temp_raw_cut):
+            if os.path.exists(temp_raw_cut):
+                try:
+                    os.remove(temp_raw_cut)
+                except Exception:
+                    pass
+
             if progress_callback:
                 progress_callback(f"Stream üzerinden kesiliyor ({int(start_time)}s - {int(end_time)}s)...")
 
@@ -121,8 +131,13 @@ class VideoCutter:
                 except Exception:
                     pass
 
-        # Fallback: If raw cut is missing or 0 bytes
-        if not os.path.exists(temp_raw_cut) or os.path.getsize(temp_raw_cut) == 0:
+        # Fallback: If raw cut is still missing or corrupt (<50KB)
+        if not is_valid_cut_file(temp_raw_cut):
+            if os.path.exists(temp_raw_cut):
+                try:
+                    os.remove(temp_raw_cut)
+                except Exception:
+                    pass
             try:
                 with yt_dlp.YoutubeDL({'format': 'best[ext=mp4]/best', 'quiet': True, 'extractor_args': {'youtube': {'player_client': ['android', 'web']}}}) as ydl:
                     info = ydl.extract_info(url, download=False)
@@ -138,6 +153,7 @@ class VideoCutter:
 
         if not os.path.exists(temp_raw_cut) or os.path.getsize(temp_raw_cut) == 0:
             raise RuntimeError("Ham video kesiti oluşturulamadı.")
+
 
 
 
