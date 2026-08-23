@@ -245,17 +245,25 @@ class TikTokUploader:
         file_size = path.stat().st_size
         logger.info(f"Uploading video to TikTok ({file_size / (1024*1024):.1f} MB)…")
 
-        # 1. Session ID (Çerez ile Onaysız Web Yüklemesi)
-        if self.session_id:
+        # 1. Session ID & Full Cookie List (Çerez ile Onaysız Web Yüklemesi)
+        if self.session_id or os.path.exists("tiktok_cookies.json"):
             try:
                 import json
                 import subprocess
                 import sys
 
+                cookies_data = []
+                if os.path.exists("tiktok_cookies.json"):
+                    try:
+                        with open("tiktok_cookies.json", "r", encoding="utf-8") as cf:
+                            cookies_data = json.load(cf)
+                    except Exception as ce:
+                        logger.warning(f"Could not load tiktok_cookies.json: {ce}")
+
                 sched_iso_val = schedule.isoformat() if schedule else "None"
-                logger.info(f"Uploading video to TikTok via session cookie (Schedule: {sched_iso_val})…")
+                logger.info(f"Uploading video to TikTok via session cookies (Count: {len(cookies_data)}, Schedule: {sched_iso_val})…")
                 worker_code = f"""
-import sys, datetime
+import sys, datetime, json
 from tiktok_uploader import config
 from tiktok_uploader.upload import upload_video
 
@@ -265,21 +273,28 @@ config.implicit_wait = 60
 
 sched_raw = {json.dumps(sched_iso_val)}
 sched_dt = datetime.datetime.fromisoformat(sched_raw) if sched_raw != "None" else None
+cookies_list = {json.dumps(cookies_data)}
 
 try:
-    res = upload_video(
+    failed = upload_video(
         filename={json.dumps(str(path))},
         description={json.dumps(title)},
         sessionid={json.dumps(self.session_id)},
+        cookies_list=cookies_list,
         schedule=sched_dt,
         browser="chromium",
         headless=True,
     )
+    if failed:
+        print(f"FAILED: {{failed}}", file=sys.stderr)
+        sys.exit(1)
     print("SUCCESS")
 except Exception as e:
     print(f"ERROR: {{e}}", file=sys.stderr)
     sys.exit(1)
 """
+
+
 
                 proc = subprocess.run(
                     [sys.executable, "-c", worker_code],
