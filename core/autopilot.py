@@ -18,12 +18,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from loguru import logger
 
-from core.database import DatabaseManager
-from core.deepseek_engine import DeepSeekEngine
 from core.feed import ChannelFeed
+from core.instagram_uploader import InstagramUploader
 from core.notifier import Notifier
 from core.pipeline import ClipperPipeline
 from core.thumbnail import ThumbnailGenerator
+from core.tiktok_uploader import TikTokUploader
 from core.uploader import YouTubeUploader
 
 
@@ -44,7 +44,10 @@ class AutoPilotManager:
         self.tz_offset = timezone_offset_hours
         self.feed = ChannelFeed()
         self.uploader = YouTubeUploader()
+        self.instagram = InstagramUploader()
+        self.tiktok = TikTokUploader()
         self.notifier = Notifier()
+
 
     # ------------------------------------------------------------------
     # Channel Management
@@ -398,9 +401,48 @@ class AutoPilotManager:
                                 summary["clips_scheduled"] += 1
                                 cb(f"   ✅ YouTube Shorts zamanlandı: {yt_url}")
                             except Exception as up_err:
-                                logger.error(f"Auto-upload failed: {up_err}")
+                                logger.error(f"Auto-upload YouTube failed: {up_err}")
                                 error_msg = str(up_err)
                                 queue_status = "QUEUED"  # Stokta kalsın
+
+                        # Instagram Reels'a Planlı Yükle (Eğer Meta Graph API aktifse)
+                        if auto_upload and self.instagram.is_authenticated():
+                            try:
+                                cb(f"   📸 Instagram Reels (@{self.instagram.account_id}) planlanıyor…")
+                                ig_caption = InstagramUploader.generate_caption(
+                                    {"title": final_title, "hook_caption": hook},
+                                    vid.get("title", "")
+                                )
+                                # Unix timestamp hesapla
+                                sched_dt = datetime.datetime.fromisoformat(sched_iso.replace("Z", "+00:00"))
+                                sched_unix = int(sched_dt.timestamp())
+
+                                ig_res = self.instagram.upload_reel(
+                                    video_path=render_path,
+                                    caption=ig_caption,
+                                    share_to_feed=True,
+                                    scheduled_publish_time=sched_unix,
+                                )
+                                cb(f"   ✅ Instagram Reels zamanlandı: {ig_res.get('url')}")
+                            except Exception as ig_err:
+                                logger.error(f"Auto-upload Instagram failed: {ig_err}")
+
+                        # TikTok'a Yükle (Eğer TikTok API aktifse)
+                        if auto_upload and self.tiktok.is_authenticated():
+                            try:
+                                cb("   🎵 TikTok videosu gönderiliyor…")
+                                tt_title = TikTokUploader.generate_caption(
+                                    {"title": final_title, "hook_caption": hook},
+                                    vid.get("title", "")
+                                )
+                                tt_res = self.tiktok.upload_video(
+                                    video_path=render_path,
+                                    title=tt_title,
+                                )
+                                cb(f"   ✅ TikTok videosu yüklendi! Publish ID: {tt_res.get('publish_id')}")
+                            except Exception as tt_err:
+                                logger.error(f"Auto-upload TikTok failed: {tt_err}")
+
 
                         # Veritabanı kuyruğuna kaydet
                         self.db.add_to_autopilot_queue(

@@ -34,8 +34,13 @@ class TikTokUploader:
             open_id: TikTok User Open ID.
                      Defaults to `TIKTOK_OPEN_ID` env var.
         """
-        self.access_token = access_token or os.environ.get("TIKTOK_ACCESS_TOKEN", "").strip()
-        self.open_id = open_id or os.environ.get("TIKTOK_OPEN_ID", "").strip()
+        self.access_token = (
+            access_token if access_token is not None else os.environ.get("TIKTOK_ACCESS_TOKEN", "").strip()
+        )
+        self.open_id = (
+            open_id if open_id is not None else os.environ.get("TIKTOK_OPEN_ID", "").strip()
+        )
+
 
     def is_authenticated(self) -> bool:
         """Return True if access token is available."""

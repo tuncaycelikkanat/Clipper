@@ -36,8 +36,13 @@ class InstagramUploader:
             instagram_account_id: Instagram Business/Creator Account ID (IG User ID).
                                   Defaults to `INSTAGRAM_ACCOUNT_ID` env var.
         """
-        self.access_token = access_token or os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
-        self.account_id = instagram_account_id or os.environ.get("INSTAGRAM_ACCOUNT_ID", "").strip()
+        self.access_token = (
+            access_token if access_token is not None else os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
+        )
+        self.account_id = (
+            instagram_account_id if instagram_account_id is not None else os.environ.get("INSTAGRAM_ACCOUNT_ID", "").strip()
+        )
+
 
     def is_authenticated(self) -> bool:
         """Return True if both access token and account ID are present."""
@@ -49,6 +54,7 @@ class InstagramUploader:
         caption: str = "",
         share_to_feed: bool = True,
         thumb_offset: int = 1000,
+        scheduled_publish_time: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Step 1: Initiate a resumable Reels container session on Meta Graph API.
@@ -65,6 +71,8 @@ class InstagramUploader:
             "thumb_offset": str(thumb_offset),
             "access_token": self.access_token,
         }
+        if scheduled_publish_time:
+            params["scheduled_publish_time"] = str(scheduled_publish_time)
 
         resp = requests.post(url, params=params, timeout=30)
         data = resp.json()
@@ -135,7 +143,7 @@ class InstagramUploader:
 
     def publish_container(self, container_id: str) -> Dict[str, Any]:
         """
-        Step 4: Publish the verified container to the Instagram feed as a Reel.
+        Step 4: Publish or finalize the verified container to the Instagram feed as a Reel.
         """
         url = f"{self.BASE_URL}/{self.account_id}/media_publish"
         params = {
@@ -151,7 +159,7 @@ class InstagramUploader:
             raise RuntimeError(f"Instagram Reels yayına alınamadı: {error_msg}")
 
         media_id = data["id"]
-        logger.success(f"Instagram Reel başarıyla yayınlandı! Media ID: {media_id}")
+        logger.success(f"Instagram Reel başarıyla yayınlandı/planlandı! Media ID: {media_id}")
         return {
             "media_id": media_id,
             "url": f"https://www.instagram.com/reel/{media_id}",
@@ -164,6 +172,7 @@ class InstagramUploader:
         caption: str = "",
         share_to_feed: bool = True,
         thumb_offset: int = 1000,
+        scheduled_publish_time: Optional[int] = None,
         timeout: int = 180,
     ) -> Dict[str, Any]:
         """
@@ -182,6 +191,7 @@ class InstagramUploader:
             caption=caption,
             share_to_feed=share_to_feed,
             thumb_offset=thumb_offset,
+            scheduled_publish_time=scheduled_publish_time,
         )
         container_id = init_res["container_id"]
         upload_url = init_res.get("upload_url")
@@ -195,8 +205,12 @@ class InstagramUploader:
         logger.info(f"Waiting for Meta processing (Container: {container_id})…")
         self.check_container_status(container_id, timeout=timeout)
 
-        # 4. Yayına al
-        return self.publish_container(container_id)
+        # 4. Yayına al / Planlamayı tamamla
+        res = self.publish_container(container_id)
+        if scheduled_publish_time:
+            res["status"] = "scheduled"
+        return res
+
 
     @staticmethod
     def generate_caption(clip: Dict[str, Any], video_title: str = "") -> str:
