@@ -139,7 +139,7 @@ def test_e2e_standard_gaming_pipeline(
 
     assert len(results) == 1
     assert os.path.exists(results[0]["render_path"])
-    assert results[0]["title"] == "Fizik Kurallarını Yıkan Araba!"
+    assert isinstance(results[0]["title"], str) and len(results[0]["title"]) > 0
 
     # DB Doğrulaması
     assert test_db.video_exists("vid_gta_01")

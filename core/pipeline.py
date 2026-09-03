@@ -166,13 +166,45 @@ class ClipperPipeline:
             clip_copy["duration"] = ref_end - ref_start
             aligned_clips.append(clip_copy)
 
-        saved_ids = self.db.save_clips(video_id, aligned_clips)
+        # 5.5. Game Detection & Human Metadata Enrichment
+        from core.game_detector import GameDetector
+        from core.metadata_engine import HumanMetadataEngine
+
+        detected_game = GameDetector.detect_game(
+            description=video_data.get("description", ""),
+            title=video_title
+        )
+        streamer_name = video_data.get("uploader") or "Yayıncı"
+
+        enriched_clips = []
+        for clip in aligned_clips:
+            clip_copy = dict(clip)
+            try:
+                meta = HumanMetadataEngine.generate_metadata(
+                    transcript_snippet=clip.get("text") or clip.get("transcript_snippet") or "",
+                    streamer_name=streamer_name,
+                    video_title=video_title,
+                    game_name=detected_game,
+                    duration_sec=clip.get("duration", 30.0)
+                )
+                if meta.get("recommended_title"):
+                    clip_copy["title"] = meta["recommended_title"]
+                if meta.get("hook_caption"):
+                    clip_copy["hook_caption"] = meta["hook_caption"]
+                clip_copy["description"] = meta.get("description", "")
+                clip_copy["tags"] = meta.get("tags_comma_separated", "")
+                clip_copy["all_titles"] = meta.get("titles", {})
+            except Exception as e:
+                logger.warning("Human metadata enrichment skipped: {}", e)
+            enriched_clips.append(clip_copy)
+
+        saved_ids = self.db.save_clips(video_id, enriched_clips)
 
         # 6. Video Cutting
         safe_cb("🎬 Klipler dikey formatta işleniyor...")
         cutter = VideoCutter(output_dir=self.output_dir)
         rendered_results = []
-        for i, clip in enumerate(aligned_clips):
+        for i, clip in enumerate(enriched_clips):
             cid = saved_ids[i] if (saved_ids and i < len(saved_ids)) else str(clip.get("rank", i + 1))
             try:
                 render_path = cutter.cut_clip(
