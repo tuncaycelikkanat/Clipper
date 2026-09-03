@@ -14,8 +14,9 @@ from loguru import logger
 
 from core.instagram_uploader import InstagramUploader
 from core.notifier import Notifier
-from core.tiktok_uploader import TikTokUploader
 from core.uploader import YouTubeUploader
+from core.deepseek_engine import DeepSeekEngine
+from core.database import DatabaseManager
 
 
 class MultiPublisher:
@@ -25,20 +26,19 @@ class MultiPublisher:
         self,
         youtube_uploader: Optional[YouTubeUploader] = None,
         instagram_uploader: Optional[InstagramUploader] = None,
-        tiktok_uploader: Optional[TikTokUploader] = None,
         notifier: Optional[Notifier] = None,
+        db: Optional[DatabaseManager] = None,
     ) -> None:
         self.youtube = youtube_uploader or YouTubeUploader()
         self.instagram = instagram_uploader or InstagramUploader()
-        self.tiktok = tiktok_uploader or TikTokUploader()
         self.notifier = notifier or Notifier()
+        self.db = db or DatabaseManager()
 
     def get_auth_status(self) -> Dict[str, bool]:
         """Return authentication status for all supported platforms."""
         return {
             "youtube": self.youtube.is_authenticated(),
             "instagram": self.instagram.is_authenticated(),
-            "tiktok": self.tiktok.is_authenticated(),
         }
 
     def publish_clip(
@@ -50,6 +50,9 @@ class MultiPublisher:
         video_title: str = "",
         scheduled_at: Optional[str] = None,
         playlist_id: Optional[str] = None,
+        description_override: Optional[str] = None,
+        source_video_id: Optional[str] = None,
+        source_video_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Publish a rendered clip to selected platforms (YouTube Shorts, Instagram Reels, TikTok).
@@ -76,11 +79,61 @@ class MultiPublisher:
         if "youtube" in target_platforms:
             if self.youtube.is_authenticated():
                 try:
-                    title = clip.get("title", "Gaming Highlight #Shorts")
-                    if "#Shorts" not in title:
-                        title = f"{title} #Shorts"
-                    desc = YouTubeUploader.generate_description(clip, video_title)
-                    tags = ["shorts", "gaming", "oyun", "highlights"]
+ # --- DEEPSEEK SEO METADATA ENTEGRASYONU ---
+                    # Kuyrukta daha önce üretilmiş başlık/açıklama varsa
+                    # (run_cycle içinde DeepSeek ile üretilip orijinal link eklenmiş)
+                    # tekrar API çağrısı yapmadan onları kullan.
+                    if description_override and description_override.strip():
+                        desc = description_override
+                        title = clip.get("title", "Gaming Highlight #Shorts")
+                        if "#Shorts" not in title:
+                            title = f"{title} #Shorts"
+                        tags = ["shorts", "gaming", "oyun", "highlights"]
+                        logger.info("Kuyruktaki açıklama doğrudan kullanılıyor (ek DeepSeek çağrısı yok).")
+                    else:
+                        try:
+                            logger.info("DeepSeek ile SEO uyumlu baslik, aciklama ve etiketler uretiliyor...")
+                            # Orijinal etiketleri DB'den cek
+                            orig_tags_list = []
+                            vid_id_for_tags = clip.get("video_id")
+                            if vid_id_for_tags:
+                                try:
+                                    v_data = self.db.get_video(vid_id_for_tags)
+                                    if v_data and v_data.get("tags"):
+                                        import json
+                                        orig_tags_list = json.loads(v_data["tags"])
+                                except Exception as e:
+                                    logger.debug("Could not fetch original tags for {}: {}", vid_id_for_tags, e)
+
+                            seo_data = DeepSeekEngine.generate_shorts_copy(
+                                clip_title=clip.get("title", ""),
+                                hook_caption=clip.get("hook_caption", ""),
+                                category=clip.get("category", "GAMING"),
+                                video_title=video_title,
+                                original_tags=orig_tags_list
+                            )
+                            title = seo_data.get("title", f"{clip.get('title')} #Shorts")
+                            desc = seo_data.get("description", YouTubeUploader.generate_description(clip, video_title))
+                            tags = seo_data.get("tags", ["shorts", "gaming", "oyun", "highlights"])
+                            logger.success("DeepSeek SEO metadatasi basariyla alindi!")
+                        except Exception as e:
+                            logger.warning(f"DeepSeek SEO uretimi basarisiz (Fallback kullaniliyor): {e}")
+                            title = clip.get("title", "Gaming Highlight #Shorts")
+                            if "#Shorts" not in title:
+                                title = f"{title} #Shorts"
+                            desc = YouTubeUploader.generate_description(clip, video_title)
+                            tags = ["shorts", "gaming", "oyun", "highlights"]
+
+                    # --- ORIJINAL KAYNAK LINKI (SISTEM KENDISI EKLER) ---
+                    # run_cycle zaten eklemişse tekrar ekleme (guard). Yine de
+                    # emin olmak için source_video_id üzerinden yeniden dene.
+                    vid_id = source_video_id or clip.get("video_id")
+                    if vid_id and "🎬 Orijinal" not in desc:
+                        orig_link = source_video_url or f"https://youtube.com/watch?v={vid_id}"
+                        link_text = f"\n\n🎬 Orijinal Video: {video_title}\n🔗 İzle: {orig_link}"
+                        desc = f"{desc}{link_text}"
+                    # ----------------------------------------------------
+
 
                     yt_res = self.youtube.upload_short(
                         video_path=render_path,
@@ -108,6 +161,8 @@ class MultiPublisher:
             if self.instagram.is_authenticated():
                 try:
                     ig_caption = InstagramUploader.generate_caption(clip, video_title)
+                    if source_video_url and source_video_url not in ig_caption:
+                        ig_caption = f"{ig_caption}\n🔗 İzle: {source_video_url}"
                     ig_res = self.instagram.upload_reel(
                         video_path=render_path,
                         caption=ig_caption,
@@ -125,26 +180,5 @@ class MultiPublisher:
             else:
                 results["instagram"] = {"status": "skipped", "error": "Instagram oturumu açık değil."}
 
-        # 3. TikTok
-        if "tiktok" in target_platforms:
-            if self.tiktok.is_authenticated():
-                try:
-                    tt_title = TikTokUploader.generate_caption(clip, video_title)
-                    tt_res = self.tiktok.upload_video(
-                        video_path=render_path,
-                        title=tt_title,
-                        privacy_level="PUBLIC_TO_EVERYONE",
-                    )
-                    results["tiktok"] = {
-                        "status": "success",
-                        "publish_id": tt_res.get("publish_id"),
-                        "url": tt_res.get("url"),
-                    }
-                    logger.success(f"MultiPublisher: TikTok videosu başarıyla yüklendi → {tt_res.get('publish_id')}")
-                except Exception as exc:
-                    logger.error(f"MultiPublisher: TikTok upload hatası: {exc}")
-                    results["tiktok"] = {"status": "failed", "error": str(exc)}
-            else:
-                results["tiktok"] = {"status": "skipped", "error": "TikTok oturumu açık değil."}
 
         return results

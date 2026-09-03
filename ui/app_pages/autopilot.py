@@ -2,7 +2,7 @@
 ui/app_pages/autopilot.py — Otonom Bot Kontrol Merkezi (AutoPilot)
 
 Takip edilen YouTube kanallarını listeler, yeni video geldiğinde viral skoru >= 90
-olan anları otomatik stoklar ve Türkiye gaming saatlerine (13:00, 18:00, 22:00)
+olan anları otomatik stoklar ve Türkiye gaming saatlerine (11:30, 15:30, 19:00, 22:30)
 göre YouTube Shorts'a zamanlanmış olarak yükler.
 """
 
@@ -162,12 +162,21 @@ with tab_channels:
     else:
         for ch in tracked_channels:
             with st.container(border=True):
-                col_i, col_act = st.columns([4, 1], vertical_alignment="center")
+                col_i, col_tog, col_act = st.columns([3.5, 1.2, 0.8], vertical_alignment="center")
                 with col_i:
                     st.markdown(f"🎮 **{ch['name']}** — `{ch['url']}`")
                     pl_text = f" | Playlist: **{ch.get('target_playlist')}**" if ch.get('target_playlist') else ""
                     last_chk = ch.get("last_checked") or "Henüz taranmadı"
-                    st.caption(f"Min Skor: **{ch['min_score']}** | Otomatik Yükleme: **{'Açık' if ch['auto_upload'] else 'Kapalı'}** | Son Kontrol: **{last_chk}**{pl_text}")
+                    st.caption(f"Min Skor: **{ch['min_score']}** | Son Kontrol: **{last_chk}**{pl_text}")
+                with col_tog:
+                    is_act = bool(ch.get("active", 1))
+                    new_act = st.toggle("Aktif", value=is_act, key=f"tog_ch_{ch['id']}", help="Bu kanalın otomatik taranmasını aç/kapat")
+                    if new_act != is_act:
+                        with db._connect() as conn:
+                            conn.execute("UPDATE tracked_channels SET active=? WHERE id=?", (1 if new_act else 0, ch["id"]))
+                            conn.commit()
+                        st.toast(f"'{ch['name']}' {'Aktif edildi' if new_act else 'Devre dışı bırakıldı'}")
+                        st.rerun()
                 with col_act:
                     if st.button("🗑️ Sil", key=f"del_ch_{ch['id']}", use_container_width=True):
                         autopilot.remove_channel(ch["id"])
@@ -179,20 +188,85 @@ with tab_channels:
 # ------------------------------------------------------------------
 with tab_queue:
     st.subheader("Otomatik Klip Kuyruğu", anchor=False)
+    
+    # Bekleyen Videoları Göster & Yönet
+    with db._connect() as conn:
+        pending_rows = conn.execute("SELECT id, title, url FROM videos WHERE status='pending'").fetchall()
+    if pending_rows:
+        st.info(f"⏳ Fabrika (Render) için bekleyen **{len(pending_rows)} adet** taze video var! Hemen işleyebilir veya istemediklerini listeden silebilirsin.")
+        with st.expander("👀 Bekleyen Videoları Gör & Yönet", expanded=False):
+            for p_id, p_title, p_url in pending_rows:
+                p_col1, p_col2, p_col3 = st.columns([3.8, 1.4, 0.8], vertical_alignment="center")
+                with p_col1:
+                    st.markdown(f"🎬 **{p_title}**")
+                with p_col2:
+                    video_link = p_url or f"https://www.youtube.com/watch?v={p_id}"
+                    st.markdown(f"[🔗 YouTube'da Aç]({video_link})")
+                with p_col3:
+                    if st.button("🗑️ Sil", key=f"del_pending_{p_id}", use_container_width=True, help="Bu videoyu bekleme listesinden çıkar"):
+                        with db._connect() as conn:
+                            conn.execute("DELETE FROM videos WHERE id=?", (p_id,))
+                            conn.commit()
+                        st.toast("Video bekleme listesinden silindi!", icon="🗑️")
+                        st.rerun()
+            st.divider()
+            if st.button("🧹 Tüm Bekleyenleri Temizle", type="secondary", use_container_width=True):
+                with db._connect() as conn:
+                    conn.execute("DELETE FROM videos WHERE status='pending'")
+                    conn.commit()
+                st.toast("Tüm bekleyen videolar temizlendi!", icon="🧹")
+                st.rerun()
+    else:
+        st.success("Tüm videolar işlendi, kuyrukta bekleyen yeni video yok. Önce tarama yapmalısın.")
+    st.divider()
 
-    col_btn, col_help = st.columns([2, 3], vertical_alignment="center")
-    with col_btn:
-        if st.button("⚡ Tüm Kanalları Şimdi Tara ve İşle", type="primary", use_container_width=True):
-            with st.status("AutoPilot döngüsü çalışıyor…", expanded=True) as status:
+
+    col_limit, col_sub, col_btn1, col_btn2, col_help = st.columns([1.6, 1.3, 1.2, 1.3, 1.6], vertical_alignment="bottom")
+    with col_limit:
+        process_limit = st.slider(
+            "İşlenecek Video Limiti",
+            min_value=1,
+            max_value=15,
+            value=5,
+            step=1,
+            help="Tek seferde arka arkaya işlenecek (render edilecek) maksimum video adedi (1 - 15)."
+        )
+    with col_sub:
+        add_subtitles = st.toggle(
+            "💬 Altyazı Ekle",
+            value=False,
+            help="Kliplere otomatik kelime senkronlu karaoke altyazı ekler. Kapalıyken (varsayılan) temiz ve yazısız klip üretilir."
+        )
+    with col_btn1:
+        if st.button("⚡ Kanalları Tara", type="primary", width="stretch", help="Sadece tarama yapar, yeni videoları 'Bekliyor' listesine ekler."):
+            with st.status("Kanallar taranıyor…", expanded=True) as status:
                 def ui_progress(msg: str):
                     st.write(msg)
                 
                 res = autopilot.run_cycle(progress_callback=ui_progress)
-                status.update(label=f"Döngü tamamlandı! {res['clips_stockpiled']} klip stoklandı, {res['clips_scheduled']} yüklendi.", state="complete")
+                status.update(label=f"Tarama tamamlandı! {res.get('new_videos_found', 0)} yeni video beklemeye alındı.", state="complete")
+            st.rerun()
+
+    with col_btn2:
+        if st.button("⚙️ Bekleyenleri İşle", type="primary", width="stretch", help=f"Bekleyen en fazla {process_limit} videoyu alır ve renderlayarak takvime atar."):
+            with st.status(f"Videolar işleniyor (Maks {process_limit} video, Altyazı: {'Açık' if add_subtitles else 'Kapalı'})…", expanded=True) as status:
+                def ui_progress(msg: str):
+                    st.write(msg)
+                
+                res = autopilot.process_pending_videos(max_videos=process_limit, add_subtitles=add_subtitles, progress_callback=ui_progress)
+                status.update(label=f"İşlem tamamlandı! {res.get('processed', 0)} video kesildi.", state="complete")
             st.rerun()
 
     with col_help:
-        st.caption("Bot tüm kanallardaki yeni videoları kontrol eder, $\\ge 90$ puanlı anları kesip planlar.")
+        st.caption(f"Seçili Limit: **{process_limit} video** | Altyazı: **{'Açık' if add_subtitles else 'Kapalı'}**")
+        if st.button("🧱 Eski İşlenmiş Videoları Anchor'a Aktar", width="stretch",
+                     help="Daha önce işlenmiş videoları kanal başına 'işlendi' tablosuna geriye dönük kaydeder; böylece bir sonraki taramada yalnızca gerçekten yeni videolar yakalanır."):
+            with st.status("Eski videolar anchor tablosuna aktarılıyor…", expanded=True) as status:
+                def bf_progress(msg: str):
+                    st.write(msg)
+                bf_res = autopilot.backfill_processed_videos(progress_callback=bf_progress)
+                status.update(label=f"Anchor aktarımı bitti: {bf_res['recorded']} eski video işaretlendi.", state="complete")
+            st.rerun()
 
     if not queue_items:
         st.info("Kuyrukta henüz klip yok. Kanallar tarandıkça burası otomatik dolacaktır.")
@@ -238,10 +312,11 @@ with tab_queue:
 with tab_settings:
     st.subheader("Günlük Shorts Yayın Saatleri (Slotlar)", anchor=False)
     st.markdown("""
-    YouTube algoritmasında en yüksek etkileşimi almak için Türkiye gaming saatleri:
-    - **1. Slot: 13:00** (Öğle molası)
-    - **2. Slot: 18:00** (Okul/İş çıkışı)
-    - **3. Slot: 22:00** (Gaming prime-time)
+    YouTube ve Instagram algoritmasında en yüksek etkileşimi almak için Türkiye gaming saatleri:
+    - **1. Slot: 11:30** (Öğle öncesi / Kahve molası)
+    - **2. Slot: 15:30** (Okul & İş çıkışı)
+    - **3. Slot: 19:00** (Prime-time / Akşam zirvesi)
+    - **4. Slot: 22:30** (Gece kuşları / Yatak öncesi scroll)
     """)
 
     current_slots = ", ".join(autopilot.daily_slots)
@@ -253,3 +328,25 @@ with tab_settings:
     - **Kalite Eşiği:** Sadece $\\ge 90$ viral skorlu anlar kesilir.
     - **Otomatik Zaman Öteleme:** Bugünün saatleri dolduysa sıradaki klipler ertesi güne aktarılır.
     """)
+
+    st.subheader("🧹 Veritabanı Bakımı", anchor=False)
+    st.warning(
+        "Bu işlem **gelecekte planlı** kuyruk öğelerini ve ilişkili videolar/klipler/renderları "
+        "korur; takip edilen kanallara dokunmaz. Geri kalan tüm videolar, klipler, renderlar ve "
+        "heatmap desenleri silinir. YouTube'a yüklenmiş videolar ile korunan planlı videolar "
+        "'işlenmiş' (anchor) listesine eklenir; böylece yeniden işlenmezler.",
+        icon=":material/warning:",
+    )
+    confirm_cleanup = st.checkbox(
+        "Yukarıdaki temizliği anladım ve gerçekleştirmek istiyorum.",
+        key="confirm_cleanup",
+    )
+    if st.button("🧹 Planlı Olanları Koruyarak Temizle", type="primary", use_container_width=True, disabled=not confirm_cleanup):
+        with st.status("Veritabanı temizleniyor…", expanded=True) as status:
+            res = db.cleanup_keep_planned()
+            status.update(
+                label=f"Temizlendi! Korunan: {res['kept_queue']} kuyruk / {res['kept_videos']} video / "
+                      f"{res['kept_clips']} klip · Anchor'a eklenen: {res['anchors_added']}",
+                state="complete",
+            )
+        st.rerun()

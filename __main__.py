@@ -12,6 +12,8 @@ import sys
 
 from core.logger import logger
 from core.pipeline import ClipperPipeline
+from core.autopilot import AutoPilotManager
+from core.database import DatabaseManager
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -88,6 +90,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Gemini API key (overrides GEMINI_API_KEY env var).",
     )
 
+    # -----------------------------------------------------------------
+    # Sub-command: backfill
+    # -----------------------------------------------------------------
+    backfill_parser = sub.add_parser(
+        "backfill",
+        help="Eskiden işlenmiş videoları kanal anchor tablosuna geriye dönük kaydeder.",
+    )
+
+    # -----------------------------------------------------------------
+    # Sub-command: cleanup
+    # -----------------------------------------------------------------
+    cleanup_parser = sub.add_parser(
+        "cleanup",
+        help="Gelecekte planlı kuyruk öğelerini koruyarak DB'yi temizler; "
+             "yüklenmiş videoları anchor listesine ekler.",
+    )
+
     return parser
 
 
@@ -140,6 +159,45 @@ def _cmd_run(args: argparse.Namespace) -> int:
 # Entry point
 # ---------------------------------------------------------------------------
 
+def _cmd_backfill(args: argparse.Namespace) -> int:
+    """Geriye dönük olarak eski işlenmiş videoları anchor tablosuna kaydeder."""
+    db = DatabaseManager()
+    db.init_db()
+    manager = AutoPilotManager(db=db)
+
+    def _progress(msg: str) -> None:
+        print(msg, flush=True)
+
+    try:
+        res = manager.backfill_processed_videos(progress_callback=_progress)
+    except Exception as exc:
+        logger.error("Backfill failed: {}", exc)
+        print(f"\n❌ Backfill error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"\n✅ Backfill bitti: {res['recorded']} eski video işlendi olarak kaydedildi "
+          f"({res['channels']} kanal).")
+    return 0
+
+
+def _cmd_cleanup(args: argparse.Namespace) -> int:
+    """Gelecekte planlı öğeleri koruyarak veritabanını temizler."""
+    db = DatabaseManager()
+    db.init_db()
+    try:
+        res = db.cleanup_keep_planned()
+    except Exception as exc:
+        logger.error("Cleanup failed: {}", exc)
+        print(f"\n❌ Cleanup error: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"\n✅ Temizlendi! Korunan: {res['kept_queue']} kuyruk / "
+        f"{res['kept_videos']} video / {res['kept_clips']} klip · "
+        f"Anchor'a eklenen: {res['anchors_added']}"
+    )
+    return 0
+
+
 def main() -> None:
     """Parse arguments and dispatch to the appropriate sub-command."""
     parser = build_parser()
@@ -147,6 +205,10 @@ def main() -> None:
 
     if args.command == "run":
         sys.exit(_cmd_run(args))
+    elif args.command == "backfill":
+        sys.exit(_cmd_backfill(args))
+    elif args.command == "cleanup":
+        sys.exit(_cmd_cleanup(args))
     else:
         parser.print_help()
         sys.exit(1)

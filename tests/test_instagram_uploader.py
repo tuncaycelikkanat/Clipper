@@ -22,9 +22,13 @@ def test_is_authenticated_true(ig_uploader):
     assert ig_uploader.is_authenticated() is True
 
 
-def test_is_authenticated_false():
-    uploader = InstagramUploader(access_token="", instagram_account_id="")
-    assert uploader.is_authenticated() is False
+def test_is_authenticated_false(monkeypatch):
+    monkeypatch.delenv("INSTAGRAM_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("INSTAGRAM_ACCOUNT_ID", raising=False)
+    # Mock load_dotenv to prevent .env file from overriding empty values
+    with patch("core.instagram_uploader.load_dotenv"):
+        uploader = InstagramUploader(access_token="", instagram_account_id="")
+        assert uploader.is_authenticated() is False
 
 
 @patch("requests.post")

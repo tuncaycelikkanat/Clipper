@@ -22,6 +22,7 @@ try:
         videos_df = pd.read_sql_query("SELECT * FROM videos ORDER BY processed_at DESC", conn)
         clips_df = pd.read_sql_query("SELECT * FROM clips ORDER BY created_at DESC", conn)
         renders_df = pd.read_sql_query("SELECT * FROM renders", conn)
+        queue_df = pd.read_sql_query("SELECT * FROM autopilot_queue", conn)
 
     if videos_df.empty:
         st.info("Veritabanında henüz kayıtlı video yok. 'Analiz & Edit' sayfasından yeni bir video ekleyin.", icon=":material/info:")
@@ -77,11 +78,8 @@ try:
                                 f"📸 **Reels:** %{p_res['reels']} · "
                                 f"🐦 **X:** %{p_res['twitter']}"
                             )
-                        except Exception:
-                            pass
-
-
-                    with col_actions:
+                        except Exception as e:
+                            st.info(f"Platform skorları hesaplanamadı: {e}")
                         # Check if a render exists on disk
                         clip_renders = renders_df[renders_df["clip_id"] == clip["id"]] if not renders_df.empty else pd.DataFrame()
                         existing_file = None
@@ -103,6 +101,59 @@ try:
                                     key=f"lib_dl_{clip['id']}"
                                 )
                         
+                        # ADD TO QUEUE BUTTON
+                        if existing_file:
+                            is_queued = False
+                            if not queue_df.empty:
+                                is_queued = not queue_df[(queue_df["clip_id"] == clip["id"]) & (queue_df["status"] == "QUEUED")].empty
+                                
+                            if is_queued:
+                                st.button("✅ Zaten Kuyrukta Bekliyor", key=f"q_dis_{clip['id']}", disabled=True, use_container_width=True)
+                            else:
+                                if st.button("🚀 Nöbetçi Bot'a (Sıraya) Ekle", key=f"q_{clip['id']}", type="primary", use_container_width=True):
+                                    try:
+                                        from core.autopilot import AutoPilotManager
+                                        ap = AutoPilotManager(db=db)
+                                        import uuid
+                                        import datetime
+                                        
+                                        latest_iso = None
+                                        with db._connect() as conn:
+                                            res = conn.execute("SELECT scheduled_at FROM autopilot_queue ORDER BY scheduled_at DESC LIMIT 1").fetchone()
+                                            if res:
+                                                latest_iso = res[0]
+                                                
+                                        next_slot = ap.compute_next_available_slot(latest_scheduled_iso=latest_iso)[1]
+                                        q_id = str(uuid.uuid4())
+                                        
+                                        # Thumbnail Uret (Manuel Ekleme Icin)
+                                        thumb_path = ""
+                                        try:
+                                            from core.thumbnail import ThumbnailGenerator
+                                            thumbs = ThumbnailGenerator.batch_generate_thumbnails(
+                                                clips=[dict(clip)],
+                                                video_path_or_url=existing_file,
+                                                output_dir="outputs/thumbnails"
+                                            )
+                                            if thumbs:
+                                                thumb_path = thumbs[0]
+                                        except Exception as e:
+                                            print(f"Thumbnail error: {e}")
+                                            
+                                        with db._connect() as conn:
+                                            conn.execute("""
+                                                INSERT INTO autopilot_queue 
+                                                (id, video_id, clip_id, channel_url, title, render_path, thumbnail_path, viral_score, scheduled_at, status, created_at)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?)
+                                            """, (
+                                                q_id, clip["video_id"], clip["id"], video_url, clip["title"],
+                                                existing_file, thumb_path, clip["score"], next_slot, datetime.datetime.utcnow().isoformat()
+                                            ))
+                                            conn.commit()
+                                        st.success(f"Klip başarıyla sıraya alındı! Yayın Tarihi: {next_slot[:16].replace('T', ' ')}")
+                                    except Exception as e:
+                                        st.error(f"Hata: {e}")
+                                    
                         # Re-render button
                         render_btn_label = "Yeniden Renderla" if existing_file else "Klibi Renderla"
                         if st.button(render_btn_label, icon=":material/refresh:", width="stretch", key=f"re_ren_{clip['id']}"):
@@ -126,13 +177,13 @@ try:
                                             video_title=video_title,
                                             hook_caption=clip.get("hook_caption", ""),
                                             transcript_segments=transcript,
-                                            render_mode="square_1x1_black",
-                                            add_subtitles=True,
-                                            add_hook_card=True,
+                                            render_mode="shorts_9x16_blur",
+                                            add_subtitles=False,
+                                            add_hook_card=False,
                                             enhance_colors=True,
                                             use_whisper=True
                                         )
-                                        db.save_render(clip["id"], "square_1x1_black", clip_path)
+                                        db.save_render(clip["id"], "shorts_9x16_blur", clip_path)
                                         
                                         # Auto-generate thumbnail
                                         try:
@@ -143,8 +194,8 @@ try:
                                                 video_path_or_url=clip_path,
                                                 output_dir=thumb_dir
                                             )
-                                        except Exception:
-                                            pass
+                                        except Exception as e:
+                                            st.warning(f"Thumbnail üretimi başarısız oldu: {e}")
 
                                         st.toast("Klip ve thumbnail başarıyla hazırlandı!", icon="🎉")
                                         st.rerun()

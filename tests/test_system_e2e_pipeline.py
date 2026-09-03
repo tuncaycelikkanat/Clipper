@@ -54,7 +54,7 @@ def test_db():
 # SENARYO 1: STANDART E2E GAMING PIPELINE
 # ===========================================================================
 
-@patch("core.cutter.VideoCutter.cut_clip")
+@patch("core.pipeline.VideoCutter.cut_clip")
 @patch("core.thumbnail.ThumbnailGenerator.batch_generate_thumbnails")
 @patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
 @patch("core.llm_engine.GeminiHighlightEngine.batch_judge_gaming_candidates")

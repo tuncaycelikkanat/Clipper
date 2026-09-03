@@ -145,23 +145,21 @@ def test_snap_boundaries_empty():
 
 def test_snap_boundaries_normal():
     segments = [
-        {"start": 0.0, "end": 2.0, "text": "Hello"},
-        {"start": 2.5, "end": 4.0, "text": "World"},
-        {"start": 4.5, "end": 6.0, "text": "This is a test."},
-        {"start": 6.5, "end": 8.0, "text": "Extra text."}
+        {"start": 0.0, "end": 5.0, "text": "First part."},
+        {"start": 6.0, "end": 10.0, "text": "Second part."},
+        {"start": 11.0, "end": 15.0, "text": "Third part is not complete"},
+        {"start": 16.0, "end": 20.0, "text": "but now it is."},
+        {"start": 21.0, "end": 25.0, "text": "Extra part."}
     ]
     
-    # candidate exactly matching start but needs to find complete end
-    # start 2.5 (World) -> end 6.0 (This is a test.)
-    # let's set candidate to 2.5 to 4.5 (which is middle of "This is a test.")
-    # it should snap end to 6.0 + 0.35
-    s, e, t = TranscriptManager.snap_boundaries(2.5, 4.5, segments)
+    # start 6.0 (Second part) -> end 15.0 (middle of "Third part...")
+    # should snap end to 16.0 (start of next complete sentence)
+    s, e, t = TranscriptManager.snap_boundaries(6.0, 15.0, segments)
     
-    assert s == 2.5
-    # Wait, the difference is (6.0 + 0.35 - 2.5) = 3.85
-    # Since duration < 10.0, it will fallback!
-    # Let's adjust times so duration >= 10.0 to test normal snap
-    pass
+    assert s == 6.0
+    # End should snap to a sentence boundary
+    assert e > 6.0
+    assert t is not None
 
 def test_snap_boundaries_long():
     segments = [

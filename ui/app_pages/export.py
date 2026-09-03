@@ -10,7 +10,6 @@ import pandas as pd
 
 from core.uploader import YouTubeUploader
 from core.instagram_uploader import InstagramUploader
-from core.tiktok_uploader import TikTokUploader
 from core.multi_publisher import MultiPublisher
 from core.notifier import Notifier
 from core.database import DatabaseManager
@@ -23,14 +22,13 @@ db.init_db()
 multi_pub = MultiPublisher()
 uploader = multi_pub.youtube
 ig_uploader = multi_pub.instagram
-tt_uploader = multi_pub.tiktok
 
 st.header("Dışa Aktar & Yayınla", anchor=False)
-st.caption("Klipleri YouTube Shorts, Instagram Reels ve TikTok platformlarına tek tıkla veya ayrı ayrı yayınlayın.")
+st.caption("Klipleri YouTube Shorts ve Instagram Reels platformlarına tek tıkla veya ayrı ayrı yayınlayın.")
 
 # Platform Bağlantı Rozetleri
 auth_status = multi_pub.get_auth_status()
-col_a1, col_a2, col_a3 = st.columns(3)
+col_a1, col_a2 = st.columns(2)
 with col_a1:
     if auth_status["youtube"]:
         st.success("YouTube: Bağlandı", icon=":material/check_circle:")
@@ -41,20 +39,14 @@ with col_a2:
         st.success("Instagram Reels: Aktif", icon=":material/check_circle:")
     else:
         st.info("Instagram: Token Gerekli", icon=":material/info:")
-with col_a3:
-    if auth_status["tiktok"]:
-        st.success("TikTok: Aktif", icon=":material/check_circle:")
-    else:
-        st.info("TikTok: Token Gerekli", icon=":material/info:")
 
 st.divider()
 
 # Tablar
-tab_multi, tab_yt, tab_ig, tab_tt, tab_hook = st.tabs([
+tab_multi, tab_yt, tab_ig, tab_hook = st.tabs([
     "🌐 Çoklu Yayınla (Omnichannel)",
     "📺 YouTube Shorts",
     "📸 Instagram Reels",
-    "🎵 TikTok",
     "🔔 Webhook & Bildirimler"
 ])
 
@@ -105,13 +97,9 @@ with tab_multi:
                 post_yt = st.checkbox("YouTube Shorts", value=auth_status["youtube"], disabled=not auth_status["youtube"])
             with col_p2:
                 post_ig = st.checkbox("Instagram Reels", value=auth_status["instagram"], disabled=not auth_status["instagram"])
-            with col_p3:
-                post_tt = st.checkbox("TikTok", value=auth_status["tiktok"], disabled=not auth_status["tiktok"])
-
             chosen_platforms = []
             if post_yt: chosen_platforms.append("youtube")
             if post_ig: chosen_platforms.append("instagram")
-            if post_tt: chosen_platforms.append("tiktok")
 
             if st.button("🚀 Seçilen Platformlara Gönder", type="primary", disabled=len(chosen_platforms) == 0, width="stretch"):
                 with st.spinner(f"Klip {', '.join(chosen_platforms).upper()} platformlarına dağıtılıyor…"):
@@ -183,33 +171,7 @@ with tab_ig:
             """)
 
 # ------------------------------------------------------------------
-# TAB 4: TIKTOK
-# ------------------------------------------------------------------
-with tab_tt:
-    with st.container(border=True):
-        st.subheader("TikTok Video Yayınlama (Direct Post API v2)", anchor=False)
-        if tt_uploader.is_authenticated():
-            st.success("TikTok API Bağlı", icon=":material/check_circle:")
-            if rendered_files:
-                sel_tt = st.selectbox("TikTok Olarak Yüklenecek Video", rendered_files, key="tt_only_select")
-                tt_title = st.text_input("TikTok Başlığı & Etiketler (Max 150 Karakter)", value=TikTokUploader.generate_caption({"title": os.path.basename(sel_tt)}))
-                if st.button("TikTok'a Gönder", type="primary", key="btn_tt_upload"):
-                    with st.spinner("TikTok Direct Post API ile yükleniyor…"):
-                        try:
-                            res = tt_uploader.upload_video(video_path=sel_tt, title=tt_title)
-                            st.success(f"✅ TikTok'a Gönderildi! Publish ID: {res['publish_id']}")
-                        except Exception as e:
-                            st.error(f"Hata: {e}")
-        else:
-            st.info("""
-            **TikTok Direct Post API Kurulumu:**
-            1. [TikTok for Developers](https://developers.tiktok.com/) portalından bir App oluşturun.
-            2. Content Posting API iznini (`video.publish`) etkinleştirin.
-            3. `TIKTOK_ACCESS_TOKEN` değerini `.env` dosyasına kaydedin.
-            """)
-
-# ------------------------------------------------------------------
-# TAB 5: WEBHOOK & BİLDİRİMLER
+# TAB 4: WEBHOOK & BİLDİRİMLER
 # ------------------------------------------------------------------
 with tab_hook:
     with st.container(border=True):

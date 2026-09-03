@@ -15,12 +15,7 @@ try:
 except ImportError:
     _FASTER_WHISPER_AVAILABLE = False
 
-try:
-    from core.logger import get_logger
-    logger = get_logger(__name__)
-except Exception:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class WhisperTranscriber:
@@ -71,7 +66,7 @@ class WhisperTranscriber:
 
         try:
             logger.info(
-                "Loading faster-whisper model '%s' on %s (%s) ...",
+                "Loading faster-whisper model '{}' on {} ({}) ...",
                 self.model_size,
                 self.device,
                 self.compute_type,
@@ -84,7 +79,7 @@ class WhisperTranscriber:
             logger.info("faster-whisper model loaded successfully.")
             return True
         except Exception as exc:
-            logger.warning("Could not load faster-whisper model: %s", exc)
+            logger.warning("Could not load faster-whisper model: {}", exc)
             return False
 
     @staticmethod
@@ -156,14 +151,14 @@ class WhisperTranscriber:
                     )
 
             logger.info(
-                "faster-whisper transcribed %d words from '%s'.",
+                "faster-whisper transcribed {} words from '{}'.",
                 len(words),
                 audio_path,
             )
             return words
 
         except Exception as exc:
-            logger.warning("faster-whisper transcription failed: %s", exc)
+            logger.warning("faster-whisper transcription failed: {}", exc)
             return []
 
     # ------------------------------------------------------------------
@@ -187,7 +182,7 @@ class WhisperTranscriber:
             Returns [] on any error or if faster-whisper is unavailable.
         """
         if not os.path.exists(audio_file_path):
-            logger.warning("Audio file not found: %s", audio_file_path)
+            logger.warning("Audio file not found: {}", audio_file_path)
             return []
 
         return self._run_transcription(audio_file_path, language)
@@ -209,17 +204,17 @@ class WhisperTranscriber:
             Returns [] on any error or if faster-whisper is unavailable.
         """
         if not os.path.exists(video_path):
-            logger.warning("Video file not found: %s", video_path)
+            logger.warning("Video file not found: {}", video_path)
             return []
 
         tmp_audio: str = ""
         try:
-            logger.info("Extracting audio from '%s' for Whisper ...", video_path)
+            logger.info("Extracting audio from '{}' for Whisper ...", video_path)
             tmp_audio = self._extract_audio_to_tempfile(video_path)
             return self._run_transcription(tmp_audio, language)
         except Exception as exc:
             logger.warning(
-                "Failed to extract/transcribe audio from '%s': %s",
+                "Failed to extract/transcribe audio from '{}': {}",
                 video_path,
                 exc,
             )

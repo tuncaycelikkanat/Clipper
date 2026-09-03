@@ -122,7 +122,8 @@ with st.container(border=True):
         with db._connect() as conn:
             clip_count = conn.execute("SELECT COUNT(*) FROM clips").fetchone()[0]
         m3.metric("Veritabanı Klip Kaydı", clip_count)
-    except Exception:
+    except Exception as e:
+        st.warning(f"Veritabanı bağlantı hatası: {e}")
         m3.metric("Veritabanı Klip Kaydı", "-")
 
     col_btn1, col_btn2 = st.columns(2)
@@ -136,8 +137,8 @@ with st.container(border=True):
             try:
                 db = DatabaseManager()
                 db.clear_database()
-            except Exception:
-                pass
+            except Exception as e:
+                st.warning(f"Veritabanı sıfırlanırken hata: {e}")
             
             # Clear all session state
             for key in list(st.session_state.keys()):

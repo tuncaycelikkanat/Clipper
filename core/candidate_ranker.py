@@ -1,5 +1,6 @@
 import numpy as np
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from loguru import logger
 
 from core.extractor import YouTubeExtractor
 
@@ -64,7 +65,8 @@ class CandidateRanker:
                 comment_curve = comment_res.get("comment_signal", np.zeros(n_points))
                 comment_clusters = comment_res.get("timestamp_clusters", [])
                 has_comments = len(comment_clusters) > 0
-            except Exception:
+            except Exception as e:
+                logger.debug("Comment mining failed, using zero signal: {}", e)
                 comment_curve = np.zeros(n_points)
 
         # 2. Process Transcript Density (if transcript provided)
@@ -80,7 +82,8 @@ class CandidateRanker:
                     total_duration=float(total_duration),
                 )
                 has_transcript_density = bool(np.any(transcript_curve > 0.05))
-            except Exception:
+            except Exception as e:
+                logger.debug("Transcript density analysis failed, using zero signal: {}", e)
                 transcript_curve = np.zeros(n_points)
 
         # 3. Interpolate Heatmap onto audio timeline if present
@@ -99,8 +102,8 @@ class CandidateRanker:
                     hidden_viral_peaks = predictor.detect_hidden_viral_from_real(
                         heatmap, view_count
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Hidden viral detection failed: {}", e)
 
         elif self._db is not None:
             # Heatmap yok → HeatmapPredictor ile tahmin et
@@ -125,7 +128,8 @@ class CandidateRanker:
                     )
                     ph_vals = np.array([p["value"] for p in pred_heatmap])
                     heatmap_curve = np.interp(times, ph_times, ph_vals, left=0.0, right=0.0)
-            except Exception:
+            except Exception as e:
+                logger.debug("Heatmap prediction failed, using zero signal: {}", e)
                 heatmap_curve = np.zeros(n_points)
 
         # 4. Weighted Score Fusion (Adaptive Multimodal)

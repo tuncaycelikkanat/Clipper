@@ -68,7 +68,8 @@ def test_deepseek_generate_shorts_copy_error(mock_openai_class):
             hook_caption="Hook",
             category="CLUTCH",
             video_title="BeamNG",
-            api_key="sk-test"
+            api_key="sk-test",
+            raise_on_error=True,
         )
 
 @patch("core.deepseek_engine.OpenAI")

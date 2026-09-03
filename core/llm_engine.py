@@ -2,6 +2,7 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+from loguru import logger
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -29,7 +30,15 @@ class GeminiGamingBatchResult(BaseModel):
 class GeminiHighlightEngine:
     """Uses Google Gemini Flash to batch-judge Top-N gaming candidate clips in 1 structured call."""
 
-    MODELS_TO_TRY = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]
+    MODELS_TO_TRY = [
+        "gemini-3.5-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.1-flash-lite",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-flash-latest"
+    ]
 
     @classmethod
     def batch_judge_gaming_candidates(
@@ -182,10 +191,8 @@ Lütfen bu adayları tek tek yargıla ve en iyi {target_clips} klibi 'KEEP' olar
                 )
                 res["provider"] = "DeepSeek V3 (Kreatif Motor)"
                 return res
-        except Exception:
-            pass
-
-        # 2. Fallback to Gemini Flash
+        except Exception as e:
+            logger.debug("DeepSeek metadata generation failed, falling back to Gemini: {}", e)
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:
             # Clean heuristic fallback
@@ -233,7 +240,8 @@ GÖREVLER:
                     "tags": res_dict.get("tags", [video_title.lower(), clip_title.lower(), "shorts", "gaming"]),
                     "provider": f"Google Gemini ({model_name})"
                 }
-            except Exception:
+            except Exception as e:
+                logger.debug("Gemini metadata model {} failed: {}", model_name, e)
                 continue
 
         return {

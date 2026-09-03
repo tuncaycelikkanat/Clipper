@@ -56,7 +56,9 @@ class YouTubeExtractor:
             "thumbnail": info.get("thumbnail"),
             "view_count": info.get("view_count", 0),
             "has_heatmap": len(heatmap) > 0,
-            "heatmap": heatmap
+            "heatmap": heatmap,
+            "tags": info.get("tags", []),
+            "description": info.get("description", "")
         }
 
     @classmethod

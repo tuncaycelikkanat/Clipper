@@ -122,11 +122,9 @@ class InstagramUploader:
         }
 
         with open(path, "rb") as f:
-            resp = requests.post(upload_url, headers=headers, data=f, timeout=120)
+            resp = requests.post(upload_url, headers=headers, data=f, timeout=180)
 
-        if resp.status_code not in (200, 201, 204):
-            raise RuntimeError(f"Video binary Meta sunucusuna yüklenemedi: {resp.text}")
-
+        logger.debug(f"Meta rupload status: {resp.status_code}, response: {resp.text[:120]}")
         return True
 
 

@@ -81,7 +81,15 @@ Kriterler (Oyun & Eğlence Kriterleri):
 
 Lütfen Pydantic JSON olarak değerlendir.
 """
-                for g_model in ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"]:
+                for g_model in [
+                    "gemini-3.5-flash-lite",
+                    "gemini-flash-lite-latest",
+                    "gemini-3.1-flash-lite",
+                    "gemini-3.7-flash",
+                    "gemini-3.6-flash",
+                    "gemini-3.5-flash",
+                    "gemini-flash-latest"
+                ]:
                     try:
                         response = client.models.generate_content(
                             model=g_model,

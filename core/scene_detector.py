@@ -12,12 +12,7 @@ import re
 import subprocess
 from typing import List
 
-try:
-    from core.logger import get_logger
-    logger = get_logger(__name__)
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class SceneDetector:
@@ -71,7 +66,7 @@ class SceneDetector:
             logger.error("FFmpeg bulunamadı. Lütfen kurulu olduğundan emin olun.")
             return []
         except Exception as exc:
-            logger.error("scdet çalıştırma hatası: %s", exc)
+            logger.error("scdet çalıştırma hatası: {}", exc)
             return []
 
         # FFmpeg scdet output lines look like:
@@ -89,7 +84,7 @@ class SceneDetector:
 
         timestamps.sort()
         logger.info(
-            "detect_scenes: %d sahne kesimi bulundu (eşik=%.1f, dosya=%s)",
+            "detect_scenes: {} sahne kesimi bulundu (eşik={:.1f}, dosya={})",
             len(timestamps),
             threshold,
             video_path,

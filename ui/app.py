@@ -23,6 +23,7 @@ pages = [
     st.Page("app_pages/clips.py", title="Klip Kütüphanesi", icon=":material/video_library:"),
     st.Page("app_pages/export.py", title="Dışa Aktar & Yayınla", icon=":material/upload:"),
     st.Page("app_pages/autopilot.py", title="Otonom Bot (AutoPilot)", icon=":material/smart_toy:"),
+    st.Page("app_pages/detail.py", title="Detaylı Görünüm", icon=":material/query_stats:"),
     st.Page("app_pages/planner.py", title="Yayın Takvimi & Planlayıcı", icon=":material/calendar_month:"),
     st.Page("app_pages/settings.py", title="Sistem & Ayarlar", icon=":material/settings:"),
 ]

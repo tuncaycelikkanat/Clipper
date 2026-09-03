@@ -10,24 +10,20 @@ from __future__ import annotations
 import yt_dlp
 from typing import List, Dict, Any
 
-try:
-    from core.logger import get_logger
-    logger = get_logger(__name__)
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ChannelFeed:
     """Retrieves video listings from YouTube channels and playlists via yt-dlp."""
 
-    # yt-dlp options shared by channel/playlist extraction
     _BASE_OPTS: Dict[str, Any] = {
         "skip_download": True,
         "quiet": True,
         "no_warnings": True,
         "extract_flat": True,  # fast metadata-only listing
         "ignoreerrors": True,
+        "http_headers": {"Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8"},
+        "extractor_args": {"youtube": ["lang=tr"]},
     }
 
     @staticmethod
@@ -117,14 +113,17 @@ class ChannelFeed:
             )
 
 
-        # Sort newest-first by upload_date string ('YYYYMMDD'); empty dates go last.
+        # Sort newest-first by upload_date string ('YYYYMMDD'). Videoları tarihsiz
+        # (upload_date boş) olanları "en yeni" kabul et (büyük bir anahtarla) ki
+        # tarihi eksik olsa bile yeni videolar en üstte kalsın ve anchor tespitinde
+        # kaçırılmasın.
         videos.sort(
-            key=lambda v: v["upload_date"] if v["upload_date"] else "00000000",
+            key=lambda v: v["upload_date"] if v["upload_date"] else "99999999",
             reverse=True,
         )
 
         logger.info(
-            "get_channel_videos: %d geçerli video alındı (URL: %s)", len(videos), channel_url
+            "get_channel_videos: {} geçerli video alındı (URL: {})", len(videos), channel_url
         )
         return videos[:max_count]
 
@@ -158,7 +157,7 @@ class ChannelFeed:
         new_videos = [v for v in all_videos if v["id"] not in seen]
 
         logger.info(
-            "get_new_videos: %d yeni, %d işlenmiş, %d toplam alındı",
+            "get_new_videos: {} yeni, {} işlenmiş, {} toplam alındı",
             len(new_videos),
             len(seen),
             len(all_videos),
@@ -193,6 +192,6 @@ class ChannelFeed:
         ids = [e["id"] for e in entries if e and e.get("id")]
 
         logger.info(
-            "get_video_ids_from_playlist: %d ID alındı (%s)", len(ids), playlist_url
+            "get_video_ids_from_playlist: {} ID alındı ({})", len(ids), playlist_url
         )
         return ids

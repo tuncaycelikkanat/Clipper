@@ -21,7 +21,7 @@ import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.logger import logger
 
@@ -37,6 +37,17 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _json_dump(value: Any) -> Optional[str]:
+    """Serialize *value* to a JSON string for storage in TEXT columns.
+
+    ``None`` is passed through untouched; lists/dicts are JSON-encoded so
+    they round-trip with :func:`json.loads` (e.g. video ``tags``).
+    """
+    if value is None or isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # Schema DDL
 # ---------------------------------------------------------------------------
@@ -50,7 +61,9 @@ CREATE TABLE IF NOT EXISTS videos (
     view_count   INTEGER,
     has_heatmap  INTEGER DEFAULT 0,
     processed_at TEXT,
-    status       TEXT DEFAULT 'pending'
+    status       TEXT DEFAULT 'pending',
+    tags         TEXT,
+    description  TEXT
 );
 """
 
@@ -120,6 +133,16 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
 );
 """
 
+_DDL_CHANNEL_PROCESSED_VIDEOS = """
+CREATE TABLE IF NOT EXISTS channel_processed_videos (
+    channel_url TEXT NOT NULL,
+    video_id    TEXT NOT NULL,
+    title       TEXT,
+    processed_at TEXT NOT NULL,
+    PRIMARY KEY (channel_url, video_id)
+);
+"""
+
 _DDL_AUTOPILOT_QUEUE = """
 CREATE TABLE IF NOT EXISTS autopilot_queue (
     id             TEXT PRIMARY KEY,
@@ -133,7 +156,9 @@ CREATE TABLE IF NOT EXISTS autopilot_queue (
     scheduled_at   TEXT NOT NULL,
     status         TEXT DEFAULT 'QUEUED',
     youtube_url    TEXT,
+    instagram_url  TEXT,
     error_msg      TEXT,
+    description    TEXT,
     created_at     TEXT NOT NULL
 );
 """
@@ -179,7 +204,17 @@ class DatabaseManager:
             conn.execute(_DDL_RENDERS)
             conn.execute(_DDL_HEATMAP_PATTERNS)
             conn.execute(_DDL_TRACKED_CHANNELS)
+            conn.execute(_DDL_CHANNEL_PROCESSED_VIDEOS)
             conn.execute(_DDL_AUTOPILOT_QUEUE)
+            # Mevcut veritabanları için yeni sütunları güvenle ekle
+            for col_sql in (
+                "ALTER TABLE autopilot_queue ADD COLUMN description TEXT;",
+            ):
+                try:
+                    conn.execute(col_sql)
+                except Exception:
+                    # Sütun zaten varsa yok say
+                    pass
             conn.commit()
         logger.info("Database initialised at {}", self.db_path)
 
@@ -218,9 +253,9 @@ class DatabaseManager:
         vid_id: str = video_data["id"]
         sql = """
             INSERT INTO videos (id, url, title, uploader, duration,
-                                view_count, has_heatmap, processed_at, status)
+                                view_count, has_heatmap, processed_at, status, tags, description)
             VALUES (:id, :url, :title, :uploader, :duration,
-                    :view_count, :has_heatmap, :processed_at, :status)
+                    :view_count, :has_heatmap, :processed_at, :status, :tags, :description)
             ON CONFLICT(id) DO UPDATE SET
                 url          = excluded.url,
                 title        = excluded.title,
@@ -229,7 +264,9 @@ class DatabaseManager:
                 view_count   = excluded.view_count,
                 has_heatmap  = excluded.has_heatmap,
                 processed_at = excluded.processed_at,
-                status       = excluded.status;
+                status       = excluded.status,
+                tags         = excluded.tags,
+                description  = excluded.description;
         """
         params: Dict[str, Any] = {
             "id": vid_id,
@@ -241,6 +278,8 @@ class DatabaseManager:
             "has_heatmap": 1 if video_data.get("has_heatmap") else 0,
             "processed_at": video_data.get("processed_at", _utcnow()),
             "status": video_data.get("status", "pending"),
+            "tags": _json_dump(video_data.get("tags", None)),
+            "description": video_data.get("description", None),
         }
         with self._connect() as conn:
             conn.execute(sql, params)
@@ -586,6 +625,54 @@ class DatabaseManager:
             conn.execute(sql, (_utcnow(), channel_url))
             conn.commit()
 
+    # ------------------------------------------------------------------
+    # Per-channel processed video tracking (anchor-based new detection)
+    # ------------------------------------------------------------------
+
+    def record_processed_video(self, channel_url: str, video_id: str, title: str = "") -> None:
+        """Bir kanal için bir videoyu 'işlendi' olarak işaretler.
+
+        Bu kayıt, o kanaldaki en son işlenmiş video çapasını (anchor) oluşturur.
+        Bir sonraki taramada, bu videodan daha yeni olanlar 'yeni video' sayılır.
+        """
+        sql = """
+            INSERT OR REPLACE INTO channel_processed_videos
+                (channel_url, video_id, title, processed_at)
+            VALUES (?, ?, ?, ?);
+        """
+        with self._connect() as conn:
+            conn.execute(sql, (channel_url.strip(), str(video_id), title or "", _utcnow()))
+            conn.commit()
+        logger.debug("Kanal {} için video {} işlendi olarak işaretlendi", channel_url, video_id)
+
+    def get_processed_video_ids(self, channel_url: str) -> set:
+        """Bir kanal için daha önce işlenmiş (kayıtlı) video ID'lerinin kümesini döner."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT video_id FROM channel_processed_videos WHERE channel_url = ?;",
+                (channel_url.strip(),),
+            ).fetchall()
+        return {r["video_id"] for r in rows}
+
+    def is_channel_video_processed(self, channel_url: str, video_id: str) -> bool:
+        """Belirli bir video ID'sinin bu kanal için zaten işlenmiş olup olmadığını döner."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM channel_processed_videos WHERE channel_url = ? AND video_id = ?;",
+                (channel_url.strip(), str(video_id)),
+            ).fetchone()
+        return row is not None
+
+    def get_last_processed_video_id(self, channel_url: str) -> Optional[str]:
+        """Bu kanal için en son işlenmiş video ID'sini (çapa) döner, yoksa None."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT video_id FROM channel_processed_videos "
+                "WHERE channel_url = ? ORDER BY processed_at DESC LIMIT 1;",
+                (channel_url.strip(),),
+            ).fetchone()
+        return row["video_id"] if row else None
+
     def add_to_autopilot_queue(
         self,
         video_id: str,
@@ -598,20 +685,22 @@ class DatabaseManager:
         scheduled_at: str,
         status: str = "QUEUED",
         youtube_url: Optional[str] = None,
+        description: Optional[str] = None,
     ) -> str:
         """Zamanlanmış veya stoklanmış klibi autopilot kuyruğuna kaydeder."""
         queue_id = str(uuid.uuid4())
         sql = """
             INSERT INTO autopilot_queue
                 (id, video_id, clip_id, channel_url, title, render_path,
-                 thumbnail_path, viral_score, scheduled_at, status, youtube_url, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                 thumbnail_path, viral_score, scheduled_at, status, youtube_url, description, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         with self._connect() as conn:
             conn.execute(
                 sql,
                 (queue_id, video_id, clip_id, channel_url, title, render_path,
-                 thumbnail_path, int(viral_score), scheduled_at, status, youtube_url, _utcnow()),
+                 thumbnail_path, int(viral_score), scheduled_at, status, youtube_url,
+                 description, _utcnow()),
             )
             conn.commit()
         logger.info("Added to autopilot queue id={} score={} scheduled_at={}", queue_id, viral_score, scheduled_at)
@@ -689,6 +778,202 @@ class DatabaseManager:
                 conn.execute("DELETE FROM tracked_channels;")
             conn.commit()
         logger.info("Cleared records from database (keep_tracked_channels={}).", keep_tracked_channels)
+
+    # ------------------------------------------------------------------
+    # Targeted cleanup (keep planned schedule, re-anchor published videos)
+    # ------------------------------------------------------------------
+
+    def cleanup_keep_planned(self, tz_offset_hours: int = 3) -> Dict[str, Any]:
+        """Planlı (gelecekteki) kuyruk öğelerini ve bunlarla ilişkili kayıtları
+        koruyarak veritabanını temizler.
+
+        - ``tracked_channels`` dokunulmaz (korunur).
+        - ``autopilot_queue`` içinde *gelecekte* planlanmış öğeler (ve zamanı
+          bilinmeyenler) korunur; geçmişte kalanlar (yayınlanmış/eski) silinir.
+        - Korunan öğelerin video/klip/render kayıtları silinmez.
+        - ``videos``, ``clips``, ``renders``, ``heatmap_patterns`` tabloları
+          korunanlar dışında tamamen temizlenir.
+        - YouTube'a yüklenmiş (``youtube_url`` olan) videolar ile korunan planlı
+          videolar, ``channel_processed_videos`` (işlenmiş/anchor) listesine eklenir;
+          böylece bir sonraki taramada yeniden işlenmezler.
+
+        Returns:
+            Özet metrikler.
+        """
+        from datetime import timedelta
+
+        now_utc = datetime.now(timezone.utc)
+
+        with self._connect() as conn:
+            rows = [dict(r) for r in conn.execute("SELECT * FROM autopilot_queue;").fetchall()]
+
+            kept: List[Dict[str, Any]] = []
+            yt_anchors: List[Tuple[str, str]] = []  # (channel_url, video_id)
+            for r in rows:
+                sched = r.get("scheduled_at") or ""
+                keep = False
+                if not sched:
+                    keep = True  # Zamanı belirsizse koru (güvenli tarafta kal)
+                else:
+                    try:
+                        dt = datetime.fromisoformat(sched.replace("Z", "+00:00"))
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        keep = dt >= now_utc
+                    except Exception:
+                        keep = True
+                if keep:
+                    kept.append(r)
+                # YouTube'a atılmış olanları anchor listesine ekle
+                yt = r.get("youtube_url")
+                if yt and str(yt).strip():
+                    yt_anchors.append((r.get("channel_url"), r.get("video_id")))
+
+            kept_ids = [r["id"] for r in kept]
+
+            # 1. autopilot_queue: korunanlar dışındakileri sil
+            if kept_ids:
+                qph = ",".join("?" * len(kept_ids))
+                conn.execute(f"DELETE FROM autopilot_queue WHERE id NOT IN ({qph});", kept_ids)
+            else:
+                conn.execute("DELETE FROM autopilot_queue;")
+
+            # Korunan öğelerin klip & video ID'lerini topla
+            if kept_ids:
+                kept_rows = [dict(r) for r in conn.execute(
+                    f"SELECT clip_id, video_id, channel_url FROM autopilot_queue WHERE id IN ({qph});",
+                    kept_ids,
+                ).fetchall()]
+            else:
+                kept_rows = []
+
+            kept_clip_ids = [r["clip_id"] for r in kept_rows if r.get("clip_id")]
+            kept_video_ids = [r["video_id"] for r in kept_rows if r.get("video_id")]
+            # Korunan planlı videoları da anchor'a ekle
+            for r in kept_rows:
+                if r.get("video_id") and r.get("channel_url"):
+                    yt_anchors.append((r.get("channel_url"), r.get("video_id")))
+            kept_video_ids = list(set(kept_video_ids))
+
+            # 2. clips
+            if kept_clip_ids:
+                cph = ",".join("?" * len(kept_clip_ids))
+                conn.execute(f"DELETE FROM clips WHERE id NOT IN ({cph});", kept_clip_ids)
+            else:
+                conn.execute("DELETE FROM clips;")
+
+            # 3. videos
+            if kept_video_ids:
+                vph = ",".join("?" * len(kept_video_ids))
+                conn.execute(f"DELETE FROM videos WHERE id NOT IN ({vph});", kept_video_ids)
+            else:
+                conn.execute("DELETE FROM videos;")
+
+            # 4. renders (korunan klipler hariç)
+            if kept_clip_ids:
+                rph = ",".join("?" * len(kept_clip_ids))
+                conn.execute(f"DELETE FROM renders WHERE clip_id NOT IN ({rph});", kept_clip_ids)
+            else:
+                conn.execute("DELETE FROM renders;")
+
+            # 5. heatmap_patterns (hepsi; yeniden öğrenilecek)
+            conn.execute("DELETE FROM heatmap_patterns;")
+
+            # 6. Anchor ekleme: YouTube'a atılmış + korunan planlı videolar
+            now_iso = _utcnow()
+            anchors_added = 0
+            for ch_url, vid in set(yt_anchors):
+                if ch_url and vid:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO channel_processed_videos "
+                        "(channel_url, video_id, title, processed_at) VALUES (?, ?, ?, ?);",
+                        (ch_url, vid, "", now_iso),
+                    )
+                    anchors_added += 1
+
+            conn.commit()
+
+        logger.info(
+            "cleanup_keep_planned: kept_queue={} kept_videos={} kept_clips={} anchors_added={}",
+            len(kept), len(kept_video_ids), len(kept_clip_ids), anchors_added,
+        )
+        return {
+            "kept_queue": len(kept),
+            "kept_videos": len(kept_video_ids),
+            "kept_clips": len(kept_clip_ids),
+            "anchors_added": anchors_added,
+        }
+
+    # -----------------------------------------------------------------------
+    # Interactive Slot & Pool Management
+    # -----------------------------------------------------------------------
+
+    def assign_clip_to_slot(self, queue_id: str, scheduled_iso: str) -> bool:
+        """Klibi belirli bir slot zamanına atar ve durumunu QUEUED yapar."""
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE autopilot_queue SET scheduled_at = ?, status = 'QUEUED' WHERE id = ?;",
+                (scheduled_iso, queue_id),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+    def unassign_clip_to_pool(self, queue_id: str) -> bool:
+        """Klibi slottan çıkarıp havuza (UNASSIGNED) çeker."""
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE autopilot_queue SET scheduled_at = '', status = 'UNASSIGNED' WHERE id = ?;",
+                (queue_id,),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+    def swap_clip_slots(self, queue_id_1: str, queue_id_2: str) -> bool:
+        """İki klibin slot zamanlarını (scheduled_at) birbiriyle takas eder."""
+        with self._connect() as conn:
+            row1 = conn.execute("SELECT scheduled_at, status FROM autopilot_queue WHERE id = ?;", (queue_id_1,)).fetchone()
+            row2 = conn.execute("SELECT scheduled_at, status FROM autopilot_queue WHERE id = ?;", (queue_id_2,)).fetchone()
+            if not row1 or not row2:
+                return False
+            time1, status1 = row1["scheduled_at"], row1["status"]
+            time2, status2 = row2["scheduled_at"], row2["status"]
+
+            conn.execute("UPDATE autopilot_queue SET scheduled_at = ?, status = ? WHERE id = ?;", (time2, status2, queue_id_1))
+            conn.execute("UPDATE autopilot_queue SET scheduled_at = ?, status = ? WHERE id = ?;", (time1, status1, queue_id_2))
+            conn.commit()
+            return True
+
+    def get_pool_clips(self) -> List[Dict[str, Any]]:
+        """Slota atanmamış (UNASSIGNED) veya henüz yayınlanmamış stoktaki klipleri getirir."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM autopilot_queue WHERE status = 'UNASSIGNED' OR scheduled_at = '' OR scheduled_at IS NULL ORDER BY created_at DESC;"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_day_slot_items(self, date_str: str, tz_offset_hours: int = 3) -> List[Dict[str, Any]]:
+        """Belirli bir güne ait (Türkiye saatine göre) planlanmış tüm kuyruk kliplerini getirir."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM autopilot_queue WHERE scheduled_at IS NOT NULL AND status IN ('QUEUED', 'SCHEDULED', 'PUBLISHED') ORDER BY scheduled_at ASC;"
+            ).fetchall()
+            day_items = []
+            for r in rows:
+                row_dict = dict(r)
+                sched = row_dict.get("scheduled_at", "")
+                if sched:
+                    try:
+                        from datetime import timedelta
+                        dt_utc = datetime.fromisoformat(sched.replace("Z", "+00:00"))
+                        dt_local = dt_utc + timedelta(hours=tz_offset_hours)
+                        if dt_local.strftime("%Y-%m-%d") == date_str:
+                            row_dict["local_dt"] = dt_local
+                            row_dict["slot_time"] = dt_local.strftime("%H:%M")
+                            day_items.append(row_dict)
+                    except Exception:
+                        pass
+            return day_items
+
 
 
 

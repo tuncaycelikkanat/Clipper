@@ -4,15 +4,6 @@ import tempfile
 import pytest
 from core.database import DatabaseManager
 
-@pytest.fixture
-def temp_db():
-    fd, path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
-    db = DatabaseManager(db_path=path)
-    yield db
-    if os.path.exists(path):
-        os.remove(path)
-
 def test_init_db_creates_tables(temp_db):
     temp_db.init_db()
     conn = sqlite3.connect(temp_db.db_path)

@@ -59,27 +59,27 @@ with st.sidebar:
     selected_render_mode = st.segmented_control(
         "Klip Formatı",
         options=[
+            "9:16 Akıllı Dikey (Facecam / Blur)",
+            "9:16 Siyah Arkaplan",
             "1:1 Kare",
-            "9:16 Shorts (Siyah)",
-            "9:16 Shorts (Blur)",
             "16:9 Orijinal"
         ],
-        default="1:1 Kare",
-        help="Çıktı video en-boy oranı ve arkaplan yerleşimi"
+        default="9:16 Akıllı Dikey (Facecam / Blur)",
+        help="Çıktı video en-boy oranı ve arkaplan yerleşimi. Akıllı dikey modda Facecam varsa orantılı split, yoksa dikey ortalı sinematik blur uygulanır."
     )
     
     render_mode_map = {
+        "9:16 Akıllı Dikey (Facecam / Blur)": "shorts_9x16_blur",
+        "9:16 Siyah Arkaplan": "shorts_9x16_black",
         "1:1 Kare": "square_1x1_black",
-        "9:16 Shorts (Siyah)": "shorts_9x16_black",
-        "9:16 Shorts (Blur)": "shorts_9x16_blur",
         "16:9 Orijinal": "original_16x9",
     }
-    render_mode_val = render_mode_map.get(selected_render_mode, "square_1x1_black")
+    render_mode_val = render_mode_map.get(selected_render_mode, "shorts_9x16_blur")
 
     st.markdown("---")
     st.subheader("Efektler & Filtreler")
-    enable_subtitles = st.toggle("Karaoke Altyazı (ASS)", value=True, help="Neon sarı kelime vurgulu altyazı")
-    enable_hook_card = st.toggle("Kanca Başlık Kartı (İlk 3 Sn)", value=True, help="İlk 3 saniye animasyonlu dikkat çekici başlık")
+    enable_subtitles = st.toggle("Karaoke Altyazı (ASS)", value=False, help="Açıkken kelime vurgulu dinamik altyazı ekler.")
+    enable_hook_card = st.toggle("Kanca Başlık Kartı (İlk 3 Sn)", value=False, help="İlk 3 saniye animasyonlu dikkat çekici başlık ekler.")
     enable_color_grade = st.toggle("Renk İyileştirme (+Vibrance)", value=True, help="FFmpeg canlı renk & kontrast filtresi")
     use_whisper = st.toggle("Whisper Kelime Senkronu", value=True, help="faster-whisper ile milisaniyelik kelime zamanlaması")
     
@@ -254,9 +254,7 @@ if analyze_btn and url_input:
                         output_dir=thumb_dir
                     )
                 except Exception as e:
-                    pass
-
-                st.session_state.clips = final_clips
+                    st.warning(f"Thumbnail üretimi başarısız oldu: {e}")
                 st.session_state.quality_reports = quality_reports
                 st.session_state.generated_clips = {}
                 status.update(label=f"Analiz tamamlandı! {len(final_clips)} klip ve thumbnail hazır.", state="complete", expanded=False)
@@ -395,8 +393,8 @@ if st.session_state.video_data and st.session_state.clips:
                             try:
                                 db.save_video(vdata)
                                 db.save_clips(vdata["id"], [clip])
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                st.warning(f"Veritabanı kayıt hatası: {e}")
                             db.save_render(clip.get("id", f"{vdata['id']}_clip_{rank}"), render_mode_val, clip_path)
                             
                             # Automatically generate thumbnail from newly rendered clip
@@ -407,9 +405,9 @@ if st.session_state.video_data and st.session_state.clips:
                                     video_path_or_url=clip_path,
                                     output_dir=thumb_dir
                                 )
-                            except Exception:
-                                pass
-                                
+                            except Exception as e:
+                                st.warning(f"Thumbnail üretimi başarısız oldu: {e}")
+
                             st.success("Klip ve thumbnail başarıyla editlendi ve hazır!", icon=":material/check:")
                         except Exception as e:
                             st.error(f"Klip render hatası: {str(e)}")

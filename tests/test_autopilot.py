@@ -163,7 +163,7 @@ def test_run_cycle_no_channels(manager):
 @patch("core.uploader.YouTubeUploader.is_authenticated")
 @patch("core.thumbnail.ThumbnailGenerator.batch_generate_thumbnails")
 @patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
-@patch("core.pipeline.ClipperPipeline.run")
+@patch("core.pipeline.ClipperPipeline.execute")
 @patch("core.feed.ChannelFeed.get_channel_videos")
 def test_run_cycle_processes_and_filters_90_score(
     mock_feed,
@@ -233,20 +233,20 @@ def test_run_cycle_processes_and_filters_90_score(
         "status": "uploaded",
     }
 
-    # Döngüyü çalıştır
-    res = manager.run_cycle()
+    # Döngüyü çalıştır (1. Tarama, 2. İşleme)
+    res_scan = manager.run_cycle()
+    assert res_scan["channels_checked"] == 1
+    assert res_scan["new_videos_found"] == 1
 
-    assert res["channels_checked"] == 1
-    assert res["new_videos_found"] == 1
-    assert res["clips_stockpiled"] == 1  # Sadece 94 puanlı klip stoklandı!
-    assert res["clips_scheduled"] == 1
+    res_proc = manager.process_pending_videos(max_videos=5)
+    assert res_proc["processed"] == 1
 
     # DB Kuyruğu kontrolü
     queue = manager.db.get_autopilot_queue()
     assert len(queue) == 1
     assert queue[0]["viral_score"] == 94
-    assert queue[0]["status"] == "SCHEDULED"
-    assert queue[0]["youtube_url"] == "https://youtube.com/shorts/yt_sched_101"
+    assert queue[0]["status"] == "QUEUED"
+    assert queue[0]["youtube_url"] is None
 
 
 @patch("core.feed.ChannelFeed.get_channel_videos")
@@ -256,6 +256,10 @@ def test_run_cycle_skips_when_no_new_videos(mock_feed, manager, auto_db):
         name="Streamer",
     )
     auto_db.save_video({"id": "already_processed_v1", "title": "Old Video"})
+    # Kanalın işlenmiş videoları listesine ekle (anchor tabanlı yeni video tespiti)
+    auto_db.record_processed_video(
+        "https://youtube.com/@Streamer", "already_processed_v1", "Old Video"
+    )
     mock_feed.return_value = [{"id": "already_processed_v1", "url": "http://yt.com/1"}]
 
     res = manager.run_cycle()
@@ -268,7 +272,7 @@ def test_run_cycle_skips_when_no_new_videos(mock_feed, manager, auto_db):
 @patch("core.uploader.YouTubeUploader.upload_short")
 @patch("core.uploader.YouTubeUploader.is_authenticated")
 @patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
-@patch("core.pipeline.ClipperPipeline.run")
+@patch("core.pipeline.ClipperPipeline.execute")
 @patch("core.feed.ChannelFeed.get_channel_videos")
 def test_run_cycle_upload_error_fallbacks_to_queued(
     mock_feed,
@@ -300,11 +304,12 @@ def test_run_cycle_upload_error_fallbacks_to_queued(
     }]
     mock_deepseek.side_effect = Exception("DeepSeek API down")
     mock_is_auth.return_value = True
-    mock_upload.side_effect = Exception("YouTube quota exceeded")
 
-    res = manager.run_cycle()
-    assert res["clips_stockpiled"] == 1
-    assert res["clips_scheduled"] == 0
+    res_scan = manager.run_cycle()
+    assert res_scan["new_videos_found"] == 1
+    
+    res_proc = manager.process_pending_videos(max_videos=5)
+    assert res_proc["processed"] == 1
 
     queue = manager.db.get_autopilot_queue()
     assert len(queue) == 1
@@ -384,22 +389,24 @@ def test_background_worker_lifecycle(auto_db):
     assert AutoPilotManager.is_background_worker_running() is False
 
 
-def test_sync_queue_to_socials_empty(manager):
-    res = manager.sync_queue_to_socials()
-    assert res["processed"] == 0
-    assert res["instagram_success"] == 0
+def test_publish_due_socials_empty(manager):
+    """publish_due_socials returns 0 when no items are due."""
+    count = manager.publish_due_socials()
+    assert count == 0
 
 
-@patch("core.tiktok_uploader.TikTokUploader.upload_video")
-@patch("core.tiktok_uploader.TikTokUploader.is_authenticated")
-@patch("core.instagram_uploader.InstagramUploader.upload_reel")
-@patch("core.instagram_uploader.InstagramUploader.is_authenticated")
-def test_sync_queue_to_socials_success(mock_ig_auth, mock_ig_upload, mock_tt_auth, mock_tt_upload, manager, auto_db, tmp_path):
-    mock_ig_auth.return_value = True
-    mock_ig_upload.return_value = {"url": "https://instagram.com/reel/123"}
-    mock_tt_auth.return_value = True
-    mock_tt_upload.return_value = {"publish_id": "pub_tt_456"}
-
+@patch("core.multi_publisher.MultiPublisher")
+def test_publish_due_socials(mock_multi_pub_class, manager, auto_db, tmp_path):
+    mock_multi = mock_multi_pub_class.return_value
+    mock_multi.publish_clip.return_value = {
+        "youtube": {"status": "success", "url": "http://yt.com"},
+        "instagram": {"status": "success", "url": "http://ig.com"}
+    }
+    
+    manager.uploader.is_authenticated = MagicMock(return_value=True)
+    manager.instagram.is_authenticated = MagicMock(return_value=True)
+    
+    # Add dummy queued item with existing render file
     fake_video = tmp_path / "sync_video.mp4"
     fake_video.write_bytes(b"sample_data")
 
@@ -412,15 +419,15 @@ def test_sync_queue_to_socials_success(mock_ig_auth, mock_ig_upload, mock_tt_aut
         render_path=str(fake_video),
         thumbnail_path="",
         viral_score=95,
-        scheduled_at="2026-08-25T10:00:00Z",
-        status="SCHEDULED",
+        scheduled_at="2020-01-01T10:00:00Z",
+        status="QUEUED",
     )
 
-    res = manager.sync_queue_to_socials()
-    assert res["processed"] == 1
-    assert res["instagram_success"] == 1
-    assert res["tiktok_success"] == 1
-
-
-
-
+    count = manager.publish_due_socials()
+    assert count == 1
+    
+    with manager.db._connect() as conn:
+        row = conn.execute("SELECT status, youtube_url, instagram_url FROM autopilot_queue WHERE title='Sync Clip'").fetchone()
+        assert row[0] == "PUBLISHED"
+        assert row[1] == "http://yt.com"
+        assert row[2] == "http://ig.com"

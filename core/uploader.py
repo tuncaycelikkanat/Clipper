@@ -331,3 +331,24 @@ class YouTubeUploader:
         ]
         return "\n".join(lines)
 
+
+
+    def update_video_metadata(self, video_id: str, title: str, description: str, tags: list, category_id: str = "20"):
+        from googleapiclient.discovery import build
+        creds = self._get_credentials()
+        if not creds:
+            raise Exception("No credentials")
+        youtube = build("youtube", "v3", credentials=creds)
+        body = {
+            "id": video_id,
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": tags,
+                "categoryId": category_id,
+                "defaultLanguage": "tr",
+                "defaultAudioLanguage": "tr"
+            }
+        }
+        res = youtube.videos().update(part="snippet", body=body).execute()
+        return res

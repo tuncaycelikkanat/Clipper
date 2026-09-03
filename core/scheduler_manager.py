@@ -126,7 +126,7 @@ class SchedulerManager:
         )
         self._job_registry[job_id] = channel_url
         logger.info(
-            "Kanal job eklendi: id=%s url=%s her %dh",
+            "Kanal job eklendi: id={} url={} her {}h",
             job_id,
             channel_url,
             interval_hours,
@@ -146,7 +146,7 @@ class SchedulerManager:
             raise KeyError(f"Job bulunamadı: {job_id}")
         self._scheduler.remove_job(job_id)
         self._job_registry.pop(job_id, None)
-        logger.info("Job kaldırıldı: %s", job_id)
+        logger.info("Job kaldırıldı: {}", job_id)
 
     def list_jobs(self) -> List[Dict[str, Any]]:
         """Return a list of all registered jobs with their metadata.
@@ -204,7 +204,7 @@ class SchedulerManager:
         Args:
             channel_url: The channel URL to check.
         """
-        logger.info("Kanal kontrolü başlıyor: %s", channel_url)
+        logger.info("Kanal kontrolü başlıyor: {}", channel_url)
         try:
             from core.feed import ChannelFeed  # lazy import
 
@@ -215,7 +215,7 @@ class SchedulerManager:
                     db = DatabaseManager()
                     processed_ids = db.get_processed_video_ids(channel_url)
                 except Exception as db_err:
-                    logger.warning("DB sorgu hatası, atlanıyor: %s", db_err)
+                    logger.warning("DB sorgu hatası, atlanıyor: {}", db_err)
 
             new_videos = ChannelFeed.get_new_videos(
                 channel_url, processed_ids=processed_ids, max_count=10
@@ -223,14 +223,14 @@ class SchedulerManager:
 
             if new_videos:
                 logger.info(
-                    "%d yeni video bulundu: %s", len(new_videos), channel_url
+                    "{} yeni video bulundu: {}", len(new_videos), channel_url
                 )
                 if self.on_new_videos is not None:
                     self.on_new_videos(channel_url, new_videos)
             else:
-                logger.info("Yeni video yok: %s", channel_url)
+                logger.info("Yeni video yok: {}", channel_url)
 
         except Exception as exc:
             logger.error(
-                "Kanal kontrolü sırasında hata (%s): %s", channel_url, exc
+                "Kanal kontrolü sırasında hata ({}): {}", channel_url, exc
             )
