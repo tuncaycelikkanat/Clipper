@@ -33,6 +33,8 @@ class VideoCutter:
         self.smart_layout = smart_layout or SmartLayoutEngine()
         os.makedirs(self.output_dir, exist_ok=True)
 
+    _STREAM_CACHE: Dict[str, Dict[str, Any]] = {}
+
     def cut_clip(
         self,
         url: str,
@@ -82,44 +84,96 @@ class VideoCutter:
 
         # Step 1: Fast Stream Seeking Cut
         if not actual_raw_cut:
+            dur = max(1.0, end_time - start_time)
             # Local file direct seek
             if not url.startswith(("http://", "https://")) and os.path.exists(url):
-                dur = max(1.0, end_time - start_time)
                 subprocess.run(
                     ['ffmpeg', '-y', '-ss', str(start_time), '-t', str(dur), '-i', url, '-c', 'copy', temp_raw_cut],
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
-                actual_raw_cut = temp_raw_cut
+                if is_valid_cut_file(temp_raw_cut):
+                    actual_raw_cut = temp_raw_cut
             else:
-                def download_ranges_callback(info_dict, ydl):
-                    return [{
-                        'start_time': max(0.0, start_time),
-                        'end_time': end_time,
-                    }]
-
-                ydl_opts_primary = {
-                    'format': 'bestvideo[height<=1080][fps>=60]+bestaudio/bestvideo[height<=1080]+bestaudio/best',
-                    'outtmpl': f"{temp_raw_base}.%(ext)s",
-                    'download_ranges': download_ranges_callback,
-                    'force_keyframes_at_cuts': True,
-                    'concurrent_fragment_downloads': 4,
-                    'buffersize': 1048576,
-                    'retries': 3,
-                    'quiet': True,
-                    'no_warnings': True,
-                }
-
+                # Fast Direct Stream Seeking (FFmpeg direct HTTP range request — 2-5 sec)
                 try:
-                    with yt_dlp.YoutubeDL(ydl_opts_primary) as ydl:
-                        ydl.download([url])
-                except Exception as exc:
-                    logger.warning("Primary yt-dlp download attempt failed: {}", exc)
+                    if url not in VideoCutter._STREAM_CACHE:
+                        ydl_opts_fast = {
+                            'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
+                            'quiet': True,
+                            'no_warnings': True,
+                        }
+                        with yt_dlp.YoutubeDL(ydl_opts_fast) as ydl:
+                            VideoCutter._STREAM_CACHE[url] = ydl.extract_info(url, download=False)
 
-                for ext in [".webm", ".mp4", ".mkv", ".m4v"]:
-                    cand = f"{temp_raw_base}{ext}"
-                    if is_valid_cut_file(cand):
-                        actual_raw_cut = cand
-                        break
+                    info = VideoCutter._STREAM_CACHE.get(url)
+                    if info:
+                        if "requested_formats" in info and len(info["requested_formats"]) >= 2:
+                            v_url = info["requested_formats"][0].get("url")
+                            a_url = info["requested_formats"][1].get("url")
+                            if v_url and a_url:
+                                cmd = [
+                                    "ffmpeg", "-y",
+                                    "-ss", str(start_time), "-t", str(dur),
+                                    "-reconnect", "1", "-reconnect_at_eof", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
+                                    "-i", v_url,
+                                    "-ss", str(start_time), "-t", str(dur),
+                                    "-reconnect", "1", "-reconnect_at_eof", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
+                                    "-i", a_url,
+                                    "-c:v", "copy", "-c:a", "aac",
+                                    "-avoid_negative_ts", "make_zero",
+                                    temp_raw_cut
+                                ]
+                                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                if is_valid_cut_file(temp_raw_cut):
+                                    actual_raw_cut = temp_raw_cut
+                        elif info.get("url"):
+                            s_url = info["url"]
+                            cmd = [
+                                "ffmpeg", "-y",
+                                "-ss", str(start_time), "-t", str(dur),
+                                "-reconnect", "1", "-reconnect_at_eof", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
+                                "-i", s_url,
+                                "-c", "copy",
+                                "-avoid_negative_ts", "make_zero",
+                                temp_raw_cut
+                            ]
+                            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            if is_valid_cut_file(temp_raw_cut):
+                                actual_raw_cut = temp_raw_cut
+                except Exception as exc:
+                    logger.warning("Fast stream seek failed, trying fallback: {}", exc)
+
+                # Fallback: yt-dlp download_ranges
+                if not actual_raw_cut:
+                    def download_ranges_callback(info_dict, ydl):
+                        return [{
+                            'start_time': max(0.0, start_time),
+                            'end_time': end_time,
+                        }]
+
+                    ydl_opts_primary = {
+                        'format': 'bestvideo[height<=1080][fps>=60]+bestaudio/bestvideo[height<=1080]+bestaudio/best',
+                        'outtmpl': f"{temp_raw_base}.%(ext)s",
+                        'download_ranges': download_ranges_callback,
+                        'force_keyframes_at_cuts': True,
+                        'concurrent_fragment_downloads': 4,
+                        'buffersize': 1048576,
+                        'retries': 3,
+                        'quiet': True,
+                        'no_warnings': True,
+                    }
+
+                    try:
+                        with yt_dlp.YoutubeDL(ydl_opts_primary) as ydl:
+                            ydl.download([url])
+                    except Exception as exc:
+                        logger.warning("Primary yt-dlp download attempt failed: {}", exc)
+
+                    for ext in [".webm", ".mp4", ".mkv", ".m4v"]:
+                        cand = f"{temp_raw_base}{ext}"
+                        if is_valid_cut_file(cand):
+                            actual_raw_cut = cand
+                            break
 
                 if not actual_raw_cut:
                     ydl_opts_fallback = {
@@ -143,22 +197,6 @@ class VideoCutter:
                         if is_valid_cut_file(cand):
                             actual_raw_cut = cand
                             break
-
-                if not actual_raw_cut:
-                    try:
-                        with yt_dlp.YoutubeDL({'format': 'best', 'quiet': True, 'extractor_args': {'youtube': {'player_client': ['android', 'web']}}}) as ydl:
-                            info = ydl.extract_info(url, download=False)
-                            stream_url = info.get('url') if info else None
-                        if stream_url:
-                            dur = max(1.0, end_time - start_time)
-                            subprocess.run(
-                                ['ffmpeg', '-y', '-ss', str(start_time), '-t', str(dur), '-i', stream_url, '-c', 'copy', temp_raw_cut],
-                                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                            )
-                            if is_valid_cut_file(temp_raw_cut):
-                                actual_raw_cut = temp_raw_cut
-                    except Exception as exc:
-                        logger.warning("Stream URL fallback failed: {}", exc)
 
         if not actual_raw_cut or not os.path.exists(actual_raw_cut):
             raise RuntimeError("Ham video kesiti oluşturulamadı.")

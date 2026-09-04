@@ -93,6 +93,10 @@ class ClipperPipeline:
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> List[Dict[str, Any]]:
         """Executes the pipeline layers sequentially."""
+        import time
+        step_timings: Dict[str, float] = {}
+        t_pipeline_start = time.perf_counter()
+
         def safe_cb(msg: str):
             if progress_callback:
                 try:
@@ -103,36 +107,60 @@ class ClipperPipeline:
         safe_cb("🚀 Pipeline başlatılıyor...")
 
         # 1. Extract
+        t0 = time.perf_counter()
         safe_cb("📥 Video bilgileri ve heatmap alınıyor...")
         video_data = YouTubeExtractor.get_video_data(url)
         video_id = video_data.get("id") or "vid"
         video_title = video_data.get("title", "Gaming Video")
         duration = int(video_data.get("duration", 0))
         self.db.save_video(video_data)
+        step_timings["1. Video Metadata & Info"] = time.perf_counter() - t0
 
-        # 2. Audio DSP & Transcripts
-        safe_cb("🎵 Ses frekansı ve transkript analiz ediliyor...")
-        times, audio_energy = np.array([]), np.array([])
-        signals = {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([])}
-        try:
-            times, audio_energy = AudioDSPAnalyzer.extract_audio_energy(url, duration_sec=duration)
-            signals = AudioDSPAnalyzer.detect_signals(times, audio_energy)
-        except Exception as e:
-            logger.warning("Audio DSP extraction skipped: {}", e)
+        # 2. Parallel Multi-Signal Extraction (Audio DSP + Pitch in 1-pass, Transcripts, Frame-Diff)
+        t0 = time.perf_counter()
+        safe_cb("🎵 Ses frekansı, transkript ve görsel sahne eşzamanlı analiz ediliyor...")
 
+        from concurrent.futures import ThreadPoolExecutor
+
+        audio_res = {}
         transcripts = []
-        try:
-            transcripts = TranscriptManager.get_transcript(video_id)
-        except Exception as e:
-            logger.warning("Transcript retrieval failed: {}", e)
+        fd_times, fd_scores = np.array([]), np.array([])
 
-        # 2b. Pitch Variance (ZCR tabanlı — kahkaha tespiti)
-        safe_cb("🎙️ Pitch/F0 varyans analizi yapılıyor...")
-        pitch_times, pitch_var = np.array([]), np.array([])
-        try:
-            pitch_times, pitch_var = AudioDSPAnalyzer.extract_pitch_variance(url, duration_sec=duration)
-        except Exception as e:
-            logger.warning("Pitch variance extraction skipped: {}", e)
+        def _task_audio():
+            try:
+                return AudioDSPAnalyzer.extract_all_signals_fast(url, duration_sec=duration)
+            except Exception as exc:
+                logger.warning("Fast Audio DSP extraction skipped: {}", exc)
+                return {}
+
+        def _task_transcript():
+            try:
+                return TranscriptManager.get_transcript(video_id)
+            except Exception as exc:
+                logger.warning("Transcript retrieval failed: {}", exc)
+                return []
+
+        def _task_framediff():
+            try:
+                return VisualDSPAnalyzer.extract_frame_diff(url, duration_sec=duration, fps=1.0)
+            except Exception as exc:
+                logger.warning("Frame-diff extraction skipped: {}", exc)
+                return np.array([]), np.array([])
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            fut_audio = executor.submit(_task_audio)
+            fut_trans = executor.submit(_task_transcript)
+            fut_fd = executor.submit(_task_framediff)
+
+            audio_res = fut_audio.result()
+            transcripts = fut_trans.result()
+            fd_times, fd_scores = fut_fd.result()
+
+        times = audio_res.get("times", np.array([]))
+        audio_energy = audio_res.get("rms", np.array([]))
+        signals = audio_res.get("signals", {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([])})
+        pitch_times = audio_res.get("pitch_times", np.array([]))
+        pitch_var = audio_res.get("pitch_var", np.array([]))
 
         # Pitch varyansını audio timeline'ına hizala
         pitch_on_audio = np.array([])
@@ -140,21 +168,16 @@ class ClipperPipeline:
             audio_times = signals.get("times", np.array([]))
             pitch_on_audio = np.interp(audio_times, pitch_times, pitch_var, left=0.0, right=0.0)
 
-        # 2c. Frame-Diff — görsel sahne değişimi tespiti
-        safe_cb("🖼️ Görsel sahne değişimi analiz ediliyor...")
-        fd_times, fd_scores = np.array([]), np.array([])
-        try:
-            fd_times, fd_scores = VisualDSPAnalyzer.extract_frame_diff(url, duration_sec=duration, fps=1.0)
-        except Exception as e:
-            logger.warning("Frame-diff extraction skipped: {}", e)
-
         # Frame-diff sinyalini audio timeline'ına hizala
         fd_on_audio = np.array([])
         if len(fd_times) > 0 and len(signals.get("times", np.array([]))) > 0:
             audio_times = signals.get("times", np.array([]))
             fd_on_audio = VisualDSPAnalyzer.interpolate_to_timeline(fd_times, fd_scores, audio_times)
 
+        step_timings["2. Parallel Signal Extraction"] = time.perf_counter() - t0
+
         # 3. Candidate Ranking
+        t0 = time.perf_counter()
         safe_cb("📊 Potansiyel klip adayları sıralanıyor...")
         ranker = CandidateRanker(top_n=target_clips * 2)
         candidates = ranker.fuse_signals_and_generate_candidates(
@@ -168,8 +191,10 @@ class ClipperPipeline:
             pitch_variance=pitch_on_audio if len(pitch_on_audio) > 0 else None,
             frame_diff=fd_on_audio if len(fd_on_audio) > 0 else None,
         )
+        step_timings["3. Candidate Ranking & Fusion"] = time.perf_counter() - t0
 
         # 4. LLM Judgement
+        t0 = time.perf_counter()
         safe_cb("🤖 Yapay Zeka anları değerlendiriyor...")
         evaluated_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
             candidates=candidates,
@@ -178,8 +203,10 @@ class ClipperPipeline:
             target_clips=target_clips,
             api_key=api_key,
         )
+        step_timings["4. Gemini Flash Viral Judgement"] = time.perf_counter() - t0
 
         # 5. Boundary Alignment (Frame-diff dahil)
+        t0 = time.perf_counter()
         safe_cb("⏱️ Klip başlangıç ve bitiş sınırları hassas hizalanıyor...")
         aligner = AlignmentEngine()
         aligned_clips = []
@@ -198,8 +225,10 @@ class ClipperPipeline:
             clip_copy["end_time"] = ref_end
             clip_copy["duration"] = ref_end - ref_start
             aligned_clips.append(clip_copy)
+        step_timings["5. Boundary Alignment"] = time.perf_counter() - t0
 
         # 5.5. Game Detection & Human Metadata Enrichment
+        t0 = time.perf_counter()
         from core.game_detector import GameDetector
         from core.metadata_engine import HumanMetadataEngine
 
@@ -240,12 +269,15 @@ class ClipperPipeline:
             enriched_clips.append(clip_copy)
 
         saved_ids = self.db.save_clips(video_id, enriched_clips)
+        step_timings["6. Metadata & Title Generation"] = time.perf_counter() - t0
 
-        # 6. Video Cutting
+        # 6. Video Cutting & Rendering (Paralel)
+        t0 = time.perf_counter()
         safe_cb("🎬 Klipler dikey formatta işleniyor...")
         cutter = VideoCutter(output_dir=self.output_dir)
-        rendered_results = []
-        for i, clip in enumerate(enriched_clips):
+
+        def render_single_clip(i_clip_tuple):
+            i, clip = i_clip_tuple
             cid = saved_ids[i] if (saved_ids and i < len(saved_ids)) else str(clip.get("rank", i + 1))
             try:
                 render_path = cutter.cut_clip(
@@ -292,15 +324,36 @@ class ClipperPipeline:
                     render_mode=render_mode,
                     file_path=render_path,
                 )
-                rendered_results.append(clip_res)
-            except Exception as e:
-                logger.error("Clip render failed for #{}: {}", cid, e)
+                return clip_res
+            except Exception as exc:
+                logger.error("Clip render failed for #{}: {}", cid, exc)
                 clip_res = dict(clip)
                 clip_res["clip_id"] = cid
                 clip_res["clip_db_id"] = cid
                 clip_res["render_path"] = ""
-                rendered_results.append(clip_res)
+                return clip_res
+
+        rendered_results = []
+        if len(enriched_clips) > 1:
+            with ThreadPoolExecutor(max_workers=min(4, len(enriched_clips))) as executor:
+                rendered_results = list(executor.map(render_single_clip, enumerate(enriched_clips)))
+        elif len(enriched_clips) == 1:
+            rendered_results = [render_single_clip((0, enriched_clips[0]))]
+
+        step_timings["7. Video Rendering & Cutting (Parallel)"] = time.perf_counter() - t0
+        total_duration_sec = time.perf_counter() - t_pipeline_start
+
+        # Profiling Loglama & Konsol Tablosu
+        logger.info("=" * 70)
+        logger.info("⏱️ PIPELINE PERFORMANCE BENCHMARK (Süre Ölçümü)")
+        logger.info("=" * 70)
+        for step_name, elapsed in step_timings.items():
+            pct = (elapsed / total_duration_sec) * 100 if total_duration_sec > 0 else 0
+            logger.info("  * {:<32}: {:>6.2f}s  ({:>5.1f}%)", step_name, elapsed, pct)
+        logger.info("-" * 70)
+        logger.info("  * {:<32}: {:>6.2f}s  (100.0%)", "TOPLAM SÜRE", total_duration_sec)
+        logger.info("=" * 70)
 
         self.db.mark_video_done(video_id)
-        safe_cb("🎉 Pipeline tamamlandı!")
+        safe_cb(f"🎉 Pipeline tamamlandı! Toplam süre: {total_duration_sec:.1f}sn")
         return rendered_results
