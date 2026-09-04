@@ -209,24 +209,10 @@ class ClipperPipeline:
         )
         streamer_name = video_data.get("uploader") or "Yayıncı"
 
-        # 5.6. Video-level AI Vertical Thumbnail (Shared across all clips of this video)
-        safe_cb("🖼️ Orijinal kapak görseli dikey formata dönüştürülüyor (AI Thumbnail)...")
+        # 5.6. Video-level Thumbnail (Manuel kullanıcı yüklemesi için boş bırakılıyor)
         thumb_dir = os.path.join("outputs", "thumbnails")
         os.makedirs(thumb_dir, exist_ok=True)
-        video_thumb_path = os.path.join(thumb_dir, f"thumb_{video_id}.jpg")
-        try:
-            from core.thumbnail import ThumbnailGenerator
-            gen_thumb = ThumbnailGenerator.generate_ai_vertical_thumbnail(
-                video_url_or_id=url,
-                output_path=video_thumb_path,
-                aspect_ratio="2:3",
-                api_key=api_key,
-            )
-            if not gen_thumb or not os.path.exists(video_thumb_path):
-                video_thumb_path = None
-        except Exception as te:
-            logger.warning("AI Thumbnail generation skipped for video {}: {}", video_id, te)
-            video_thumb_path = None
+        video_thumb_path = None
 
         enriched_clips = []
         for clip in aligned_clips:

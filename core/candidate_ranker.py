@@ -132,17 +132,33 @@ class CandidateRanker:
         # 3. Heatmap — DEVRE DIŞI (yeni videolarda veri yok)
         # (parametre geriye-uyum için kabul edilir ama skor füzyonuna katılmaz)
         # ----------------------------------------------------------------
-        # Gizli viral tespit DB'ye bağımlı; hafif opsiyonel devam.
+        # Gizli viral tespit ve tahmin DB'ye bağımlı metadata
         hidden_viral_peaks: list = []
-        if self._db is not None and view_count > 0 and len(heatmap) > 0:
+        heatmap_source = "disabled"
+        predicted_confidence = 0.0
+        if self._db is not None and view_count > 0:
             try:
                 from core.heatmap_predictor import HeatmapPredictor
                 predictor = HeatmapPredictor(self._db)
-                hidden_viral_peaks = predictor.detect_hidden_viral_from_real(
-                    heatmap, view_count
-                )
+                if len(heatmap) > 0:
+                    hidden_viral_peaks = predictor.detect_hidden_viral_from_real(
+                        heatmap, view_count
+                    )
+                    heatmap_source = "real"
+                else:
+                    pred_res = predictor.predict(
+                        audio_times=times,
+                        audio_spikes=audio_spikes,
+                        silence_bursts=silence_bursts,
+                        total_duration=int(total_duration),
+                        video_id=video_id,
+                        view_count=view_count,
+                    )
+                    if pred_res and pred_res.get("heatmap"):
+                        heatmap_source = "predicted"
+                        predicted_confidence = float(pred_res.get("confidence", 0.0))
             except Exception as e:
-                logger.debug("Hidden viral detection skipped: {}", e)
+                logger.debug("Heatmap prediction/hidden-viral skipped: {}", e)
 
         # ----------------------------------------------------------------
         # 4. Pitch Variance & Frame-Diff — timeline'a interpolate et
@@ -337,10 +353,10 @@ class CandidateRanker:
                 "signals": {
                     "audio_spike": round(float(audio_spikes[idx_near]), 2),
                     "silence_burst": round(float(silence_bursts[idx_near]), 2),
-                    "has_heatmap": False,  # Heatmap kaldırıldı
+                    "has_heatmap": bool(heatmap_source == "real"),
                     "heatmap_val": 0.0,
-                    "heatmap_source": "disabled",
-                    "predicted_confidence": 0.0,
+                    "heatmap_source": heatmap_source,
+                    "predicted_confidence": predicted_confidence,
                     "comment_density": round(float(comment_curve[idx_near]), 2) if has_comments else 0.0,
                     "comment_reaction": matched_comment_cl.get("dominant_reaction") if matched_comment_cl else None,
                     "comment_count": matched_comment_cl.get("count", 0) if matched_comment_cl else 0,

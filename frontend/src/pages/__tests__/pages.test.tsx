@@ -195,9 +195,13 @@ describe('Pages', () => {
   describe('Clips', () => {
     it('renders list of clips, filters, and handles batch delete modal', async () => {
       vi.spyOn(api.clips, 'list').mockResolvedValue([
-        { id: 'c1', title: 'Top Play', score: 95, duration: 45, thumbnail_path: '/thumb.jpg', category: 'HIGHLIGHT', created_at: '2026-09-03T12:00:00' } as any,
-        { id: 'c2', title: 'Funny Fail', score: 55, duration: 15, thumbnail_path: null, category: 'FAIL' } as any,
+        { id: 'c1', video_id: 'v1', title: 'Top Play', score: 95, duration: 45, thumbnail_path: '/thumb.jpg', category: 'HIGHLIGHT', created_at: '2026-09-03T12:00:00' } as any,
+        { id: 'c2', video_id: 'v1', title: 'Funny Fail', score: 55, duration: 15, thumbnail_path: null, category: 'FAIL' } as any,
       ])
+      vi.spyOn(api.videos, 'list').mockResolvedValue([
+        { id: 'v1', title: 'Video 1', uploader: 'Streamer 1' } as any,
+      ])
+      vi.spyOn(api.videos, 'uploadThumbnail').mockResolvedValue({ success: true, updated_clips_count: 2 } as any)
       vi.spyOn(api.clips, 'thumbnailUrl').mockImplementation((id) => `/api/clips/${id}/thumb`)
       vi.spyOn(api.clips, 'batchDelete').mockResolvedValue({ deleted_count: 1 } as any)
       vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -250,39 +254,26 @@ describe('Pages', () => {
       })
 
       // Test Video Thumbnail Modal
-      vi.spyOn(api.videos, 'list').mockResolvedValue([
-        { id: 'v1', title: 'Video 1', uploader: 'Streamer 1' } as any,
-      ])
-      vi.spyOn(api.videos, 'uploadThumbnail').mockResolvedValue({ success: true, updated_clips_count: 2 } as any)
-
       const thumbModalBtn = screen.getByRole('button', { name: /Video Kapağı Yükle/i })
       fireEvent.click(thumbModalBtn)
 
       await waitFor(() => {
         expect(screen.getByText('Video Kapak Görselleri')).toBeInTheDocument()
+        expect(screen.getByText('Video 1')).toBeInTheDocument()
       })
 
-      // Wait for the video list to render in the modal before interacting
-      let uploadForVidBtn: HTMLElement | null = null
-      try {
-        await waitFor(() => {
-          const btns = screen.queryAllByRole('button', { name: /Yeni Kapak Yükle/i })
-          expect(btns.length).toBeGreaterThan(0)
-          uploadForVidBtn = btns[0]
-        }, { timeout: 3000 })
-      } catch {
-        // No upload buttons rendered (empty video list in modal) — skip interaction
+      const uploadForVidBtn = screen.getByRole('button', { name: /Yeni Kapak Yükle/i })
+      fireEvent.click(uploadForVidBtn)
+
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+      if (fileInput) {
+        const file = new File(['dummy'], 'cover.jpg', { type: 'image/jpeg' })
+        fireEvent.change(fileInput, { target: { files: [file] } })
       }
 
-      if (uploadForVidBtn) {
-        fireEvent.click(uploadForVidBtn)
-
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
-        if (fileInput) {
-          const file = new File(['dummy'], 'cover.jpg', { type: 'image/jpeg' })
-          fireEvent.change(fileInput, { target: { files: [file] } })
-        }
-      }
+      await waitFor(() => {
+        expect(api.videos.uploadThumbnail).toHaveBeenCalled()
+      })
 
       const closeThumbModalBtn = screen.getByRole('button', { name: 'Kapat' })
       fireEvent.click(closeThumbModalBtn)

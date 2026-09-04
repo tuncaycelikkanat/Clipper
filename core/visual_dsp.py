@@ -46,16 +46,24 @@ class VisualDSPAnalyzer:
         if duration_sec <= 0:
             return np.array([]), np.array([])
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            frame_pattern = os.path.join(tmp_dir, "frame_%05d.npy")
+        # Eğer uzaktan bir YouTube URL ise stream URL'ini çöz
+        input_source = url
+        if url.startswith("http://") or url.startswith("https://"):
+            try:
+                from core.audio_dsp import AudioDSPAnalyzer
+                input_source = AudioDSPAnalyzer._get_stream_url(url)
+            except Exception as e:
+                logger.debug("VisualDSP stream URL resolution failed, trying direct: {}", e)
+                input_source = url
 
+        with tempfile.TemporaryDirectory() as tmp_dir:
             # FFmpeg ile gri tonlamalı küçük kareler çıkar — pipe üzerinden numpy'a al
             cmd = [
                 "ffmpeg",
                 "-reconnect", "1",
                 "-reconnect_at_eof", "1",
                 "-reconnect_streamed", "1",
-                "-i", url,
+                "-i", input_source,
                 "-vf", f"fps={fps},scale={scale},format=gray",
                 "-f", "rawvideo",
                 "-pix_fmt", "gray",

@@ -14,24 +14,49 @@ class AudioDSPAnalyzer:
 
     @staticmethod
     def _get_stream_url(url: str) -> str:
-        """Resolve the best audio stream URL via yt-dlp (shared helper)."""
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            **_YDL_EXTRACTOR_ARGS,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            stream_url = info.get('url')
-            if not stream_url:
-                for f in info.get('formats', []):
-                    if f.get('acodec') != 'none' and f.get('url'):
-                        stream_url = f.get('url')
-                        break
-        if not stream_url:
-            raise RuntimeError("Ses akış URL'si alınamadı.")
-        return stream_url
+        """Resolve the best audio stream URL via yt-dlp with resilient fallback strategies."""
+        # Tier 1: Try format selection with standard clients
+        strategies = [
+            # Strateji 1: Standart yt-dlp format seçimi (en yüksek uyumluluk)
+            {
+                'format': 'bestaudio/ba/b/best',
+                'quiet': True,
+                'no_warnings': True,
+            },
+            # Strateji 2: Mobil web & web client ile
+            {
+                'format': 'ba/b/bestaudio/best',
+                'quiet': True,
+                'no_warnings': True,
+                'extractor_args': {'youtube': {'player_client': ['mweb', 'web', 'android']}},
+            },
+            # Strateji 3: Herhangi bir akış formatı (audio/video birleşik dahil)
+            {
+                'format': 'worst/best',
+                'quiet': True,
+                'no_warnings': True,
+            }
+        ]
+
+        last_err = None
+        for opts in strategies:
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if not info:
+                        continue
+                    stream_url = info.get('url')
+                    if stream_url:
+                        return stream_url
+                    # Format listesinden doğrudan geçerli ses veya video akış URL'si bul
+                    for f in info.get('formats', []):
+                        if (f.get('acodec') != 'none' or f.get('vcodec') != 'none') and f.get('url'):
+                            return f['url']
+            except Exception as e:
+                last_err = e
+                continue
+
+        raise RuntimeError(f"Ses akış URL'si alınamadı: {last_err}")
 
     @staticmethod
     def _extract_chunk(stream_url: str, start_sec: float, dur_sec: float, sample_rate: int, hop_sec: float) -> Tuple[np.ndarray, np.ndarray]:
