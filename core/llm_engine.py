@@ -105,8 +105,10 @@ def _build_signal_validation_section(signals: Dict[str, Any]) -> str:
         parts.append(f"konuşma_ivmesi={signals['speech_rate_accel']:.2f}")
     if signals.get("transcript_density", 0) > 0.3:
         parts.append(f"transkript_yoğunluğu={signals['transcript_density']:.2f}")
-    if signals.get("comment_density", 0) > 0.3:
-        parts.append(f"yorum_yoğunluğu={signals['comment_density']:.2f}")
+    if signals.get("comment_density", 0) > 0.1 or signals.get("comment_count", 0) > 0:
+        c_count = signals.get("comment_count", 0)
+        c_react = signals.get("comment_reaction", "HIGHLIGHT")
+        parts.append(f"⭐ İZLEYİCİ YORUMU ÖNE ÇIKAN (VIP) [{c_count} yorum, tepki={c_react}]")
 
     if not parts:
         return "sinyal doğrulama: zayıf/yetersiz"
@@ -169,15 +171,19 @@ class GeminiHighlightEngine:
         candidates_summary = []
         for c in candidates:
             sig = c.get("signals", {})
-            candidates_summary.append({
+            c_summary = {
                 "candidate_id": c["candidate_id"],
                 "time_window": f"{c['start_formatted']} - {c['end_formatted']} (Zirve: {c['peak_formatted']})",
                 "raw_start_sec": c["start_time"],
                 "raw_end_sec": c["end_time"],
                 "fusion_score": c["fusion_score"],
+                "is_vip": c.get("is_vip", False),
                 "signal_summary": _build_signal_validation_section(sig),
                 "transcript": c["transcript_snippet"],
-            })
+            }
+            if c.get("comment_samples"):
+                c_summary["viewer_comments"] = c["comment_samples"]
+            candidates_summary.append(c_summary)
 
         categories_str = ", ".join(SC.CATEGORIES)
 
@@ -204,7 +210,9 @@ class GeminiHighlightEngine:
             "   ÖNEMLI: Eğer an gerçekten sıradan ve viral potansiyeli yoksa MUNDANE seç — "
             "zorla kategori atama! MUNDANE seçersen viral_confidence en fazla 30 olabilir.\n"
             "7. rationale alanına: tam olarak hangi sesi/hareketi/sinyali görerek bu puanı verdiğini "
-            "1-2 cümleyle yaz. 'İyi bir an' gibi genel cümleler kullanma."
+            "1-2 cümleyle yaz. 'İyi bir an' gibi genel cümleler kullanma.\n"
+            "8. İZLEYİCİ YORUMU İLE VURGULANAN (VIP) ADAYLAR: Eğer bir adayda 'viewer_comments' veya 'is_vip' varsa, "
+            "bu an izleyicilerin bizzat videoda gülüp öne çıkardığı organik andır. Bu anları KEEP olarak seçmeye ve yüksek viral puanı vermeye özen göster."
         )
 
         dna_section = ""

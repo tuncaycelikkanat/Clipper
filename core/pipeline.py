@@ -118,12 +118,13 @@ class ClipperPipeline:
 
         # 2. Parallel Multi-Signal Extraction (Audio DSP + Pitch in 1-pass, Transcripts, Frame-Diff)
         t0 = time.perf_counter()
-        safe_cb("🎵 Ses frekansı, transkript ve görsel sahne eşzamanlı analiz ediliyor...")
+        safe_cb("🎵 Ses frekansı, transkript, izleyici yorumları ve görsel sahne eşzamanlı analiz ediliyor...")
 
         from concurrent.futures import ThreadPoolExecutor
 
         audio_res = {}
         transcripts = []
+        comments_res = []
         fd_times, fd_scores = np.array([]), np.array([])
 
         def _task_audio():
@@ -140,6 +141,13 @@ class ClipperPipeline:
                 logger.warning("Transcript retrieval failed: {}", exc)
                 return []
 
+        def _task_comments():
+            try:
+                return YouTubeExtractor.get_video_comments(url, max_comments=100)
+            except Exception as exc:
+                logger.warning("Comments retrieval skipped: {}", exc)
+                return []
+
         def _task_framediff():
             try:
                 return VisualDSPAnalyzer.extract_frame_diff(url, duration_sec=duration, fps=1.0)
@@ -147,13 +155,15 @@ class ClipperPipeline:
                 logger.warning("Frame-diff extraction skipped: {}", exc)
                 return np.array([]), np.array([])
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             fut_audio = executor.submit(_task_audio)
             fut_trans = executor.submit(_task_transcript)
+            fut_comm = executor.submit(_task_comments)
             fut_fd = executor.submit(_task_framediff)
 
             audio_res = fut_audio.result()
             transcripts = fut_trans.result()
+            comments_res = fut_comm.result()
             fd_times, fd_scores = fut_fd.result()
 
         times = audio_res.get("times", np.array([]))
@@ -178,7 +188,7 @@ class ClipperPipeline:
 
         # 3. Candidate Ranking
         t0 = time.perf_counter()
-        safe_cb("📊 Potansiyel klip adayları sıralanıyor...")
+        safe_cb("📊 Potansiyel klip adayları sıralanıyor (İzleyici yorumları & sinyal füzyonu)...")
         ranker = CandidateRanker(top_n=target_clips * 2)
         candidates = ranker.fuse_signals_and_generate_candidates(
             times=signals.get("times", np.array([])),
@@ -188,6 +198,8 @@ class ClipperPipeline:
             transcript=transcripts,
             total_duration=duration,
             video_id=video_id,
+            view_count=video_data.get("view_count", 0),
+            comments=comments_res,
             pitch_variance=pitch_on_audio if len(pitch_on_audio) > 0 else None,
             frame_diff=fd_on_audio if len(fd_on_audio) > 0 else None,
         )

@@ -32,7 +32,7 @@ class CandidateRanker:
         merge_threshold_sec: int = 8,
         top_n: int = 15,
         db: Optional["DatabaseManager"] = None,
-        min_diversity_ratio: float = 0.10,
+        min_diversity_ratio: float = 0.02,
         dynamic_window: bool = True,
         min_window_sec: float = 8.0,
         max_window_sec: float = 60.0,
@@ -41,7 +41,7 @@ class CandidateRanker:
         self.merge_threshold_sec = merge_threshold_sec
         self.top_n = top_n
         self._db = db
-        # Çeşitlilik kısıtı: iki aday en az video süresinin bu oranı kadar uzakta olmalı
+        # Çeşitlilik kısıtı: iki aday arasında video süresine göre dengeli mesafe (varsayılan %2)
         self.min_diversity_ratio = min_diversity_ratio
         # Dinamik pencere: sabit 35sn yerine sinyal eğrisine göre pencere belirle
         self.dynamic_window = dynamic_window
@@ -195,20 +195,19 @@ class CandidateRanker:
         fdiff_norm = _zscore_normalize(frame_diff_curve) if has_frame_diff else frame_diff_curve
 
         # ----------------------------------------------------------------
-        # 6. Adaptif Ağırlık Füzyonu (Heatmap yok, 7 sinyal)
+        # 6. Adaptif Ağırlık Füzyonu (Yorum & Sinyal Entegrasyonu)
         # ----------------------------------------------------------------
         # Sinyal varlığına göre ağırlıklar dinamik olarak ayarlanır.
-        # Temel ağırlık: audio %35, silence %30 (en güvenilir çekirdek sinyaller)
-        # Opsiyonel: transcript, comment, speech_rate, pitch, frame_diff
+        # Temel ağırlık: audio %30, silence %25
+        # Yorumlar varsa organik kullanıcı verisi olarak %25'e kadar yüksek ağırlık alır.
 
-        base_audio_w = 0.35
-        base_silence_w = 0.30
-        # Kalan %35'i mevcut opsiyonel sinyallere dağıt
+        base_audio_w = 0.30
+        base_silence_w = 0.25
         optional_signals = []
+        if has_comments:
+            optional_signals.append(("comment", comment_norm, 0.25))
         if has_transcript_density:
             optional_signals.append(("transcript", transcript_norm, 0.12))
-        if has_comments:
-            optional_signals.append(("comment", comment_norm, 0.10))
         if np.any(speech_rate_curve > 0):
             optional_signals.append(("speech_rate", speech_norm, 0.08))
         if has_pitch:
@@ -222,7 +221,6 @@ class CandidateRanker:
             scale = min(1.0, remaining / opt_total_w)
         else:
             scale = 1.0
-            # Opsiyonel sinyal yoksa fazla ağırlığı çekirdeğe ekle
             base_audio_w += remaining * 0.55
             base_silence_w += remaining * 0.45
 
@@ -233,7 +231,7 @@ class CandidateRanker:
         # ----------------------------------------------------------------
         # 7. Peak Bulma & Cluster Birleştirme
         # ----------------------------------------------------------------
-        candidate_indices = np.where(composite_score > 0.20)[0]
+        candidate_indices = np.where(composite_score > 0.18)[0]
         if len(candidate_indices) == 0:
             # Fallback: en iyi N noktayı al
             candidate_indices = np.argsort(composite_score)[::-1][:self.top_n]
@@ -252,14 +250,41 @@ class CandidateRanker:
                     merged = True
                     break
             if not merged:
-                clusters.append({"peak_time": t, "score": score, "indices": [idx]})
+                clusters.append({"peak_time": t, "score": score, "indices": [idx], "is_vip": False})
+
+        # --- VIP Yorum Tohumlaması (Comment VIP Injection) ---
+        # İzleyicilerin yorumlarda bizzat güldüğü/dikkat çektiği anlar (örn. 5:13)
+        # doğrudan VIP adayı olarak havuza en yüksek öncelikle enjekte edilir.
+        if comment_clusters:
+            for comm_cl in comment_clusters:
+                comm_t = float(comm_cl["time"])
+                idx_comm = int(np.argmin(np.abs(times - comm_t)))
+                base_c_score = float(composite_score[idx_comm]) if idx_comm < len(composite_score) else 0.5
+                vip_score = max(0.92, base_c_score + 0.45)
+
+                found = False
+                for c in clusters:
+                    if abs(c["peak_time"] - comm_t) <= self.merge_threshold_sec:
+                        c["score"] = max(c["score"], vip_score)
+                        c["is_vip"] = True
+                        c["comment_info"] = comm_cl
+                        found = True
+                        break
+                if not found:
+                    clusters.append({
+                        "peak_time": comm_t,
+                        "score": vip_score,
+                        "indices": [idx_comm],
+                        "is_vip": True,
+                        "comment_info": comm_cl
+                    })
 
         # ----------------------------------------------------------------
-        # 8. Çeşitlilik Kısıtı — art arda yakın adayları eleştir
+        # 8. Çeşitlilik Kısıtı — art arda aşırı yakın anları dengele (Makul 20-30s aralık)
         # ----------------------------------------------------------------
-        clusters.sort(key=lambda x: x["score"], reverse=True)
-        min_gap_sec = float(total_duration) * self.min_diversity_ratio
-        min_gap_sec = max(min_gap_sec, float(self.merge_threshold_sec) * 2)
+        # VIP yorum adayları önceliklidir
+        clusters.sort(key=lambda x: (1 if x.get("is_vip") else 0, x["score"]), reverse=True)
+        min_gap_sec = max(20.0, min(40.0, float(total_duration) * self.min_diversity_ratio))
 
         diverse_clusters = []
         for clu in clusters:
@@ -267,7 +292,8 @@ class CandidateRanker:
                 abs(clu["peak_time"] - accepted["peak_time"]) < min_gap_sec
                 for accepted in diverse_clusters
             )
-            if not too_close:
+            # VIP adaylar veya yeterli mesafedeki adaylar kabul edilir
+            if not too_close or clu.get("is_vip"):
                 diverse_clusters.append(clu)
             if len(diverse_clusters) >= self.top_n:
                 break
@@ -334,11 +360,14 @@ class CandidateRanker:
             idx_near = int(np.argmin(np.abs(times - peak_t)))
 
             # Yorum kümesi eşleştir
-            matched_comment_cl = None
-            for cl in comment_clusters:
-                if abs(cl["time"] - peak_t) <= half_win:
-                    matched_comment_cl = cl
-                    break
+            matched_comment_cl = clus.get("comment_info")
+            if not matched_comment_cl:
+                for cl in comment_clusters:
+                    if abs(cl["time"] - peak_t) <= half_win:
+                        matched_comment_cl = cl
+                        break
+
+            is_vip_candidate = bool(clus.get("is_vip") or (matched_comment_cl and matched_comment_cl.get("count", 0) >= 1))
 
             candidates.append({
                 "candidate_id": cand_id,
@@ -350,6 +379,8 @@ class CandidateRanker:
                 "end_formatted": YouTubeExtractor.format_seconds(end_t),
                 "duration": round(float(end_t - start_t), 1),
                 "fusion_score": int(clus["score"] * 100),
+                "is_vip": is_vip_candidate,
+                "from_comment": bool(matched_comment_cl is not None or clus.get("is_vip")),
                 "signals": {
                     "audio_spike": round(float(audio_spikes[idx_near]), 2),
                     "silence_burst": round(float(silence_bursts[idx_near]), 2),

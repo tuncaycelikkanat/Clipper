@@ -273,4 +273,32 @@ def test_candidate_ranker_with_transcript_density():
     assert c["signals"]["transcript_density"] > 0.0
 
 
+def test_candidate_ranker_with_comment_vip_injection():
+    ranker = CandidateRanker(top_n=3)
+    times = np.linspace(0, 600, 600)
+    audio_spikes = np.ones(600) * 0.05
+    silence_bursts = np.ones(600) * 0.05
 
+    comments = [
+        {"text": "5.13 burası çok komikti ya koptum 😂", "like_count": 25},
+        {"text": "05:13 ahahaha yarıldım", "like_count": 10},
+    ]
+
+    res = ranker.fuse_signals_and_generate_candidates(
+        times=times,
+        audio_spikes=audio_spikes,
+        silence_bursts=silence_bursts,
+        heatmap=[],
+        transcript=[],
+        total_duration=600,
+        comments=comments,
+    )
+
+    assert len(res) > 0
+    vip_candidates = [c for c in res if c.get("is_vip")]
+    assert len(vip_candidates) >= 1
+    vip = vip_candidates[0]
+    assert abs(vip["peak_time"] - 313.0) <= 5.0
+    assert vip["from_comment"] is True
+    assert vip["signals"]["comment_reaction"] == "FUNNY"
+    assert vip["signals"]["comment_count"] == 2

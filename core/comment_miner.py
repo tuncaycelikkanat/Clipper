@@ -28,10 +28,11 @@ from core.logger import logger
 # Timestamp Regex Patterns
 # ---------------------------------------------------------------------------
 # Desteklenen formatlar:
-# 05:32, 5:32, 1:05:32, @05:32, (05:32), 5m32s, 1h20m10s, 5m 32s, t=332
-_TS_HHMMSS = re.compile(r'(?:@|\b)?(?:\()?(\d{1,2}):(\d{2}):(\d{2})(?:\))?')
-_TS_MMSS = re.compile(r'(?:@|\b)?(?:\()?(\d{1,2}):(\d{2})(?:\))?')
-_TS_LETTER = re.compile(r'(?:@|\b)?(?:(\d{1,2})h\s*)?(?:(\d{1,3})m\s*)?(\d{1,2})s\b', re.IGNORECASE)
+# 05:32, 5:32, 5.32, 05.32, 1:05:32, 1.05.32, @05:32, (05:32), (5.13), 5m32s, 1h20m10s, 5m 32s, 5 dk 13 sn, 5dk, t=332
+_TS_HHMMSS = re.compile(r'(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})[:.](\d{2})(?:\))?')
+_TS_MMSS = re.compile(r'(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})(?:\))?')
+_TS_LETTER = re.compile(r'(?:@|\b)?(?:(\d{1,2})\s*(?:saat|sa|h)\s*)?(?:(\d{1,3})\s*(?:dakika|dak|dk|d|m)\s*)?(?:(\d{1,2})\s*(?:saniye|san|sn|s))\b', re.IGNORECASE)
+_TS_MINUTES_ONLY = re.compile(r'(?:@|\b)?(\d{1,3})\s*(?:dakika|dak|dk)\b', re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
 # Reaksiyon / Duygu Sözlükleri
@@ -39,27 +40,29 @@ _TS_LETTER = re.compile(r'(?:@|\b)?(?:(\d{1,2})h\s*)?(?:(\d{1,3})m\s*)?(\d{1,2})
 _REACTION_KEYWORDS: Dict[str, List[str]] = {
     "FUNNY": [
         "😂", "🤣", "xd", "koptum", "gümledim", "yarıldım", "hahaha", "asdf",
-        "komik", "lmao", "lol", "patladım", "ahahaha", "sjsj", "kahkaha"
+        "komik", "lmao", "lol", "patladım", "ahahaha", "sjsj", "kahkaha",
+        "öldüm", "yarıl", "güldüm", "ağladım gülmekten", "hoca", "jshs", "sksk"
     ],
     "EPIC": [
         "🔥", "goat", "efsane", "mükemmel", "harika", "god mode", "kral",
-        "epic", "inanılmaz", "vuruş", "clutch", "headshot", "rekor", "şov"
+        "epic", "inanılmaz", "vuruş", "clutch", "headshot", "rekor", "şov",
+        "helal", "pro", "carry", "akıyor"
     ],
     "JUMPSCARE": [
         "😱", "korktum", "altıma", "jumpscare", "kalbim", "yüreğim", "ağzıma",
-        "scary", "korku", "çığlık", "titredim"
+        "scary", "korku", "çığlık", "titredim", "zıplattı"
     ],
     "RAGE": [
         "🤬", "rage", "çıldırdı", "delirdi", "sinir", "masayı", "kırdı",
-        "küfür", "tilt", "çıldırtan", "kansere"
+        "küfür", "tilt", "çıldırtan", "kansere", "çıldırma"
     ],
     "FAIL": [
         "💀", "fail", "yazık", "rezil", "olamaz", "öldü", "patladı", "gg",
-        "rip", "beceremedi", "fiyasko", "hata"
+        "rip", "beceremedi", "fiyasko", "hata", "yazık kafana"
     ],
     "WTF": [
         "🤨", "😳", "wtf", "noldu", "nasıl", "ne alaka", "oha", "yuh",
-        "çüş", "ne yaptı", "mantıksız"
+        "çüş", "ne yaptı", "mantıksız", "bu ne"
     ]
 }
 
@@ -81,21 +84,26 @@ class CommentMiner:
 
         seconds_list: List[float] = []
 
-        # 1. HH:MM:SS
+        # 1. HH:MM:SS veya HH.MM.SS (Örn: 01:05:32 veya 1.05.32)
         for match in _TS_HHMMSS.finditer(text):
             h, m, s = match.groups()
-            sec = int(h) * 3600 + int(m) * 60 + int(s)
-            seconds_list.append(float(sec))
+            min_val, sec_val = int(m), int(s)
+            if min_val < 60 and sec_val < 60:
+                sec = int(h) * 3600 + min_val * 60 + sec_val
+                seconds_list.append(float(sec))
 
-        # 2. MM:SS (HH:MM:SS ile çakışmayanlar)
+        # 2. MM:SS veya MM.SS (Örn: 5:13, 5.13, 05.13)
         # HH:MM:SS bulunan konumları maskeleyerek MM:SS ara
         masked_text = _TS_HHMMSS.sub("XX:XX:XX", text)
         for match in _TS_MMSS.finditer(masked_text):
             m, s = match.groups()
-            sec = int(m) * 60 + int(s)
-            seconds_list.append(float(sec))
+            min_val, sec_val = int(m), int(s)
+            # Saniye 0-59 arasında olmalı (rastgele ondalık sayıları engellemek için, örn. 3.85 elenir)
+            if sec_val < 60 and min_val < 300:
+                sec = min_val * 60 + sec_val
+                seconds_list.append(float(sec))
 
-        # 3. 1h20m10s veya 5m32s
+        # 3. Metinsel Türkçe/İngilizce formatlar: 1h20m10s, 5m32s, 5 dk 13 sn, 5d 13s
         for match in _TS_LETTER.finditer(text):
             h, m, s = match.groups()
             hours = int(h) if h else 0
@@ -105,6 +113,14 @@ class CommentMiner:
                 continue
             total = hours * 3600 + minutes * 60 + secs
             seconds_list.append(float(total))
+
+        # 4. Sadece dakika belirten formatlar: "5 dk", "12 dakika"
+        for match in _TS_MINUTES_ONLY.finditer(text):
+            m = match.group(1)
+            if m:
+                min_val = int(m)
+                if 0 < min_val < 300:
+                    seconds_list.append(float(min_val * 60))
 
         return sorted(list(set(seconds_list)))
 

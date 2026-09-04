@@ -28,6 +28,20 @@ def test_extract_timestamps_mm_ss(miner):
     assert timestamps == [332.0, 765.0]
 
 
+def test_extract_timestamps_dot_format(miner):
+    text = "5.13 koptum ya haha 05.13 de ne oldu öyle 1.05.32 efsane"
+    timestamps = miner.extract_timestamps_from_text(text)
+    assert 313.0 in timestamps
+    assert 3932.0 in timestamps
+
+
+def test_extract_timestamps_turkish_text(miner):
+    text = "5 dk 13 sn burası efsane ve 10dk bakın"
+    timestamps = miner.extract_timestamps_from_text(text)
+    assert 313.0 in timestamps
+    assert 600.0 in timestamps
+
+
 def test_extract_timestamps_hh_mm_ss(miner):
     text = "1:02:15 efsane vuruş @02:30:00"
     timestamps = miner.extract_timestamps_from_text(text)
