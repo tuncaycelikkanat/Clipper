@@ -623,3 +623,46 @@ def test_videos_endpoints(test_data):
 
     # Get non-existent video -> 404
     assert client.get("/api/videos/nonexistent_vid").status_code == 404
+
+
+def test_channel_scan_latest_and_batch_process(test_data):
+    # Test channels/scan-latest endpoint
+    with patch("core.autopilot.AutoPilotManager.scan_and_queue_latest_channels") as mock_scan:
+        mock_scan.return_value = {
+            "scanned_channels": 2,
+            "skipped_channels": ["Adal"],
+            "new_videos_found": 1,
+            "videos": [{"id": "vid_new_1", "title": "New Stream", "url": "https://yt.com/v1"}],
+            "message": "Tarama tamamlandı.",
+        }
+        res = client.post("/api/channels/scan-latest", json={"exclude": "adal", "max_per_channel": 1})
+        assert res.status_code == 200
+        assert res.json()["new_videos_found"] == 1
+        assert "Adal" in res.json()["skipped_channels"]
+
+    # Test pending videos listing
+    db = DatabaseManager()
+    db.save_video({"id": "vid_pending_test", "url": "https://yt.com/p1", "title": "Pending Vid", "status": "pending"})
+    res_pending = client.get("/api/videos/pending")
+    assert res_pending.status_code == 200
+    assert any(v["id"] == "vid_pending_test" for v in res_pending.json())
+
+    # Test batch process videos endpoint
+    res_batch = client.post(
+        "/api/pipeline/batch-process-videos",
+        json={
+            "video_ids": ["vid_pending_test"],
+            "target_clips": 3,
+            "add_subtitles": False,
+            "add_hook_card": False,
+        },
+    )
+    assert res_batch.status_code == 200
+    assert res_batch.json()["count"] == 1
+    assert len(res_batch.json()["jobs"]) == 1
+
+    # Test delete video endpoint
+    del_res = client.delete("/api/videos/vid_pending_test")
+    assert del_res.status_code == 200
+    assert del_res.json()["deleted"] is True
+

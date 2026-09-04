@@ -412,9 +412,9 @@ export default function Planner() {
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-mono text-[11px] font-bold text-violet-400">{slot.time}</span>
-                            {item && (
+                            {item && item.viral_score !== undefined && (
                               <Badge
-                                variant={item.viral_score >= 80 ? 'success' : 'warning'}
+                                variant={(item.viral_score ?? 0) >= 80 ? 'success' : 'warning'}
                                 className="text-[9px] py-0 px-1"
                               >
                                 Skor: {item.viral_score}
@@ -430,7 +430,7 @@ export default function Planner() {
                               <div className="flex items-center justify-between pt-0.5">
                                 <span
                                   className={`text-[9px] font-bold uppercase ${
-                                    item.status === 'PUBLISHED' ? 'text-emerald-400' : 'text-amber-400'
+                                    String(item.status).toUpperCase() === 'PUBLISHED' ? 'text-emerald-400' : 'text-amber-400'
                                   }`}
                                 >
                                   {item.status || 'SCHEDULED'}

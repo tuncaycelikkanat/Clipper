@@ -21,8 +21,18 @@ class PipelineRunRequest(BaseModel):
     url: str
     target_clips: int = 3
     render_mode: str = "shorts_9x16_blur"
-    add_subtitles: bool = True
-    add_hook_card: bool = True
+    add_subtitles: bool = False
+    add_hook_card: bool = False
+    enhance_colors: bool = True
+    api_key: str | None = None
+
+
+class BatchProcessVideosRequest(BaseModel):
+    video_ids: list[str]
+    target_clips: int = 3
+    render_mode: str = "shorts_9x16_blur"
+    add_subtitles: bool = False
+    add_hook_card: bool = False
     enhance_colors: bool = True
     api_key: str | None = None
 
@@ -43,6 +53,40 @@ async def run_pipeline(body: PipelineRunRequest, background_tasks: BackgroundTas
         api_key=body.api_key,
     )
     return {"job_id": job.id, "status": job.status}
+
+
+@router.post("/batch-process-videos")
+async def batch_process_videos(body: BatchProcessVideosRequest, background_tasks: BackgroundTasks):
+    """Start pipeline jobs for selected pending videos."""
+    from core.database import DatabaseManager
+
+    db = DatabaseManager()
+    db.init_db()
+    created_jobs = []
+
+    with db._connect() as conn:
+        for vid in body.video_ids:
+            row = conn.execute("SELECT * FROM videos WHERE id = ?", (vid,)).fetchone()
+            if row:
+                row_dict = dict(row)
+                url = row_dict.get("url")
+                if not url:
+                    continue
+                job = job_store.create(url)
+                background_tasks.add_task(
+                    run_pipeline_async,
+                    job_id=job.id,
+                    url=url,
+                    target_clips=body.target_clips,
+                    render_mode=body.render_mode,
+                    add_subtitles=body.add_subtitles,
+                    add_hook_card=body.add_hook_card,
+                    enhance_colors=body.enhance_colors,
+                    api_key=body.api_key,
+                )
+                created_jobs.append({"job_id": job.id, "video_id": vid, "title": row_dict.get("title")})
+
+    return {"jobs": created_jobs, "count": len(created_jobs)}
 
 
 @router.get("/jobs/{job_id}")

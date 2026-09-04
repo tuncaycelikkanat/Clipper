@@ -43,6 +43,14 @@ function del<T>(endpoint: string) {
 export const api = {
   pipeline: {
     run: (body: PipelineRunRequest) => post<{job_id: string, status: string}>('/api/pipeline/run', body),
+    batchProcessVideos: (body: {
+      video_ids: string[];
+      target_clips?: number;
+      render_mode?: string;
+      add_subtitles?: boolean;
+      add_hook_card?: boolean;
+      enhance_colors?: boolean;
+    }) => post<{ jobs: { job_id: string; video_id: string; title: string }[]; count: number }>('/api/pipeline/batch-process-videos', body),
     getJob: (id: string) => get<PipelineJob>(`/api/pipeline/jobs/${id}`),
     listJobs: () => get<PipelineJob[]>('/api/pipeline/jobs'),
     cancelJob: (id: string) => del(`/api/pipeline/jobs/${id}`),
@@ -67,7 +75,9 @@ export const api = {
   },
   videos: {
     list: () => get<Video[]>('/api/videos'),
+    pending: () => get<Video[]>('/api/videos/pending'),
     get: (id: string) => get<Video>(`/api/videos/${id}`),
+    delete: (id: string) => del<{ deleted: boolean }>(`/api/videos/${id}`),
     preview: (url: string) => post<import('../types').VideoPreview>('/api/videos/preview', { url }),
     uploadThumbnail: (videoId: string, file: File) => {
       const fd = new FormData();
@@ -80,6 +90,11 @@ export const api = {
   },
   channels: {
     list: (params?: {is_tracked?: boolean}) => get<Channel[]>('/api/channels', params),
+    scanLatest: (body?: { exclude?: string; max_per_channel?: number }) =>
+      post<{ scanned_channels: number; skipped_channels: string[]; new_videos_found: number; videos: Video[]; message: string }>(
+        '/api/channels/scan-latest',
+        body || {}
+      ),
     create: (body: CreateChannelRequest) => post<Channel>('/api/channels', body),
     update: (id: string, body: Partial<Channel>) => patch<Channel>(`/api/channels/${id}`, body),
     delete: (id: string) => del(`/api/channels/${id}`),
@@ -89,13 +104,13 @@ export const api = {
     add: (body: {clip_id: string, scheduled_at?: string}) => post<QueueItem>('/api/queue', body),
     update: (id: string, body: {scheduled_at?: string | null, status?: string}) => patch<QueueItem>(`/api/queue/${id}`, body),
     delete: (id: string) => del(`/api/queue/${id}`),
-    calendar: () => get<CalendarDay[]>('/api/calendar'),
+    calendar: (days?: number) => get<CalendarDay[]>('/api/calendar', days ? { days: String(days) } : undefined),
     shuffle: (selected_dates?: string[]) => post('/api/queue/shuffle', { selected_dates }),
   },
   scheduler: {
     start: (interval_hours: number) => post('/api/scheduler/start', {interval_hours}),
     stop: () => post('/api/scheduler/stop', {}),
-    status: () => get<{running: boolean, interval_hours: number, last_run: string|null, next_run: string|null}>('/api/scheduler/status'),
+    status: () => get<{running: boolean, interval_hours: number, cycle_count?: number, last_run: string|null, next_run: string|null}>('/api/scheduler/status'),
   },
   upload: {
     youtube: (clip_id: string) => post(`/api/upload/youtube/${clip_id}`, {}),

@@ -98,7 +98,7 @@ describe('Pages', () => {
 
   describe('Analyze', () => {
     it('handles pipeline submission, options, and SSE events', async () => {
-      vi.spyOn(api.pipeline, 'run').mockResolvedValue({ job_id: 'job-123' })
+      vi.spyOn(api.pipeline, 'run').mockResolvedValue({ job_id: 'job-123', status: 'queued' })
       vi.spyOn(api.pipeline, 'getJob').mockResolvedValue({
         id: 'job-123',
         status: 'running',
@@ -155,7 +155,7 @@ describe('Pages', () => {
     })
 
     it('handles pipeline error and SSE error', async () => {
-      vi.spyOn(api.pipeline, 'run').mockResolvedValue({ job_id: 'job-err' })
+      vi.spyOn(api.pipeline, 'run').mockResolvedValue({ job_id: 'job-err', status: 'queued' })
       renderWithClient(<Analyze />)
 
       const input = screen.getByPlaceholderText('https://www.youtube.com/watch?v=...')

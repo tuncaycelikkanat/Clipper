@@ -68,8 +68,8 @@ async def run_pipeline_async(
     url: str,
     target_clips: int = 3,
     render_mode: str = "shorts_9x16_blur",
-    add_subtitles: bool = True,
-    add_hook_card: bool = True,
+    add_subtitles: bool = False,
+    add_hook_card: bool = False,
     enhance_colors: bool = True,
     api_key: str | None = None,
 ) -> None:

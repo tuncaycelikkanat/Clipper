@@ -38,8 +38,8 @@ export default function Analyze() {
   const search = useSearch({ strict: false });
   const [url, setUrl] = useState((search as any)?.url || '');
   const [targetClips, setTargetClips] = useState(3);
-  const [addSubtitles, setAddSubtitles] = useState(true);
-  const [addHookCard, setAddHookCard] = useState(true);
+  const [addSubtitles, setAddSubtitles] = useState(false);
+  const [addHookCard, setAddHookCard] = useState(false);
   const [enhanceColors, setEnhanceColors] = useState(true);
 
   const [jobId, setJobId] = useState<string | null>(() => {

@@ -5,6 +5,7 @@ export interface PipelineJob {
   progress: number
   current_step: string | null
   result: Clip[] | null
+  logs?: { time?: string; step?: string; progress?: number; message: string }[]
   error_msg: string | null
   created_at: string
   updated_at: string
@@ -47,18 +48,19 @@ export interface Video {
 
 export interface VideoPreview {
   id: string
-  url: string
+  url?: string
   title: string
   uploader: string
   duration: number
   duration_formatted: string
   thumbnail: string | null
-  view_count: number
+  view_count?: number
   duration_minutes: number
   recommended_clips: number
-  clip_range: string
+  clip_range?: string
   tier_label: string
   explanation: string
+  ranges?: number[]
 }
 
 export interface Channel {
@@ -84,6 +86,10 @@ export interface QueueItem {
   instagram_url: string | null
   tiktok_url: string | null
   title: string
+  viral_score?: number
+  render_path?: string | null
+  thumbnail_path?: string | null
+  description?: string | null
   created_at: string
 }
 
@@ -106,6 +112,10 @@ export interface PipelineRunRequest {
   url: string;
   target_clips?: number;
   render_mode?: string;
+  add_subtitles?: boolean;
+  add_hook_card?: boolean;
+  enhance_colors?: boolean;
+  api_key?: string | null;
 }
 
 export interface SettingsStatus {
@@ -119,8 +129,10 @@ export interface SettingsStatus {
 export interface CreateChannelRequest {
   url: string;
   name: string;
-  min_score: number;
-  check_interval_h: number;
+  min_score?: number;
+  check_interval_h?: number;
+  auto_upload?: boolean;
+  target_playlist?: string;
 }
 
 export interface ScoringConfig {

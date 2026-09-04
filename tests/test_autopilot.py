@@ -460,3 +460,29 @@ def test_publish_due_socials(mock_multi_pub_class, manager, auto_db, tmp_path):
         assert row[0] == "PUBLISHED"
         assert row[1] == "http://yt.com"
         assert row[2] == "http://ig.com"
+
+
+def test_scan_and_queue_latest_channels_excludes_adal(manager, auto_db):
+    """Kanalları tararken Adal kanalı hariç tutulmalı, diğer kanalların son videoları sıraya eklenmelidir."""
+    # Add two channels: one Adal, one other streamer
+    manager.add_channel(url="https://youtube.com/@Adal", name="Adal")
+    manager.add_channel(url="https://youtube.com/@TolunayOren", name="Tolunay Ören")
+
+    # Mock feed videos
+    manager.feed.get_channel_videos = MagicMock(
+        return_value=[
+            {"id": "vid_tolunay_1", "url": "https://youtube.com/watch?v=t1", "title": "Tolunay Yeni Video 1"},
+        ]
+    )
+
+    res = manager.scan_and_queue_latest_channels(exclude_keywords=["adal"], max_videos_per_channel=1)
+
+    assert res["scanned_channels"] == 1
+    assert "Adal" in res["skipped_channels"]
+    assert res["new_videos_found"] == 1
+    assert len(res["videos"]) == 1
+    assert res["videos"][0]["id"] == "vid_tolunay_1"
+
+    # Verify stored in DB with status pending
+    pending = auto_db.get_unprocessed_videos()
+    assert any(v["id"] == "vid_tolunay_1" and v["status"] == "pending" for v in pending)

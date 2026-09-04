@@ -352,12 +352,110 @@ class AutoPilotManager:
             "errors": cycle_errors,
         }
 
+    def scan_and_queue_latest_channels(
+        self,
+        exclude_keywords: list[str] | None = None,
+        max_videos_per_channel: int = 1,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> dict[str, Any]:
+        """Takip edilen aktif kanalları tarar (varsayılan: Adal hariç) ve son videoları işleme sırasına ekler."""
+        cb = progress_callback or (lambda msg: None)
+        if exclude_keywords is None:
+            exclude_keywords = ["adal"]
+
+        channels = self.get_tracked_channels(active_only=True)
+        new_videos: list[dict[str, Any]] = []
+        skipped_channels: list[str] = []
+        scanned_count = 0
+
+        if not channels:
+            cb("ℹ️ Takip listesinde aktif kanal bulunamadı.")
+            return {
+                "scanned_channels": 0,
+                "skipped_channels": [],
+                "new_videos_found": 0,
+                "videos": [],
+                "message": "Takip edilen aktif kanal bulunamadı.",
+            }
+
+        for ch in channels:
+            ch_name = ch.get("name", "")
+            ch_url = ch.get("url", "")
+            # Adal veya belirtilen anahtar kelimeleri hariç tut
+            if any(k.lower() in ch_name.lower() or k.lower() in ch_url.lower() for k in exclude_keywords):
+                logger.info("Kanal '{}' ({}) filtre kuralı nedeniyle hariç tutuldu.", ch_name, ch_url)
+                skipped_channels.append(ch_name)
+                continue
+
+            scanned_count += 1
+            cb(f"🔍 '{ch_name}' taranıyor…")
+            try:
+                recent_videos = self.feed.get_channel_videos(ch_url, max_count=max(5, max_videos_per_channel * 2))
+                if not recent_videos:
+                    self.db.update_tracked_channel_checked(ch_url)
+                    continue
+
+                processed_ids = self.db.get_processed_video_ids(ch_url)
+                candidate_new = [
+                    v for v in recent_videos if v["id"] not in processed_ids and not self.db.video_exists(v["id"])
+                ]
+                to_queue = candidate_new[:max_videos_per_channel]
+
+                # Eğer hepsi işlenmiş görünüyorsa ama DB'de yoksa ilk videoyu al
+                if not to_queue and recent_videos:
+                    latest_v = recent_videos[0]
+                    if not self.db.video_exists(latest_v["id"]):
+                        to_queue = [latest_v]
+
+                for vid in to_queue:
+                    vid_id = vid["id"]
+                    vid_url = vid["url"]
+                    vid_title = vid.get("title", "Video")
+                    uploader = ch_name or vid.get("uploader", "")
+
+                    self.db.save_video(
+                        {
+                            "id": vid_id,
+                            "url": vid_url,
+                            "title": vid_title,
+                            "uploader": uploader,
+                            "status": "pending",
+                        }
+                    )
+                    self.db.record_processed_video(ch_url, vid_id, vid_title)
+                    new_videos.append(
+                        {
+                            "id": vid_id,
+                            "url": vid_url,
+                            "title": vid_title,
+                            "uploader": uploader,
+                            "status": "pending",
+                        }
+                    )
+                    cb(f"   📥 [Sıraya Alındı] {vid_title}")
+
+                self.db.update_tracked_channel_checked(ch_url)
+            except Exception as exc:
+                logger.error("Kanal tarama hatası ({}): {}", ch_name, exc)
+
+        return {
+            "scanned_channels": scanned_count,
+            "skipped_channels": skipped_channels,
+            "new_videos_found": len(new_videos),
+            "videos": new_videos,
+            "message": (
+                f"{scanned_count} kanal tarandı ({', '.join(skipped_channels) if skipped_channels else 'Hariç tutulan yok'} hariç). "
+                f"{len(new_videos)} yeni video sıraya eklendi."
+            ),
+        }
+
     def process_pending_videos(
         self,
         api_key: str | None = None,
         progress_callback: Callable[[str], None] | None = None,
         max_videos: int = 5,
         add_subtitles: bool = False,
+        add_hook_card: bool = False,
     ) -> dict[str, Any]:
         cb = progress_callback or (lambda msg: None)
         cb(f"⚙️ [İşleyici] 'Bekliyor' durumundaki videolar kontrol ediliyor (Limit: {max_videos})...")
@@ -387,7 +485,7 @@ class AutoPilotManager:
                     target_clips=3,
                     render_mode="shorts_9x16_black",
                     add_subtitles=add_subtitles,
-                    add_hook_card=True,
+                    add_hook_card=add_hook_card,
                     api_key=api_key,
                     progress_callback=cb,
                 )

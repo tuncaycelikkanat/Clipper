@@ -70,6 +70,15 @@ async def list_videos(limit: int = 50):
     return [dict(r) for r in rows]
 
 
+@router.get("/pending")
+async def list_pending_videos():
+    """List all videos with status 'pending'."""
+    db = _db()
+    with db._connect() as conn:
+        rows = conn.execute("SELECT * FROM videos WHERE status = 'pending' ORDER BY rowid DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
 @router.get("/{video_id}")
 async def get_video(video_id: str):
     db = _db()
@@ -78,6 +87,16 @@ async def get_video(video_id: str):
         raise HTTPException(status_code=404, detail="Video not found")
     clips = db.get_clips_for_video(video_id)
     return {**video, "clips": clips}
+
+
+@router.delete("/{video_id}")
+async def delete_video(video_id: str):
+    db = _db()
+    with db._connect() as conn:
+        conn.execute("DELETE FROM clips WHERE video_id = ?", (video_id,))
+        conn.execute("DELETE FROM videos WHERE id = ?", (video_id,))
+        conn.commit()
+    return {"deleted": True}
 
 
 @router.post("/{video_id}/thumbnail")
