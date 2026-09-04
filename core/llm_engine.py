@@ -569,7 +569,7 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:
             clean_title = f"{clip_title} 🔥 #Shorts #Gaming"
-            clean_desc = f"🎯 {hook_caption}\n\nOrijinal Video: {video_title}\n\n#Shorts #Gaming #Viral #Highlights"
+            clean_desc = f"🎯 {hook_caption}\n\n#Shorts #Gaming #Viral #Highlights"
             clean_tags = ["shorts", "gaming", "viral", "highlights", "komik anlar", "türkçe gaming"]
             return {"title": clean_title, "description": clean_desc, "tags": clean_tags, "provider": "Heuristic"}
 
@@ -586,7 +586,7 @@ Klipteki Kanca Cümle / Olay: "{hook_caption}"
 
 GÖREVLER:
 1. Başlık: İzleyicinin kaydırmasını (scroll) anında durduracak, merak veya kahkaha uyandıran, dilbilgisi tam, BÜYÜK HARF vurgulu, 2 emoji içeren ve sonunda '#Shorts' etiketi olan maksimum 90 karakterlik Türkçe başlık.
-2. Açıklama: PERSPEKTİFE DİKKAT ET (Sen videodaki yayıncı değilsin, klip kanalısın!). Asla 'ben yaptım/oynadım' deme. 3. şahıs olarak olayı özetleyen maksimum 2 KISA CÜMLE + '🎬 Orijinal: {video_title}' atfı + 5 trend hashtag (#OyunAdi #Shorts #Gaming vb.).
+2. Açıklama: PERSPEKTİFE DİKKAT ET (Sen videodaki yayıncı değilsin, klip kanalısın!). Asla 'ben yaptım/oynadım' deme. 3. şahıs olarak olayı özetleyen maksimum 2 KISA CÜMLE + 5 trend hashtag (#OyunAdi #Shorts #Gaming vb.). Asla 'Orijinal Video:' vb. metin ekleme.
 3. Etiketler (Tags): Oyunun tam adını, klibin konusunu, oynanış mekaniğini ve Türkçe oyun terimlerini içeren 10-14 adet spesifik etiket listesi üret.
 """
 

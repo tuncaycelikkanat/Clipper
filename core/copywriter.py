@@ -55,7 +55,6 @@ class CopywriterEngine:
         description_lines = [
             f"{hook or clip_title}",
             "",
-            f"🎬 Orijinal Video: {video_title}" if video_title else "",
             f"👤 Yayıncı: {channel_name}" if channel_name else "",
             "",
             "#Shorts #Gaming #TürkçeGaming",

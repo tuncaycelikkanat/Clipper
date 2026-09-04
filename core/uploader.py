@@ -319,8 +319,6 @@ class YouTubeUploader:
         lines = [
             opener,
             "",
-            f"🎬 Orijinal İçerik: {video_title}",
-            "",
             "#Shorts #Gaming #OyunKesitleri #Oyun #Trending",
         ]
         return "\n".join(lines)

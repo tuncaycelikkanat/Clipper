@@ -125,16 +125,6 @@ class MultiPublisher:
                             desc = YouTubeUploader.generate_description(clip, video_title)
                             tags = ["shorts", "gaming", "oyun", "highlights"]
 
-                    # --- ORIJINAL KAYNAK LINKI (SISTEM KENDISI EKLER) ---
-                    # run_cycle zaten eklemişse tekrar ekleme (guard). Yine de
-                    # emin olmak için source_video_id üzerinden yeniden dene.
-                    vid_id = source_video_id or clip.get("video_id")
-                    if vid_id and "🎬 Orijinal" not in desc:
-                        orig_link = source_video_url or f"https://youtube.com/watch?v={vid_id}"
-                        link_text = f"\n\n🎬 Orijinal Video: {video_title}\n🔗 İzle: {orig_link}"
-                        desc = f"{desc}{link_text}"
-                    # ----------------------------------------------------
-
                     yt_res = self.youtube.upload_short(
                         video_path=render_path,
                         title=title,
@@ -160,9 +150,8 @@ class MultiPublisher:
         if "instagram" in target_platforms:
             if self.instagram.is_authenticated():
                 try:
-                    ig_caption = InstagramUploader.generate_caption(clip, video_title)
-                    if source_video_url and source_video_url not in ig_caption:
-                        ig_caption = f"{ig_caption}\n🔗 İzle: {source_video_url}"
+                    # Shorts ile birebir aynı açıklamayı ve etiketleri kullan
+                    ig_caption = desc or clip.get("description") or InstagramUploader.generate_caption(clip, video_title)
                     ig_res = self.instagram.upload_reel(
                         video_path=render_path,
                         caption=ig_caption,

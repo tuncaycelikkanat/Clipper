@@ -291,8 +291,6 @@ class InstagramUploader:
         lines = [
             opener,
             "",
-            f"🎬 Orijinal İçerik: {video_title}" if video_title else "",
-            "",
             "#reels #gaming #oyun #oyunkesitleri #kesitler #türkçegaming #twitchtürkiye #viral",
         ]
         return "\n".join(line for line in lines if line)

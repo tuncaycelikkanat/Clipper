@@ -115,7 +115,6 @@ def test_generate_caption():
     caption = InstagramUploader.generate_caption(clip, "Mithrain GTA")
     assert "Bunu kimse beklemiyordu!" in caption
     assert "#reels" in caption
-    assert "Mithrain GTA" in caption
 
 
 @patch.object(InstagramUploader, "create_resumable_container")

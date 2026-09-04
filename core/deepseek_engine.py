@@ -204,7 +204,7 @@ Lütfen şu JSON formatında yanıt ver:
             "İNSANSI AÇIKLAMA REHBERİ:\n"
             "- Asla 'Category: GAMING' veya 'Açıklama: ...' gibi teknik veya robotik kalıplar kullanma!\n"
             "- 1-2 cümlelik samimi ve eğlenceli olay özeti + izleyiciye yorum sorusu (etkileşim için).\n"
-            "- AÇIKLAMANIN SONUNA ORİJİNAL VİDEO İSMİNİ VEYA LİNKİNİ ASLA SEN EKLEME! Bunu sistem kendisi otomatik ekleyecek.\n"
+            "- AÇIKLAMANIN İÇİNE VEYA SONUNA ORİJİNAL VİDEO İSMİNİ/LİNKİNİ ASLA EKLEME.\n"
             "- 4-6 adet temiz ve ilgili hashtag (#oyunadi #gaming #shorts #kesitler #oyun vb.).\n\n"
             "ETİKETLER (Tags):\n"
             "- Oyunun tam adı, yayıncının adı, klipteki olayın terimleri (örn: ['valorant', 'clutch', 'ace', 'twitch türkiye', 'oyun kesitleri']).\n"
