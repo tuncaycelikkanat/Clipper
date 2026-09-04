@@ -364,19 +364,34 @@ export default function Analyze() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs text-zinc-400 font-medium">Hedef Klip Sayısı</label>
-                  <span className="text-xs font-mono text-violet-400 font-bold">{targetClips} Adet Klip</span>
+                  <span className="text-xs font-mono text-violet-400 font-bold">
+                    {targetClips === 0 ? '✨ Otomatik (Süreye Göre)' : `${targetClips} Adet Klip`}
+                  </span>
                 </div>
                 <Input
                   type="number"
-                  min="1"
+                  min="0"
                   max="25"
                   value={targetClips}
-                  onChange={(e) => setTargetClips(Math.max(1, Math.min(25, Number(e.target.value))))}
+                  onChange={(e) => setTargetClips(Math.max(0, Math.min(25, Number(e.target.value))))}
                   disabled={running}
+                  placeholder="0 (Otomatik)"
                   className="font-mono text-sm"
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  {[3, 5, 8, 10, 12, 15, 20].map((count) => (
+                  <button
+                    type="button"
+                    disabled={running}
+                    onClick={() => setTargetClips(0)}
+                    className={`px-2 py-0.5 rounded text-xs transition-colors font-medium ${
+                      targetClips === 0
+                        ? 'bg-violet-600 text-white font-bold shadow-sm'
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+                    }`}
+                  >
+                    ✨ Otomatik
+                  </button>
+                  {[2, 3, 5, 8, 10, 12, 15, 20].map((count) => (
                     <button
                       key={count}
                       type="button"

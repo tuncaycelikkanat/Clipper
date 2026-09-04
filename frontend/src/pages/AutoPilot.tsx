@@ -39,7 +39,7 @@ export default function AutoPilot() {
 
   // Selected videos for batch processing
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
-  const [batchTargetClips, setBatchTargetClips] = useState(3);
+  const [batchTargetClips, setBatchTargetClips] = useState(0); // 0 = Otomatik (Süreye Göre)
   const [batchSubtitles, setBatchSubtitles] = useState(false); // Default FALSE
   const [batchHookCard, setBatchHookCard] = useState(false); // Default FALSE
 
@@ -288,10 +288,13 @@ export default function AutoPilot() {
                 onChange={(e) => setBatchTargetClips(Number(e.target.value))}
                 className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-200 focus:outline-none"
               >
+                <option value={0}>✨ Otomatik (Süreye Göre)</option>
                 <option value={2}>2 Klip</option>
-                <option value={3}>3 Klip (Önerilen)</option>
+                <option value={3}>3 Klip</option>
                 <option value={5}>5 Klip</option>
                 <option value={8}>8 Klip</option>
+                <option value={10}>10 Klip</option>
+                <option value={15}>15 Klip</option>
               </select>
             </div>
 

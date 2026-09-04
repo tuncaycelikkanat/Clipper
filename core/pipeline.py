@@ -116,6 +116,10 @@ class ClipperPipeline:
         video_title = video_data.get("title", "Gaming Video")
         duration = int(video_data.get("duration", 0))
         self.db.save_video(video_data)
+        if target_clips <= 0:
+            rec = YouTubeExtractor.calculate_recommended_clips(duration)
+            target_clips = int(rec.get("recommended_clips", 3))
+            safe_cb(f"🎯 Otomatik klip sayısı belirlendi: {target_clips} klip ({rec.get('tier_label', '')})")
         step_timings["1. Video Metadata & Info"] = time.perf_counter() - t0
 
         # 2. Parallel Multi-Signal Extraction (Audio DSP + Pitch in 1-pass, Transcripts, Frame-Diff)
