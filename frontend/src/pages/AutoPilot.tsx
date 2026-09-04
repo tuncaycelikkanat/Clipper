@@ -65,7 +65,7 @@ export default function AutoPilot() {
 
   // Mutations
   const scanChannelsMutation = useMutation({
-    mutationFn: () => api.channels.scanLatest({ exclude: 'adal', max_per_channel: 1 }),
+    mutationFn: () => api.channels.scanLatest({ max_per_channel: 1 }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['pending-videos'] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
@@ -212,7 +212,7 @@ export default function AutoPilot() {
             ) : (
               <Radar className="w-4 h-4 mr-1.5" />
             )}
-            Kanalları Tara (Adal Hariç)
+            Kanalları Tara
           </Button>
 
           <Button onClick={() => setShowAddModal(true)} className="bg-violet-600 hover:bg-violet-700">

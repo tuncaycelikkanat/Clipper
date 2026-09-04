@@ -115,20 +115,20 @@ async def delete_channel(channel_id: str):
 
 
 class ChannelScanRequest(BaseModel):
-    exclude: str = "adal"
+    exclude: str | None = None
     max_per_channel: int = 1
 
 
 @router.post("/scan-latest")
 async def scan_latest_channel_videos(body: ChannelScanRequest | None = None):
-    """Takip edilen kanalları tarar (varsayılan: Adal hariç) ve son videoları işleme sırasına ekler."""
+    """Takip edilen kanalları tarar ve son videoları işleme sırasına ekler."""
     from core.autopilot import AutoPilotManager
 
     db = _db()
     ap = AutoPilotManager(db=db)
-    exclude_str = body.exclude if body else "adal"
+    exclude_str = body.exclude if body and body.exclude else None
     max_count = body.max_per_channel if body else 1
-    excludes = [k.strip() for k in exclude_str.split(",") if k.strip()]
+    excludes = [k.strip() for k in exclude_str.split(",") if k.strip()] if exclude_str else []
     result = ap.scan_and_queue_latest_channels(
         exclude_keywords=excludes,
         max_videos_per_channel=max_count,

@@ -358,10 +358,10 @@ class AutoPilotManager:
         max_videos_per_channel: int = 1,
         progress_callback: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
-        """Takip edilen aktif kanalları tarar (varsayılan: Adal hariç) ve son videoları işleme sırasına ekler."""
+        """Takip edilen aktif kanalları tarar ve son videoları işleme sırasına ekler."""
         cb = progress_callback or (lambda msg: None)
         if exclude_keywords is None:
-            exclude_keywords = ["adal"]
+            exclude_keywords = []
 
         channels = self.get_tracked_channels(active_only=True)
         new_videos: list[dict[str, Any]] = []
@@ -381,8 +381,8 @@ class AutoPilotManager:
         for ch in channels:
             ch_name = ch.get("name", "")
             ch_url = ch.get("url", "")
-            # Adal veya belirtilen anahtar kelimeleri hariç tut
-            if any(k.lower() in ch_name.lower() or k.lower() in ch_url.lower() for k in exclude_keywords):
+            # Belirtilen anahtar kelimeleri hariç tut (varsa)
+            if exclude_keywords and any(k.lower() in ch_name.lower() or k.lower() in ch_url.lower() for k in exclude_keywords):
                 logger.info("Kanal '{}' ({}) filtre kuralı nedeniyle hariç tutuldu.", ch_name, ch_url)
                 skipped_channels.append(ch_name)
                 continue
@@ -438,13 +438,14 @@ class AutoPilotManager:
             except Exception as exc:
                 logger.error("Kanal tarama hatası ({}): {}", ch_name, exc)
 
+        skipped_info = f" ({', '.join(skipped_channels)} hariç)" if skipped_channels else ""
         return {
             "scanned_channels": scanned_count,
             "skipped_channels": skipped_channels,
             "new_videos_found": len(new_videos),
             "videos": new_videos,
             "message": (
-                f"{scanned_count} kanal tarandı ({', '.join(skipped_channels) if skipped_channels else 'Hariç tutulan yok'} hariç). "
+                f"{scanned_count} kanal tarandı{skipped_info}. "
                 f"{len(new_videos)} yeni video sıraya eklendi."
             ),
         }

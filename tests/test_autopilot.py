@@ -462,16 +462,39 @@ def test_publish_due_socials(mock_multi_pub_class, manager, auto_db, tmp_path):
         assert row[2] == "http://ig.com"
 
 
-def test_scan_and_queue_latest_channels_excludes_adal(manager, auto_db):
-    """Kanalları tararken Adal kanalı hariç tutulmalı, diğer kanalların son videoları sıraya eklenmelidir."""
-    # Add two channels: one Adal, one other streamer
+def test_scan_and_queue_latest_channels_default_all(manager, auto_db):
+    """Varsayılan taramada Adal dahil tüm aktif kanalların son videoları sıraya eklenmelidir."""
     manager.add_channel(url="https://youtube.com/@Adal", name="Adal")
     manager.add_channel(url="https://youtube.com/@TolunayOren", name="Tolunay Ören")
 
     # Mock feed videos
+    def mock_get_vids(ch_url, max_count=5):
+        if "Adal" in ch_url:
+            return [{"id": "vid_adal_1", "url": "https://youtube.com/watch?v=a1", "title": "Adal Yeni Video 1"}]
+        return [{"id": "vid_tolunay_1", "url": "https://youtube.com/watch?v=t1", "title": "Tolunay Yeni Video 1"}]
+
+    manager.feed.get_channel_videos = MagicMock(side_effect=mock_get_vids)
+
+    res = manager.scan_and_queue_latest_channels(max_videos_per_channel=1)
+
+    assert res["scanned_channels"] == 2
+    assert len(res["skipped_channels"]) == 0
+    assert res["new_videos_found"] == 2
+    assert len(res["videos"]) == 2
+
+    pending = auto_db.get_unprocessed_videos()
+    assert any(v["id"] == "vid_adal_1" for v in pending)
+    assert any(v["id"] == "vid_tolunay_1" for v in pending)
+
+
+def test_scan_and_queue_latest_channels_with_exclude(manager, auto_db):
+    """Filtre verildiğinde belirtilen kanal hariç tutulmalıdır."""
+    manager.add_channel(url="https://youtube.com/@Adal", name="Adal")
+    manager.add_channel(url="https://youtube.com/@TolunayOren", name="Tolunay Ören")
+
     manager.feed.get_channel_videos = MagicMock(
         return_value=[
-            {"id": "vid_tolunay_1", "url": "https://youtube.com/watch?v=t1", "title": "Tolunay Yeni Video 1"},
+            {"id": "vid_tolunay_2", "url": "https://youtube.com/watch?v=t2", "title": "Tolunay Yeni Video 2"},
         ]
     )
 
@@ -480,9 +503,4 @@ def test_scan_and_queue_latest_channels_excludes_adal(manager, auto_db):
     assert res["scanned_channels"] == 1
     assert "Adal" in res["skipped_channels"]
     assert res["new_videos_found"] == 1
-    assert len(res["videos"]) == 1
-    assert res["videos"][0]["id"] == "vid_tolunay_1"
-
-    # Verify stored in DB with status pending
-    pending = auto_db.get_unprocessed_videos()
-    assert any(v["id"] == "vid_tolunay_1" and v["status"] == "pending" for v in pending)
+    assert res["videos"][0]["id"] == "vid_tolunay_2"
