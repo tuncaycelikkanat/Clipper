@@ -28,14 +28,21 @@ from core.logger import logger
 # Timestamp Regex Patterns
 # ---------------------------------------------------------------------------
 # Desteklenen formatlar:
-# 05:32, 5:32, 5.32, 05.32, 1:05:32, 1.05.32, @05:32, (05:32), (5.13), 5m32s, 1h20m10s, 5m 32s, 5 dk 13 sn, 5dk, t=332
-_TS_HHMMSS = re.compile(r"(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})[:.](\d{2})(?:\))?")
-_TS_MMSS = re.compile(r"(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})(?:\))?")
+# 05:32, 5:32, 5.32, 05.32, 5,32, 5 32, 1:05:32, 1.05.32, @05:32, (05:32), (5.13),
+# 5m32s, 1h20m10s, 5m 32s, 5 dk 13 sn, 5. dakikada, 5dk, ?t=332, ?t=5m13s
+_TS_URL = re.compile(r"[?&]t=(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?|(\d+))\b")
 _TS_LETTER = re.compile(
     r"(?:@|\b)?(?:(\d{1,2})\s*(?:saat|sa|h)\s*)?(?:(\d{1,3})\s*(?:dakika|dak|dk|d|m)\s*)?(?:(\d{1,2})\s*(?:saniye|san|sn|s))\b",
     re.IGNORECASE,
 )
-_TS_MINUTES_ONLY = re.compile(r"(?:@|\b)?(\d{1,3})\s*(?:dakika|dak|dk)\b", re.IGNORECASE)
+_TS_HHMMSS = re.compile(r"(?:@|\b)?(?:\()?(\d{1,2})[:.,](\d{2})[:.,](\d{2})(?:\))?")
+_TS_MMSS = re.compile(r"(?:@|\b)?(?:\()?(\d{1,2})[:.,](\d{2})(?:\))?(?:\'(?:te|ta|de|da|deki|daki|e|a))?")
+_TS_SPACE_MMSS = re.compile(
+    r"(?:@|\b|dk|dakika)\s*(\d{1,2})\s+(\d{2})\s*(?:(?:\'|\b)(?:te|ta|de|da|deki|daki|e|a)|\b|koptum|efsane|ahahaha|sjsj|😂)"
+)
+_TS_ORDINAL_MIN = re.compile(
+    r"(?:@|\b)?(\d{1,3})\.?\s*(?:dakika(?:da|daki|ya|dan)?|dk(?:da|deki|ye)?)\b", re.IGNORECASE
+)
 
 # ---------------------------------------------------------------------------
 # Reaksiyon / Duygu Sözlükleri
@@ -149,26 +156,17 @@ class CommentMiner:
 
         seconds_list: list[float] = []
 
-        # 1. HH:MM:SS veya HH.MM.SS (Örn: 01:05:32 veya 1.05.32)
-        for match in _TS_HHMMSS.finditer(text):
-            h, m, s = match.groups()
-            min_val, sec_val = int(m), int(s)
-            if min_val < 60 and sec_val < 60:
-                sec = int(h) * 3600 + min_val * 60 + sec_val
-                seconds_list.append(float(sec))
+        # 1. URL t= parametresi (?t=313, &t=5m13s)
+        for match in _TS_URL.finditer(text):
+            h, m_val, s, total_s = match.groups()
+            if total_s:
+                seconds_list.append(float(total_s))
+            else:
+                tot = (int(h or 0) * 3600) + (int(m_val or 0) * 60) + int(s or 0)
+                seconds_list.append(float(tot))
 
-        # 2. MM:SS veya MM.SS (Örn: 5:13, 5.13, 05.13)
-        # HH:MM:SS bulunan konumları maskeleyerek MM:SS ara
-        masked_text = _TS_HHMMSS.sub("XX:XX:XX", text)
-        for match in _TS_MMSS.finditer(masked_text):
-            m, s = match.groups()
-            min_val, sec_val = int(m), int(s)
-            # Saniye 0-59 arasında olmalı (rastgele ondalık sayıları engellemek için, örn. 3.85 elenir)
-            if sec_val < 60 and min_val < 300:
-                sec = min_val * 60 + sec_val
-                seconds_list.append(float(sec))
-
-        # 3. Metinsel Türkçe/İngilizce formatlar: 1h20m10s, 5m32s, 5 dk 13 sn, 5d 13s
+        # 2. Metinsel saat/dakika/saniye formatları (Örn: 5dk 13sn, 1h20m10s)
+        masked_text = text
         for match in _TS_LETTER.finditer(text):
             h, m, s = match.groups()
             hours = int(h) if h else 0
@@ -178,9 +176,36 @@ class CommentMiner:
                 continue
             total = hours * 3600 + minutes * 60 + secs
             seconds_list.append(float(total))
+        masked_text = _TS_LETTER.sub("XX_LETTER_XX", masked_text)
 
-        # 4. Sadece dakika belirten formatlar: "5 dk", "12 dakika"
-        for match in _TS_MINUTES_ONLY.finditer(text):
+        # 3. HH:MM:SS veya HH.MM.SS veya HH,MM,SS (Örn: 01:05:32 veya 1.05.32)
+        for match in _TS_HHMMSS.finditer(masked_text):
+            h, m, s = match.groups()
+            min_val, sec_val = int(m), int(s)
+            if min_val < 60 and sec_val < 60:
+                sec = int(h) * 3600 + min_val * 60 + sec_val
+                seconds_list.append(float(sec))
+        masked_text = _TS_HHMMSS.sub("XX_HHMMSS_XX", masked_text)
+
+        # 4. MM:SS, MM.SS, MM,SS (Örn: 5:13, 5.13, 5,13, 05.13)
+        for match in _TS_MMSS.finditer(masked_text):
+            m, s = match.groups()
+            min_val, sec_val = int(m), int(s)
+            if sec_val < 60 and min_val < 300:
+                sec = min_val * 60 + sec_val
+                seconds_list.append(float(sec))
+        masked_text = _TS_MMSS.sub("XX_MMSS_XX", masked_text)
+
+        # 5. Boşlukla ayrılmış zaman damgaları (Örn: 5 13 de, 05 13)
+        for match in _TS_SPACE_MMSS.finditer(masked_text):
+            m, s = match.groups()
+            min_val, sec_val = int(m), int(s)
+            if sec_val < 60 and min_val < 300:
+                sec = min_val * 60 + sec_val
+                seconds_list.append(float(sec))
+
+        # 6. Sadece dakika belirten ifadeler (Örn: 5. dakikada, 12. dk, 5 dk)
+        for match in _TS_ORDINAL_MIN.finditer(masked_text):
             m = match.group(1)
             if m:
                 min_val = int(m)

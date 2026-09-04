@@ -145,7 +145,7 @@ class ClipperPipeline:
 
         def _task_comments():
             try:
-                return YouTubeExtractor.get_video_comments(url, max_comments=100)
+                return YouTubeExtractor.get_video_comments(url, max_comments=300)
             except Exception as exc:
                 logger.warning("Comments retrieval skipped: {}", exc)
                 return []

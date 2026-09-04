@@ -36,6 +36,20 @@ def test_extract_timestamps_dot_format(miner):
     assert 3932.0 in timestamps
 
 
+def test_extract_timestamps_comma_and_space(miner):
+    text = "5,13 de koptum ve 12 45 te adam öldü"
+    timestamps = miner.extract_timestamps_from_text(text)
+    assert 313.0 in timestamps
+    assert 765.0 in timestamps
+
+
+def test_extract_timestamps_turkish_ordinal_and_url(miner):
+    text = "5. dakikada ne oldu öyle ve https://youtu.be/xyz?t=313 bakın"
+    timestamps = miner.extract_timestamps_from_text(text)
+    assert 300.0 in timestamps
+    assert 313.0 in timestamps
+
+
 def test_extract_timestamps_turkish_text(miner):
     text = "5 dk 13 sn burası efsane ve 10dk bakın"
     timestamps = miner.extract_timestamps_from_text(text)

@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Any
 
@@ -66,36 +67,75 @@ class YouTubeExtractor:
         }
 
     @classmethod
-    def get_video_comments(cls, url: str, max_comments: int = 50) -> list[dict[str, Any]]:
+    def get_video_comments(cls, url: str, max_comments: int = 250) -> list[dict[str, Any]]:
         """
-        Fetches top comments for a video using yt-dlp.
+        Fetches top comments and relevant replies for a video using yt-dlp (with YouTube API fallback).
         Returns a list of dicts: [{'text': str, 'like_count': int, 'author': str}]
         """
         cleaned_url = cls.clean_url(url)
+        formatted: list[dict[str, Any]] = []
+
+        # 1. yt-dlp ile hızlı ve limitsiz yorum çekme
         ydl_opts = {
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
             "getcomments": True,
-            "extractor_args": {"youtube": {"max_comments": [str(max_comments), "all", "0", "0"]}},
+            "extractor_args": {"youtube": {"max_comments": [str(max_comments)]}},
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(cleaned_url, download=False)
                 comments_raw = info.get("comments") or []
-                formatted = []
                 for c in comments_raw:
-                    formatted.append(
-                        {
-                            "text": c.get("text", "") or "",
-                            "like_count": int(c.get("like_count", 0) or 0),
-                            "author": c.get("author", "") or "",
-                        }
-                    )
-                return formatted
+                    txt = c.get("text", "") or ""
+                    if txt:
+                        formatted.append(
+                            {
+                                "text": txt,
+                                "like_count": int(c.get("like_count", 0) or 0),
+                                "author": c.get("author", "") or "",
+                            }
+                        )
         except Exception:
-            return []
+            pass
+
+        # 2. Eğer yt-dlp yorum bulamadıysa ve YouTube Data API anahtarı varsa API üzerinden dene
+        if not formatted:
+            api_key = os.getenv("YOUTUBE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            if api_key:
+                try:
+                    from googleapiclient.discovery import build
+
+                    youtube = build("youtube", "v3", developerKey=api_key)
+                    # Video ID ayıkla
+                    vid_match = re.search(r"(?:v=|\/embed\/|youtu\.be\/|\/v\/)([a-zA-Z0-9_-]{11})", cleaned_url)
+                    vid_id = vid_match.group(1) if vid_match else None
+                    if vid_id:
+                        req = youtube.commentThreads().list(
+                            part="snippet",
+                            videoId=vid_id,
+                            maxResults=min(100, max_comments),
+                            order="relevance",
+                            textFormat="plainText",
+                        )
+                        res = req.execute()
+                        for item in res.get("items", []):
+                            top_comment = item.get("snippet", {}).get("topLevelComment", {}).get("snippet", {})
+                            txt = top_comment.get("textDisplay", "") or ""
+                            if txt:
+                                formatted.append(
+                                    {
+                                        "text": txt,
+                                        "like_count": int(top_comment.get("likeCount", 0) or 0),
+                                        "author": top_comment.get("authorDisplayName", "") or "",
+                                    }
+                                )
+                except Exception:
+                    pass
+
+        return formatted
 
     @staticmethod
     def format_seconds(seconds: float) -> str:
