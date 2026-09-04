@@ -61,46 +61,58 @@ async def stream_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    q = await job_store.get_sse_queue(job_id)
+    q = job_store.subscribe(job_id)
     if not q:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # Transfer any pre-buffered events from _sse_queue into the subscriber queue
+    while not job._sse_queue.empty():
+        try:
+            ev = job._sse_queue.get_nowait()
+            q.put_nowait(ev)
+        except Exception:
+            break
+
     async def event_generator():
-        # Emit current state & past logs immediately
-        init_data = json.dumps({
-            "status": job.status,
-            "progress": job.progress,
-            "current_step": job.current_step,
-            "logs": job.logs,
-            "clips": job.result or [],
-        })
-        yield f"event: init\ndata: {init_data}\n\n"
+        try:
+            # Emit current state & past logs immediately
+            init_data = json.dumps({
+                "status": job.status,
+                "progress": job.progress,
+                "current_step": job.current_step,
+                "logs": job.logs,
+                "clips": job.result or [],
+            })
+            yield f"event: init\ndata: {init_data}\n\n"
 
-        if job.status in ("done", "failed", "cancelled"):
-            if job.status == "done":
-                data = json.dumps({"clips": job.result or [], "count": len(job.result or [])})
-                yield f"event: done\ndata: {data}\n\n"
-            else:
-                data = json.dumps({"message": job.error_msg or "Cancelled"})
-                yield f"event: error\ndata: {data}\n\n"
-            return
+            if job.status in ("done", "failed", "cancelled"):
+                if job.status == "done":
+                    data = json.dumps({"clips": job.result or [], "count": len(job.result or [])})
+                    yield f"event: done\ndata: {data}\n\n"
+                else:
+                    data = json.dumps({"message": job.error_msg or "Cancelled"})
+                    yield f"event: error\ndata: {data}\n\n"
+                return
 
-        while True:
-            try:
-                event = await asyncio.wait_for(q.get(), timeout=30.0)
-                event_type = event["event"]
-                data = json.dumps(event["data"])
-                yield f"event: {event_type}\ndata: {data}\n\n"
-                if event_type in ("done", "error"):
-                    break
-            except asyncio.TimeoutError:
-                yield ": keepalive\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=20.0)
+                    event_type = event["event"]
+                    data = json.dumps(event["data"])
+                    yield f"event: {event_type}\ndata: {data}\n\n"
+                    if event_type in ("done", "error"):
+                        break
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        finally:
+            job_store.unsubscribe(job_id, q)
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
     )

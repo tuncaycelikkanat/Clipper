@@ -8,6 +8,8 @@ export function useSSE(url: string | null, options: {
   onError?: (error: any) => void;
 }) {
   const eventSourceRef = useRef<EventSource | null>(null);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     if (!url) return;
@@ -15,49 +17,42 @@ export function useSSE(url: string | null, options: {
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
-    const handleData = (callback?: (data: any) => void) => (event: MessageEvent) => {
+    const handleData = (eventType: 'init' | 'progress' | 'done' | 'error') => (event: MessageEvent) => {
       try {
         const parsed = JSON.parse(event.data);
-        if (callback) callback(parsed);
+        const cb = optionsRef.current[eventType === 'init' ? 'onInit' : eventType === 'progress' ? 'onProgress' : eventType === 'done' ? 'onDone' : 'onError'];
+        if (cb) cb(parsed);
       } catch (e) {
         console.error('Failed to parse SSE event data', e);
       }
     };
 
-    if (options.onInit) {
-      eventSource.addEventListener('init', handleData(options.onInit));
-    }
-    if (options.onProgress) {
-      eventSource.addEventListener('progress', handleData(options.onProgress));
-    }
-    if (options.onDone) {
-      eventSource.addEventListener('done', handleData(options.onDone));
-    }
-    if (options.onError) {
-      eventSource.addEventListener('error', handleData(options.onError));
-    }
+    eventSource.addEventListener('init', handleData('init'));
+    eventSource.addEventListener('progress', handleData('progress'));
+    eventSource.addEventListener('done', handleData('done'));
+    eventSource.addEventListener('error', handleData('error'));
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'init' && options.onInit) options.onInit(data.data || data);
-        else if (data.type === 'progress' && options.onProgress) options.onProgress(data.data || data);
-        else if (data.type === 'done' && options.onDone) options.onDone(data.data || data);
-        else if (data.type === 'error' && options.onError) options.onError(data.data || data);
+        if (data.type === 'init' && optionsRef.current.onInit) optionsRef.current.onInit(data.data || data);
+        else if (data.type === 'progress' && optionsRef.current.onProgress) optionsRef.current.onProgress(data.data || data);
+        else if (data.type === 'done' && optionsRef.current.onDone) optionsRef.current.onDone(data.data || data);
+        else if (data.type === 'error' && optionsRef.current.onError) optionsRef.current.onError(data.data || data);
       } catch (e) {
         // Heartbeat or raw message
       }
     };
 
     eventSource.onerror = (error) => {
-      // If readyState is closed, trigger error
-      if (eventSource.readyState === EventSource.CLOSED && options.onError) {
-        options.onError({ message: 'Bağlantı kapandı.' });
+      if (eventSource.readyState === EventSource.CLOSED && optionsRef.current.onError) {
+        optionsRef.current.onError({ message: 'Bağlantı kapandı.' });
       }
     };
 
     return () => {
       eventSource.close();
+      eventSourceRef.current = null;
     };
   }, [url]);
 

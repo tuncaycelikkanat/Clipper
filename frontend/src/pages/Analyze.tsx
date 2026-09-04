@@ -126,6 +126,38 @@ export default function Analyze() {
     }
   }, [jobId]);
 
+  // Periodic backup sync polling while running to guarantee real-time UI updates
+  useEffect(() => {
+    if (!jobId || !running) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const job = await api.pipeline.getJob(jobId);
+        if (job) {
+          if (job.progress !== undefined && job.progress > 0) {
+            setProgress((prev) => Math.max(prev, job.progress));
+          }
+          if (job.current_step) setStepMsg(job.current_step);
+          if (job.logs && job.logs.length > 0) setLogs(job.logs);
+          if (job.status === 'done') {
+            setRunning(false);
+            setProgress(100);
+            setCompletedClips(job.result || []);
+            localStorage.removeItem('clipper_active_job_id');
+          } else if (job.status === 'failed') {
+            setRunning(false);
+            setErrorMsg(job.error_msg || 'İşlem başarısız oldu.');
+            localStorage.removeItem('clipper_active_job_id');
+          }
+        }
+      } catch {
+        // Silently ignore poll errors
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [jobId, running]);
+
   // SSE Stream
   const streamUrl = jobId ? api.pipeline.streamUrl(jobId) : null;
   useSSE(streamUrl, {

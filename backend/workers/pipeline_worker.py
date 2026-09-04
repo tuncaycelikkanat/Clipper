@@ -24,23 +24,22 @@ def _map_message_to_step_and_pct(msg: str, target_clips: int) -> tuple[str, int]
 
     if "video bilgileri" in m or "ısı haritası" in m or "indiril" in m:
         return "extract", 15
-    elif "ses analizi" in m or "audio" in m or "dsp" in m or "enerji" in m:
+    elif "ses frekansı" in m or "ses analizi" in m or "audio" in m or "dsp" in m or "enerji" in m or "vokal" in m:
         return "audio", 30
-    elif "potansiyel klip" in m or "aday" in m or "sıralan" in m or "füzyon" in m:
+    elif "potansiyel klip" in m or "aday" in m or "sıralan" in m or "füzyon" in m or "yorum" in m:
         return "rank", 45
-    elif "yapay zeka" in m or "gemini" in m or "değerlendir" in m or "yargı" in m:
+    elif "yapay zeka" in m or "gemini" in m or "değerlendir" in m or "yargı" in m or "llm" in m:
         return "llm", 60
-    elif "sınır" in m or "hizalan" in m or "kapak" in m or "thumbnail" in m or "alignment" in m:
-        return "align", 78
-    elif "dikey formatta" in m or "render" in m or "facecam" in m or "kesil" in m or "whisper" in m or "altyazı" in m:
-        # Check if clip number is mentioned like "Klip #1" or "Klip 1/3"
+    elif "sınır" in m or "hizalan" in m or "kapak" in m or "thumbnail" in m or "alignment" in m or "oyun türü" in m or "yayıncı" in m:
+        return "align", 75
+    elif "dikey" in m or "render" in m or "facecam" in m or "kesil" in m or "whisper" in m or "altyazı" in m or "layout" in m or "başlık" in m:
         clip_match = re.search(r'klip\s*#?(\d+)', m)
         if clip_match:
             c_idx = int(clip_match.group(1))
-            pct = 75 + int((min(c_idx, target_clips) / max(1, target_clips)) * 20)
+            pct = 75 + int((min(c_idx, target_clips) / max(1, target_clips)) * 22)
             return "cut", min(98, pct)
         return "cut", 85
-    elif "tamamlandı" in m or "bitti" in m:
+    elif "tamamlandı" in m or "bitti" in m or "üretildi" in m:
         return "cut", 100
     return "processing", 50
 
@@ -56,6 +55,7 @@ async def run_pipeline_async(
     api_key: Optional[str] = None,
 ) -> None:
     """Launch pipeline in thread pool, stream progress via job_store SSE."""
+    main_loop = asyncio.get_running_loop()
 
     job_store.update(job_id, status="running", progress=5, current_step="🚀 Pipeline başlatılıyor...")
     await job_store.push_sse(job_id, "progress", {"step": "extract", "progress": 5, "message": "🚀 Pipeline başlatılıyor..."})
@@ -64,13 +64,12 @@ async def run_pipeline_async(
         step_name, pct = _map_message_to_step_and_pct(msg, target_clips)
         job_store.update(job_id, progress=pct, current_step=msg)
         try:
-            loop = asyncio.get_event_loop()
             asyncio.run_coroutine_threadsafe(
                 job_store.push_sse(job_id, "progress", {"step": step_name, "progress": pct, "message": msg}),
-                loop,
+                main_loop,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to push SSE progress: {}", exc)
 
     try:
         from core.pipeline import ClipperPipeline
