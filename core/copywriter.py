@@ -4,9 +4,10 @@ core/copywriter.py — Bağımsız Başlık, Açıklama ve Hashtag Üretici Serv
 
 from __future__ import annotations
 
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from loguru import logger
+
 from core.deepseek_engine import DeepSeekEngine
 from core.llm_engine import GeminiHighlightEngine
 
@@ -14,16 +15,16 @@ from core.llm_engine import GeminiHighlightEngine
 class CopywriterEngine:
     """Klipler için viral başlık, insansı açıklama ve hashtag üreten bağımsız servis."""
 
-    def __init__(self, deepseek: Optional[DeepSeekEngine] = None, gemini: Optional[GeminiHighlightEngine] = None) -> None:
+    def __init__(self, deepseek: DeepSeekEngine | None = None, gemini: GeminiHighlightEngine | None = None) -> None:
         self.deepseek = deepseek or DeepSeekEngine()
         self.gemini = gemini or GeminiHighlightEngine()
 
     def generate_shorts_metadata(
         self,
-        clip: Dict[str, Any],
+        clip: dict[str, Any],
         video_title: str = "",
         channel_name: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Klip için başlık, açıklama ve etiketler üretir.
         Önce DeepSeek dener, hata alırsa Gemini veya akıllı şablon kuralına döner.

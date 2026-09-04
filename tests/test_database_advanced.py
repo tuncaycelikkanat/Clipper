@@ -2,9 +2,8 @@
 tests/test_database_advanced.py — Advanced coverage tests for DatabaseManager
 """
 
-import os
-import json
 import pytest
+
 from core.database import DatabaseManager
 
 
@@ -55,7 +54,7 @@ def test_database_autopilot_queue_operations(db):
         thumbnail_path="/fake/thumb.jpg",
         viral_score=95,
         scheduled_at="2026-09-01T12:00:00Z",
-        status="QUEUED"
+        status="QUEUED",
     )
 
     queue = db.get_autopilot_queue()
@@ -79,7 +78,7 @@ def test_database_heatmap_pattern_and_slots(db):
         spike_heatmap_corr=0.85,
         silence_heatmap_corr=0.45,
         peak_ratio=0.15,
-        heatmap_meta={"source": "test"}
+        heatmap_meta={"source": "test"},
     )
     patterns = db.get_videos_with_heatmap_patterns()
     assert len(patterns) >= 1

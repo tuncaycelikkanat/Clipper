@@ -18,17 +18,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
-from loguru import logger
+from google.auth.transport.requests import Request
 
 # Google API imports — installed via pip install google-api-python-client google-auth-oauthlib
 from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-
+from loguru import logger
 
 # OAuth scopes required for uploading videos, setting thumbnails, and managing playlists
 _SCOPES = [
@@ -68,7 +66,7 @@ class YouTubeUploader:
         """
         self.credentials_path = str(Path(credentials_path).resolve())
         self.token_path = str(Path(token_path).resolve())
-        self._credentials: Optional[Credentials] = None
+        self._credentials: Credentials | None = None
 
     # ------------------------------------------------------------------
     # Auth helpers
@@ -103,13 +101,9 @@ class YouTubeUploader:
                                instructions).
         """
         if not os.path.exists(self.credentials_path):
-            raise FileNotFoundError(
-                _SETUP_INSTRUCTIONS.format(path=self.credentials_path)
-            )
+            raise FileNotFoundError(_SETUP_INSTRUCTIONS.format(path=self.credentials_path))
 
-        flow = InstalledAppFlow.from_client_secrets_file(
-            self.credentials_path, _SCOPES
-        )
+        flow = InstalledAppFlow.from_client_secrets_file(self.credentials_path, _SCOPES)
         creds = flow.run_local_server(port=0)
         self._save_token(creds)
         self._credentials = creds
@@ -126,9 +120,7 @@ class YouTubeUploader:
             return self._credentials
         if self.is_authenticated():
             return self._credentials  # type: ignore[return-value]
-        raise RuntimeError(
-            "Not authenticated. Call authenticate() first or check token.json."
-        )
+        raise RuntimeError("Not authenticated. Call authenticate() first or check token.json.")
 
     # ------------------------------------------------------------------
     # Upload
@@ -141,17 +133,23 @@ class YouTubeUploader:
         playlists = []
         next_page = None
         while True:
-            resp = youtube.playlists().list(
-                part="snippet",
-                mine=True,
-                maxResults=50,
-                pageToken=next_page,
-            ).execute()
+            resp = (
+                youtube.playlists()
+                .list(
+                    part="snippet",
+                    mine=True,
+                    maxResults=50,
+                    pageToken=next_page,
+                )
+                .execute()
+            )
             for item in resp.get("items", []):
-                playlists.append({
-                    "id": item["id"],
-                    "title": item["snippet"]["title"],
-                })
+                playlists.append(
+                    {
+                        "id": item["id"],
+                        "title": item["snippet"]["title"],
+                    }
+                )
             next_page = resp.get("nextPageToken")
             if not next_page:
                 break
@@ -180,13 +178,13 @@ class YouTubeUploader:
         video_path: str,
         title: str,
         description: str = "",
-        tags: Optional[list[str]] = None,
-        thumbnail_path: Optional[str] = None,
+        tags: list[str] | None = None,
+        thumbnail_path: str | None = None,
         made_for_kids: bool = False,
         language: str = "tr",
         location_description: str = "Istanbul, Turkey",
-        playlist_id: Optional[str] = None,
-        publish_at: Optional[str] = None,
+        playlist_id: str | None = None,
+        publish_at: str | None = None,
     ) -> dict:
         """
         Upload a video file as a YouTube Short.
@@ -239,7 +237,6 @@ class YouTubeUploader:
             },
         }
 
-
         media = MediaFileUpload(
             video_path,
             mimetype="video/mp4",
@@ -262,9 +259,7 @@ class YouTubeUploader:
                 logger.debug(f"Upload progress: {pct}%")
 
         video_id = response.get("id", "")
-        upload_status = (
-            response.get("status", {}).get("uploadStatus", "unknown")
-        )
+        upload_status = response.get("status", {}).get("uploadStatus", "unknown")
         url = f"https://www.youtube.com/shorts/{video_id}"
         logger.success(f"Upload complete → {url}")
 
@@ -292,7 +287,6 @@ class YouTubeUploader:
             "url": url,
             "status": upload_status,
         }
-
 
     # ------------------------------------------------------------------
     # Helpers
@@ -331,10 +325,9 @@ class YouTubeUploader:
         ]
         return "\n".join(lines)
 
-
-
     def update_video_metadata(self, video_id: str, title: str, description: str, tags: list, category_id: str = "20"):
         from googleapiclient.discovery import build
+
         creds = self._get_credentials()
         if not creds:
             raise Exception("No credentials")
@@ -347,8 +340,8 @@ class YouTubeUploader:
                 "tags": tags,
                 "categoryId": category_id,
                 "defaultLanguage": "tr",
-                "defaultAudioLanguage": "tr"
-            }
+                "defaultAudioLanguage": "tr",
+            },
         }
         res = youtube.videos().update(part="snippet", body=body).execute()
         return res

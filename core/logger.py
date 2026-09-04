@@ -10,6 +10,7 @@ Usage::
 
 import os
 import sys
+
 from loguru import logger as _logger
 
 # ---------------------------------------------------------------------------
@@ -44,17 +45,12 @@ _logger.add(
 _logger.add(
     _LOG_FILE,
     level="DEBUG",
-    rotation="10 MB",       # New file once the current one reaches 10 MB
-    retention="7 days",     # Delete files older than 7 days
-    compression="zip",      # Compress rotated logs
+    rotation="10 MB",  # New file once the current one reaches 10 MB
+    retention="7 days",  # Delete files older than 7 days
+    compression="zip",  # Compress rotated logs
     encoding="utf-8",
-    format=(
-        "{time:YYYY-MM-DD HH:mm:ss} | "
-        "{level: <8} | "
-        "{name}:{function}:{line} — "
-        "{message}"
-    ),
-    enqueue=True,           # Thread-safe async writes
+    format=("{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} — {message}"),
+    enqueue=True,  # Thread-safe async writes
 )
 
 # Public symbol

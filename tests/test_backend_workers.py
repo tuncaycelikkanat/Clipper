@@ -1,13 +1,16 @@
-import asyncio
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from backend.workers.job_store import JobStore, JobState, job_store, _utcnow
+
+from backend.workers.job_store import JobState, JobStore, _utcnow, job_store
 from backend.workers.pipeline_worker import run_pipeline_async
+
 
 def test_utcnow():
     t = _utcnow()
     assert isinstance(t, str)
     assert "T" in t
+
 
 def test_job_state_to_dict():
     job = JobState(id="j1", video_url="http://yt.com/1", status="queued", progress=10)
@@ -16,6 +19,7 @@ def test_job_state_to_dict():
     assert d["video_url"] == "http://yt.com/1"
     assert d["status"] == "queued"
     assert d["progress"] == 10
+
 
 def test_job_store_crud():
     js = JobStore()
@@ -54,6 +58,7 @@ def test_job_store_crud():
     assert js.cancel(job.id) is False
     assert js.cancel("nonexistent") is False
 
+
 @pytest.mark.asyncio
 async def test_job_store_sse():
     js = JobStore()
@@ -70,13 +75,14 @@ async def test_job_store_sse():
     assert await js.get_sse_queue("nonexistent") is None
     await js.push_sse("nonexistent", "ignored", {})
 
+
 @pytest.mark.asyncio
 async def test_pipeline_worker_success():
     js = job_store
     job = js.create("http://yt.com/worker_success")
-    
+
     mock_results = [{"title": "Clip 1", "score": 90}]
-    
+
     def fake_run(**kwargs):
         cb = kwargs.get("progress_callback")
         if cb:
@@ -91,20 +97,21 @@ async def test_pipeline_worker_success():
 
     with patch("core.pipeline.ClipperPipeline.run", side_effect=fake_run):
         await run_pipeline_async(job_id=job.id, url="http://yt.com/worker_success")
-        
+
     updated = js.get(job.id)
     assert updated.status == "done"
     assert updated.progress == 100
     assert updated.result == mock_results
 
+
 @pytest.mark.asyncio
 async def test_pipeline_worker_failure():
     js = job_store
     job = js.create("http://yt.com/worker_failure")
-    
+
     with patch("core.pipeline.ClipperPipeline.run", side_effect=RuntimeError("Pipeline crash")):
         await run_pipeline_async(job_id=job.id, url="http://yt.com/worker_failure")
-        
+
     updated = js.get(job.id)
     assert updated.status == "failed"
     assert "Pipeline crash" in updated.error_msg

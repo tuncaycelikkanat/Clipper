@@ -5,7 +5,6 @@ These types describe the data structures flowing between the pipeline stages:
 extractor → ranker → llm_engine → aligner → cutter.
 """
 
-from typing import Optional
 from typing_extensions import TypedDict
 
 
@@ -18,7 +17,7 @@ class VideoData(TypedDict):
     uploader: str
     duration: int
     duration_formatted: str
-    thumbnail: Optional[str]
+    thumbnail: str | None
     view_count: int
     has_heatmap: bool
     heatmap: list
@@ -68,4 +67,4 @@ class RenderResult(TypedDict):
     render_mode: str
     file_size: int
     success: bool
-    error: Optional[str]
+    error: str | None

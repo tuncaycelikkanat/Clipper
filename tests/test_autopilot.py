@@ -37,6 +37,7 @@ def manager(auto_db):
 # 1. SMART SLOT ALLOCATOR TESTS
 # ===========================================================================
 
+
 def test_compute_next_available_slot_morning(manager):
     """Sabah 10:00 UTC (13:00 TR) öncesinde (örn: 06:00 UTC = 09:00 TR) sıradaki slot 13:00 TR (10:00 UTC) olmalıdır."""
     # 2026-08-23 06:00 UTC -> 09:00 TR
@@ -86,6 +87,7 @@ def test_compute_next_available_slot_chains_after_latest(manager):
 # 2. CHANNEL MANAGEMENT TESTS
 # ===========================================================================
 
+
 def test_add_and_get_tracked_channels(manager, auto_db):
     ch_id = manager.add_channel(
         url="https://youtube.com/@StreamerTest",
@@ -110,6 +112,7 @@ def test_add_and_get_tracked_channels(manager, auto_db):
 # ===========================================================================
 # 3. AUTOPILOT QUEUE DATABASE OPERATIONS
 # ===========================================================================
+
 
 def test_autopilot_queue_persistence_and_status(auto_db):
     auto_db.save_video({"id": "v_queue_01", "title": "Test Video"})
@@ -151,6 +154,7 @@ def test_autopilot_queue_persistence_and_status(auto_db):
 # ===========================================================================
 # 4. AUTOPILOT CYCLE RUNNER & >=90 FILTERING
 # ===========================================================================
+
 
 def test_run_cycle_no_channels(manager):
     res = manager.run_cycle()
@@ -257,9 +261,7 @@ def test_run_cycle_skips_when_no_new_videos(mock_feed, manager, auto_db):
     )
     auto_db.save_video({"id": "already_processed_v1", "title": "Old Video"})
     # Kanalın işlenmiş videoları listesine ekle (anchor tabanlı yeni video tespiti)
-    auto_db.record_processed_video(
-        "https://youtube.com/@Streamer", "already_processed_v1", "Old Video"
-    )
+    auto_db.record_processed_video("https://youtube.com/@Streamer", "already_processed_v1", "Old Video")
     mock_feed.return_value = [{"id": "already_processed_v1", "url": "http://yt.com/1"}]
 
     res = manager.run_cycle()
@@ -296,18 +298,20 @@ def test_run_cycle_upload_error_fallbacks_to_queued(
     with open(fake_render, "w") as f:
         f.write("data")
 
-    mock_pipeline.return_value = [{
-        "clip_id": "c_err",
-        "title": "High score clip",
-        "score": 95,
-        "render_path": fake_render,
-    }]
+    mock_pipeline.return_value = [
+        {
+            "clip_id": "c_err",
+            "title": "High score clip",
+            "score": 95,
+            "render_path": fake_render,
+        }
+    ]
     mock_deepseek.side_effect = Exception("DeepSeek API down")
     mock_is_auth.return_value = True
 
     res_scan = manager.run_cycle()
     assert res_scan["new_videos_found"] == 1
-    
+
     res_proc = manager.process_pending_videos(max_videos=5)
     assert res_proc["processed"] == 1
 
@@ -316,25 +320,42 @@ def test_run_cycle_upload_error_fallbacks_to_queued(
     assert queue[0]["status"] == "QUEUED"  # Stokta kaldı!
 
 
-
 def test_remove_and_refill_gap_shifts_subsequent_items(manager, auto_db):
     auto_db.save_video({"id": "v_gap", "title": "Gap Test Video"})
 
     # 3 video ekle
     q1 = auto_db.add_to_autopilot_queue(
-        video_id="v_gap", clip_id="c1", channel_url="http://yt.com",
-        title="Video 1 (13:00)", render_path="/tmp/1.mp4", thumbnail_path="",
-        viral_score=92, scheduled_at="2026-08-25T10:00:00Z", status="SCHEDULED"
+        video_id="v_gap",
+        clip_id="c1",
+        channel_url="http://yt.com",
+        title="Video 1 (13:00)",
+        render_path="/tmp/1.mp4",
+        thumbnail_path="",
+        viral_score=92,
+        scheduled_at="2026-08-25T10:00:00Z",
+        status="SCHEDULED",
     )
     q2 = auto_db.add_to_autopilot_queue(
-        video_id="v_gap", clip_id="c2", channel_url="http://yt.com",
-        title="Video 2 (18:00)", render_path="/tmp/2.mp4", thumbnail_path="",
-        viral_score=94, scheduled_at="2026-08-25T15:00:00Z", status="SCHEDULED"
+        video_id="v_gap",
+        clip_id="c2",
+        channel_url="http://yt.com",
+        title="Video 2 (18:00)",
+        render_path="/tmp/2.mp4",
+        thumbnail_path="",
+        viral_score=94,
+        scheduled_at="2026-08-25T15:00:00Z",
+        status="SCHEDULED",
     )
     q3 = auto_db.add_to_autopilot_queue(
-        video_id="v_gap", clip_id="c3", channel_url="http://yt.com",
-        title="Video 3 (22:00)", render_path="/tmp/3.mp4", thumbnail_path="",
-        viral_score=96, scheduled_at="2026-08-25T19:00:00Z", status="SCHEDULED"
+        video_id="v_gap",
+        clip_id="c3",
+        channel_url="http://yt.com",
+        title="Video 3 (22:00)",
+        render_path="/tmp/3.mp4",
+        thumbnail_path="",
+        viral_score=96,
+        scheduled_at="2026-08-25T19:00:00Z",
+        status="SCHEDULED",
     )
 
     # 1. videoyu sil -> 2 ve 3 öne kaymalı!
@@ -358,9 +379,15 @@ def test_get_calendar_days_data(manager, auto_db):
     auto_db.save_video({"id": "v_cal", "title": "Cal Test"})
     # Add an item
     auto_db.add_to_autopilot_queue(
-        video_id="v_cal", clip_id="c_cal", channel_url="http://yt.com",
-        title="Today's Video", render_path="/tmp/cal.mp4", thumbnail_path="",
-        viral_score=93, scheduled_at="2026-08-23T10:00:00Z", status="SCHEDULED"
+        video_id="v_cal",
+        clip_id="c_cal",
+        channel_url="http://yt.com",
+        title="Today's Video",
+        render_path="/tmp/cal.mp4",
+        thumbnail_path="",
+        viral_score=93,
+        scheduled_at="2026-08-23T10:00:00Z",
+        status="SCHEDULED",
     )
 
     days = manager.get_calendar_days_data(days_ahead=7)
@@ -400,12 +427,12 @@ def test_publish_due_socials(mock_multi_pub_class, manager, auto_db, tmp_path):
     mock_multi = mock_multi_pub_class.return_value
     mock_multi.publish_clip.return_value = {
         "youtube": {"status": "success", "url": "http://yt.com"},
-        "instagram": {"status": "success", "url": "http://ig.com"}
+        "instagram": {"status": "success", "url": "http://ig.com"},
     }
-    
+
     manager.uploader.is_authenticated = MagicMock(return_value=True)
     manager.instagram.is_authenticated = MagicMock(return_value=True)
-    
+
     # Add dummy queued item with existing render file
     fake_video = tmp_path / "sync_video.mp4"
     fake_video.write_bytes(b"sample_data")
@@ -425,9 +452,11 @@ def test_publish_due_socials(mock_multi_pub_class, manager, auto_db, tmp_path):
 
     count = manager.publish_due_socials()
     assert count == 1
-    
+
     with manager.db._connect() as conn:
-        row = conn.execute("SELECT status, youtube_url, instagram_url FROM autopilot_queue WHERE title='Sync Clip'").fetchone()
+        row = conn.execute(
+            "SELECT status, youtube_url, instagram_url FROM autopilot_queue WHERE title='Sync Clip'"
+        ).fetchone()
         assert row[0] == "PUBLISHED"
         assert row[1] == "http://yt.com"
         assert row[2] == "http://ig.com"

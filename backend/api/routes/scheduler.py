@@ -1,11 +1,17 @@
 """backend/api/routes/scheduler.py — Autopilot daemon control."""
+
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 _R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _R not in sys.path: sys.path.insert(0, _R)
+if _R not in sys.path:
+    sys.path.insert(0, _R)
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+
 from core.autopilot import AutoPilotManager
 
 router = APIRouter(prefix="/scheduler", tags=["scheduler"])

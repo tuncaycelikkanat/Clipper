@@ -18,7 +18,7 @@ Kullanım::
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -29,41 +29,106 @@ from core.logger import logger
 # ---------------------------------------------------------------------------
 # Desteklenen formatlar:
 # 05:32, 5:32, 5.32, 05.32, 1:05:32, 1.05.32, @05:32, (05:32), (5.13), 5m32s, 1h20m10s, 5m 32s, 5 dk 13 sn, 5dk, t=332
-_TS_HHMMSS = re.compile(r'(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})[:.](\d{2})(?:\))?')
-_TS_MMSS = re.compile(r'(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})(?:\))?')
-_TS_LETTER = re.compile(r'(?:@|\b)?(?:(\d{1,2})\s*(?:saat|sa|h)\s*)?(?:(\d{1,3})\s*(?:dakika|dak|dk|d|m)\s*)?(?:(\d{1,2})\s*(?:saniye|san|sn|s))\b', re.IGNORECASE)
-_TS_MINUTES_ONLY = re.compile(r'(?:@|\b)?(\d{1,3})\s*(?:dakika|dak|dk)\b', re.IGNORECASE)
+_TS_HHMMSS = re.compile(r"(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})[:.](\d{2})(?:\))?")
+_TS_MMSS = re.compile(r"(?:@|\b)?(?:\()?(\d{1,2})[:.](\d{2})(?:\))?")
+_TS_LETTER = re.compile(
+    r"(?:@|\b)?(?:(\d{1,2})\s*(?:saat|sa|h)\s*)?(?:(\d{1,3})\s*(?:dakika|dak|dk|d|m)\s*)?(?:(\d{1,2})\s*(?:saniye|san|sn|s))\b",
+    re.IGNORECASE,
+)
+_TS_MINUTES_ONLY = re.compile(r"(?:@|\b)?(\d{1,3})\s*(?:dakika|dak|dk)\b", re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
 # Reaksiyon / Duygu Sözlükleri
 # ---------------------------------------------------------------------------
-_REACTION_KEYWORDS: Dict[str, List[str]] = {
+_REACTION_KEYWORDS: dict[str, list[str]] = {
     "FUNNY": [
-        "😂", "🤣", "xd", "koptum", "gümledim", "yarıldım", "hahaha", "asdf",
-        "komik", "lmao", "lol", "patladım", "ahahaha", "sjsj", "kahkaha",
-        "öldüm", "yarıl", "güldüm", "ağladım gülmekten", "hoca", "jshs", "sksk"
+        "😂",
+        "🤣",
+        "xd",
+        "koptum",
+        "gümledim",
+        "yarıldım",
+        "hahaha",
+        "asdf",
+        "komik",
+        "lmao",
+        "lol",
+        "patladım",
+        "ahahaha",
+        "sjsj",
+        "kahkaha",
+        "öldüm",
+        "yarıl",
+        "güldüm",
+        "ağladım gülmekten",
+        "hoca",
+        "jshs",
+        "sksk",
     ],
     "EPIC": [
-        "🔥", "goat", "efsane", "mükemmel", "harika", "god mode", "kral",
-        "epic", "inanılmaz", "vuruş", "clutch", "headshot", "rekor", "şov",
-        "helal", "pro", "carry", "akıyor"
+        "🔥",
+        "goat",
+        "efsane",
+        "mükemmel",
+        "harika",
+        "god mode",
+        "kral",
+        "epic",
+        "inanılmaz",
+        "vuruş",
+        "clutch",
+        "headshot",
+        "rekor",
+        "şov",
+        "helal",
+        "pro",
+        "carry",
+        "akıyor",
     ],
     "JUMPSCARE": [
-        "😱", "korktum", "altıma", "jumpscare", "kalbim", "yüreğim", "ağzıma",
-        "scary", "korku", "çığlık", "titredim", "zıplattı"
+        "😱",
+        "korktum",
+        "altıma",
+        "jumpscare",
+        "kalbim",
+        "yüreğim",
+        "ağzıma",
+        "scary",
+        "korku",
+        "çığlık",
+        "titredim",
+        "zıplattı",
     ],
     "RAGE": [
-        "🤬", "rage", "çıldırdı", "delirdi", "sinir", "masayı", "kırdı",
-        "küfür", "tilt", "çıldırtan", "kansere", "çıldırma"
+        "🤬",
+        "rage",
+        "çıldırdı",
+        "delirdi",
+        "sinir",
+        "masayı",
+        "kırdı",
+        "küfür",
+        "tilt",
+        "çıldırtan",
+        "kansere",
+        "çıldırma",
     ],
     "FAIL": [
-        "💀", "fail", "yazık", "rezil", "olamaz", "öldü", "patladı", "gg",
-        "rip", "beceremedi", "fiyasko", "hata", "yazık kafana"
+        "💀",
+        "fail",
+        "yazık",
+        "rezil",
+        "olamaz",
+        "öldü",
+        "patladı",
+        "gg",
+        "rip",
+        "beceremedi",
+        "fiyasko",
+        "hata",
+        "yazık kafana",
     ],
-    "WTF": [
-        "🤨", "😳", "wtf", "noldu", "nasıl", "ne alaka", "oha", "yuh",
-        "çüş", "ne yaptı", "mantıksız", "bu ne"
-    ]
+    "WTF": ["🤨", "😳", "wtf", "noldu", "nasıl", "ne alaka", "oha", "yuh", "çüş", "ne yaptı", "mantıksız", "bu ne"],
 }
 
 
@@ -77,12 +142,12 @@ class CommentMiner:
     # Public API
     # ------------------------------------------------------------------
 
-    def extract_timestamps_from_text(self, text: str) -> List[float]:
+    def extract_timestamps_from_text(self, text: str) -> list[float]:
         """Bir yorum metnindeki tüm timestamp'leri saniye cinsinden döner."""
         if not text:
             return []
 
-        seconds_list: List[float] = []
+        seconds_list: list[float] = []
 
         # 1. HH:MM:SS veya HH.MM.SS (Örn: 01:05:32 veya 1.05.32)
         for match in _TS_HHMMSS.finditer(text):
@@ -130,7 +195,7 @@ class CommentMiner:
             return "GENERAL"
 
         lower_text = text.lower()
-        reaction_scores: Dict[str, int] = {k: 0 for k in _REACTION_KEYWORDS}
+        reaction_scores: dict[str, int] = {k: 0 for k in _REACTION_KEYWORDS}
 
         for reaction, keywords in _REACTION_KEYWORDS.items():
             for kw in keywords:
@@ -144,10 +209,10 @@ class CommentMiner:
 
     def process_comments(
         self,
-        comments: List[Dict[str, Any]],
+        comments: list[dict[str, Any]],
         total_duration: float,
-        timeline_times: Optional[np.ndarray] = None,
-    ) -> Dict[str, Any]:
+        timeline_times: np.ndarray | None = None,
+    ) -> dict[str, Any]:
         """
         Ham yorum listesini işler:
         - Timestamp içeren yorumları gruplar
@@ -173,7 +238,7 @@ class CommentMiner:
                 "total_timestamps_found": 0,
             }
 
-        extracted_events: List[Dict[str, Any]] = []
+        extracted_events: list[dict[str, Any]] = []
 
         for c in comments:
             if isinstance(c, dict):
@@ -193,12 +258,14 @@ class CommentMiner:
 
             for ts in ts_list:
                 if 0 <= ts <= total_duration:
-                    extracted_events.append({
-                        "time": ts,
-                        "weight": weight,
-                        "reaction": reaction,
-                        "text": text.strip()[:120],
-                    })
+                    extracted_events.append(
+                        {
+                            "time": ts,
+                            "weight": weight,
+                            "reaction": reaction,
+                            "text": text.strip()[:120],
+                        }
+                    )
 
         if not extracted_events:
             n_pts = len(timeline_times) if timeline_times is not None else 0
@@ -219,7 +286,9 @@ class CommentMiner:
 
         logger.info(
             "CommentMiner: {} yorumdan {} timestamp ayıklandı, {} küme oluşturuldu.",
-            len(comments), len(extracted_events), len(clusters)
+            len(comments),
+            len(extracted_events),
+            len(clusters),
         )
 
         return {
@@ -232,12 +301,10 @@ class CommentMiner:
     # Internal Helpers
     # ------------------------------------------------------------------
 
-    def _cluster_timestamp_events(
-        self, events: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _cluster_timestamp_events(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Zaman olarak yakın timestamp olaylarını birleştirir."""
         events.sort(key=lambda x: x["time"])
-        clusters: List[Dict[str, Any]] = []
+        clusters: list[dict[str, Any]] = []
 
         for ev in events:
             t = ev["time"]
@@ -260,13 +327,15 @@ class CommentMiner:
                     break
 
             if not merged:
-                clusters.append({
-                    "time": t,
-                    "weight": w,
-                    "count": 1,
-                    "reactions": {r: 1},
-                    "samples": [txt],
-                })
+                clusters.append(
+                    {
+                        "time": t,
+                        "weight": w,
+                        "count": 1,
+                        "reactions": {r: 1},
+                        "samples": [txt],
+                    }
+                )
 
         # Baskın reaksiyonu ve nihai skorları hesapla
         for cl in clusters:
@@ -279,7 +348,7 @@ class CommentMiner:
 
     def _generate_density_curve(
         self,
-        clusters: List[Dict[str, Any]],
+        clusters: list[dict[str, Any]],
         timeline_times: np.ndarray,
         total_duration: float,
         sigma: float = 8.0,

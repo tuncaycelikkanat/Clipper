@@ -7,12 +7,11 @@ kill feed, zafer/yenilgi ekranı, ani parlama, köklü sahne değişimi.
 
 Sinyal formatı: audio_spikes ile aynı — (times_array, scores_array) [0-1 normalize].
 """
+
 from __future__ import annotations
 
 import subprocess
 import tempfile
-import os
-from typing import Tuple, Optional
 
 import numpy as np
 
@@ -29,7 +28,7 @@ class VisualDSPAnalyzer:
         fps: float = 1.0,
         scale: str = "160:90",
         spike_window_sec: float = 2.0,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Videodan düşük çözünürlüklü kareler çekerek frame-to-frame piksel farklarını hesaplar.
 
@@ -51,25 +50,34 @@ class VisualDSPAnalyzer:
         if url.startswith("http://") or url.startswith("https://"):
             try:
                 from core.audio_dsp import AudioDSPAnalyzer
+
                 input_source = AudioDSPAnalyzer._get_stream_url(url)
             except Exception as e:
                 logger.debug("VisualDSP stream URL resolution failed, trying direct: {}", e)
                 input_source = url
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory():
             # FFmpeg ile gri tonlamalı küçük kareler çıkar — pipe üzerinden numpy'a al
             cmd = [
                 "ffmpeg",
-                "-reconnect", "1",
-                "-reconnect_at_eof", "1",
-                "-reconnect_streamed", "1",
-                "-i", input_source,
-                "-vf", f"fps={fps},scale={scale},format=gray",
-                "-f", "rawvideo",
-                "-pix_fmt", "gray",
+                "-reconnect",
+                "1",
+                "-reconnect_at_eof",
+                "1",
+                "-reconnect_streamed",
+                "1",
+                "-i",
+                input_source,
+                "-vf",
+                f"fps={fps},scale={scale},format=gray",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
                 "-an",
-                "-v", "quiet",
-                "-"
+                "-v",
+                "quiet",
+                "-",
             ]
             try:
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -102,8 +110,8 @@ class VisualDSPAnalyzer:
         if n_frames < 2:
             return np.array([]), np.array([])
 
-        frames = np.frombuffer(raw_frames[: n_frames * frame_size], dtype=np.uint8)
-        frames = frames.reshape(n_frames, H, W).astype(np.float32) / 255.0
+        raw_arr = np.frombuffer(raw_frames[: n_frames * frame_size], dtype=np.uint8)
+        frames = raw_arr.reshape(n_frames, H, W).astype(np.float32) / 255.0
 
         hop_sec = 1.0 / fps
         times = np.array([i * hop_sec for i in range(n_frames)], dtype=np.float32)
@@ -118,7 +126,7 @@ class VisualDSPAnalyzer:
         smoothed = np.zeros_like(diffs)
         for i in range(len(diffs)):
             lo = max(0, i - win)
-            smoothed[i] = diffs[lo: i + 1].max()
+            smoothed[i] = diffs[lo : i + 1].max()
 
         # 0-1 normalize
         mx = smoothed.max()

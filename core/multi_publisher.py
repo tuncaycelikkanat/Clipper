@@ -8,15 +8,15 @@ Handles platform-specific copywriting adaptations and status reporting.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
+from core.database import DatabaseManager
+from core.deepseek_engine import DeepSeekEngine
 from core.instagram_uploader import InstagramUploader
 from core.notifier import Notifier
 from core.uploader import YouTubeUploader
-from core.deepseek_engine import DeepSeekEngine
-from core.database import DatabaseManager
 
 
 class MultiPublisher:
@@ -24,17 +24,17 @@ class MultiPublisher:
 
     def __init__(
         self,
-        youtube_uploader: Optional[YouTubeUploader] = None,
-        instagram_uploader: Optional[InstagramUploader] = None,
-        notifier: Optional[Notifier] = None,
-        db: Optional[DatabaseManager] = None,
+        youtube_uploader: YouTubeUploader | None = None,
+        instagram_uploader: InstagramUploader | None = None,
+        notifier: Notifier | None = None,
+        db: DatabaseManager | None = None,
     ) -> None:
         self.youtube = youtube_uploader or YouTubeUploader()
         self.instagram = instagram_uploader or InstagramUploader()
         self.notifier = notifier or Notifier()
         self.db = db or DatabaseManager()
 
-    def get_auth_status(self) -> Dict[str, bool]:
+    def get_auth_status(self) -> dict[str, bool]:
         """Return authentication status for all supported platforms."""
         return {
             "youtube": self.youtube.is_authenticated(),
@@ -43,17 +43,17 @@ class MultiPublisher:
 
     def publish_clip(
         self,
-        clip: Dict[str, Any],
+        clip: dict[str, Any],
         render_path: str,
-        thumbnail_path: Optional[str] = None,
-        platforms: Optional[List[str]] = None,
+        thumbnail_path: str | None = None,
+        platforms: list[str] | None = None,
         video_title: str = "",
-        scheduled_at: Optional[str] = None,
-        playlist_id: Optional[str] = None,
-        description_override: Optional[str] = None,
-        source_video_id: Optional[str] = None,
-        source_video_url: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        scheduled_at: str | None = None,
+        playlist_id: str | None = None,
+        description_override: str | None = None,
+        source_video_id: str | None = None,
+        source_video_url: str | None = None,
+    ) -> dict[str, Any]:
         """
         Publish a rendered clip to selected platforms (YouTube Shorts, Instagram Reels, TikTok).
 
@@ -70,7 +70,7 @@ class MultiPublisher:
             Dict mapping platform name to result dict {"status": "success"/"failed", "url": ..., "error": ...}.
         """
         target_platforms = [p.lower().strip() for p in (platforms or ["youtube"])]
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
 
         if not os.path.exists(render_path):
             raise FileNotFoundError(f"Render dosyası bulunamadı: {render_path}")
@@ -79,7 +79,7 @@ class MultiPublisher:
         if "youtube" in target_platforms:
             if self.youtube.is_authenticated():
                 try:
- # --- DEEPSEEK SEO METADATA ENTEGRASYONU ---
+                    # --- DEEPSEEK SEO METADATA ENTEGRASYONU ---
                     # Kuyrukta daha önce üretilmiş başlık/açıklama varsa
                     # (run_cycle içinde DeepSeek ile üretilip orijinal link eklenmiş)
                     # tekrar API çağrısı yapmadan onları kullan.
@@ -101,6 +101,7 @@ class MultiPublisher:
                                     v_data = self.db.get_video(vid_id_for_tags)
                                     if v_data and v_data.get("tags"):
                                         import json
+
                                         orig_tags_list = json.loads(v_data["tags"])
                                 except Exception as e:
                                     logger.debug("Could not fetch original tags for {}: {}", vid_id_for_tags, e)
@@ -110,7 +111,7 @@ class MultiPublisher:
                                 hook_caption=clip.get("hook_caption", ""),
                                 category=clip.get("category", "GAMING"),
                                 video_title=video_title,
-                                original_tags=orig_tags_list
+                                original_tags=orig_tags_list,
                             )
                             title = seo_data.get("title", f"{clip.get('title')} #Shorts")
                             desc = seo_data.get("description", YouTubeUploader.generate_description(clip, video_title))
@@ -133,7 +134,6 @@ class MultiPublisher:
                         link_text = f"\n\n🎬 Orijinal Video: {video_title}\n🔗 İzle: {orig_link}"
                         desc = f"{desc}{link_text}"
                     # ----------------------------------------------------
-
 
                     yt_res = self.youtube.upload_short(
                         video_path=render_path,
@@ -180,6 +180,5 @@ class MultiPublisher:
                     results["instagram"] = {"status": "failed", "error": str(exc)}
             else:
                 results["instagram"] = {"status": "skipped", "error": "Instagram oturumu açık değil."}
-
 
         return results

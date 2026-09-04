@@ -5,30 +5,28 @@ Pytest tests for core/subtitles.py — both generate_ass_file and generate_ass_f
 
 import os
 import re
-import tempfile
-import pytest
 
 from core.subtitles import SubtitleGenerator
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_dialogue_lines(ass_content: str):
     """Return a list of parsed Dialogue tuples (start_sec, end_sec, text)."""
-    pattern = re.compile(
-        r"^Dialogue:\s*\d+,(\d+:\d+:\d+\.\d+),(\d+:\d+:\d+\.\d+),.+?,,\d+,\d+,\d+,,(.*)$"
-    )
+    pattern = re.compile(r"^Dialogue:\s*\d+,(\d+:\d+:\d+\.\d+),(\d+:\d+:\d+\.\d+),.+?,,\d+,\d+,\d+,,(.*)$")
     results = []
     for line in ass_content.splitlines():
         m = pattern.match(line.strip())
         if m:
-            results.append((
-                _ass_time_to_sec(m.group(1)),
-                _ass_time_to_sec(m.group(2)),
-                m.group(3),
-            ))
+            results.append(
+                (
+                    _ass_time_to_sec(m.group(1)),
+                    _ass_time_to_sec(m.group(2)),
+                    m.group(3),
+                )
+            )
     return results
 
 
@@ -42,6 +40,7 @@ def _ass_time_to_sec(ts: str) -> float:
 # ---------------------------------------------------------------------------
 # generate_ass_file tests
 # ---------------------------------------------------------------------------
+
 
 class TestGenerateAssFile:
     """Tests for SubtitleGenerator.generate_ass_file (YouTube ASR path)."""
@@ -75,8 +74,8 @@ class TestGenerateAssFile:
         out = str(tmp_path / "no_overlap.ass")
         # Use segments that overlap in absolute time to stress the de-overlap logic
         overlapping_segs = [
-            {"start": 5.0,  "end": 9.0,  "text": "Word one two"},
-            {"start": 7.0,  "end": 11.0, "text": "three four five"},  # overlaps prev
+            {"start": 5.0, "end": 9.0, "text": "Word one two"},
+            {"start": 7.0, "end": 11.0, "text": "three four five"},  # overlaps prev
             {"start": 10.0, "end": 13.0, "text": "six seven"},
         ]
         SubtitleGenerator.generate_ass_file(
@@ -121,6 +120,7 @@ class TestGenerateAssFile:
 # generate_ass_from_words tests
 # ---------------------------------------------------------------------------
 
+
 class TestGenerateAssFromWords:
     """Tests for SubtitleGenerator.generate_ass_from_words (Whisper path)."""
 
@@ -130,14 +130,14 @@ class TestGenerateAssFromWords:
         8 words spanning 2.0–4.0 s → 3 batches: [3, 3, 2].
         """
         return [
-            {"word": "Merhaba",  "start": 2.0,  "end": 2.4},
-            {"word": "dünya",    "start": 2.4,  "end": 2.7},
-            {"word": "nasılsın", "start": 2.7,  "end": 3.1},
-            {"word": "iyi",      "start": 3.1,  "end": 3.3},
-            {"word": "misin",    "start": 3.3,  "end": 3.6},
-            {"word": "bugün",    "start": 3.6,  "end": 3.8},
-            {"word": "hava",     "start": 3.8,  "end": 3.9},
-            {"word": "güzel",    "start": 3.9,  "end": 4.0},
+            {"word": "Merhaba", "start": 2.0, "end": 2.4},
+            {"word": "dünya", "start": 2.4, "end": 2.7},
+            {"word": "nasılsın", "start": 2.7, "end": 3.1},
+            {"word": "iyi", "start": 3.1, "end": 3.3},
+            {"word": "misin", "start": 3.3, "end": 3.6},
+            {"word": "bugün", "start": 3.6, "end": 3.8},
+            {"word": "hava", "start": 3.8, "end": 3.9},
+            {"word": "güzel", "start": 3.9, "end": 4.0},
         ]
 
     def test_generate_ass_from_words_exact_timing(self, tmp_path):
@@ -196,9 +196,7 @@ class TestGenerateAssFromWords:
         for _s, _e, text in dialogues:
             clean_text = ass_tag_re.sub("", text).strip()
             word_count = len(clean_text.split())
-            assert word_count <= 3, (
-                f"Batch has more than 3 words ({word_count}): '{clean_text}'"
-            )
+            assert word_count <= 3, f"Batch has more than 3 words ({word_count}): '{clean_text}'"
 
     def test_generate_ass_from_words_creates_file(self, tmp_path):
         """Output file must exist and be non-empty."""
@@ -250,11 +248,12 @@ class TestGenerateAssFromWords:
         dialogues = _parse_dialogue_lines(content)
         assert len(dialogues) == 0
 
+
 def test_generate_ass_file_edge_cases(tmp_path):
     out = str(tmp_path / "edge.ass")
     segs = [
         {"start": 10.0, "end": 10.0, "text": "zero dur"},
-        {"start": 11.0, "end": 12.0, "text": "   "}, # empty text
+        {"start": 11.0, "end": 12.0, "text": "   "},  # empty text
     ]
     SubtitleGenerator.generate_ass_file(
         transcript_segments=segs,
@@ -263,6 +262,7 @@ def test_generate_ass_file_edge_cases(tmp_path):
         output_path=out,
     )
     assert os.path.exists(out)
+
 
 def test_generate_ass_from_words_edge_cases(tmp_path):
     out = str(tmp_path / "edge_words.ass")

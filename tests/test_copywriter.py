@@ -3,7 +3,7 @@ tests/test_copywriter.py — Tests for CopywriterEngine
 """
 
 from unittest.mock import MagicMock
-import pytest
+
 from core.copywriter import CopywriterEngine
 
 

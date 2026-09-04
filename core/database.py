@@ -16,12 +16,13 @@ Usage::
     db.save_video(video_data)
 """
 
+import contextlib
 import json
 import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.logger import logger
 
@@ -37,7 +38,7 @@ def _utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _json_dump(value: Any) -> Optional[str]:
+def _json_dump(value: Any) -> str | None:
     """Serialize *value* to a JSON string for storage in TEXT columns.
 
     ``None`` is passed through untouched; lists/dicts are JSON-encoded so
@@ -222,11 +223,8 @@ class DatabaseManager:
                 "ALTER TABLE clips ADD COLUMN score_band TEXT;",
                 "ALTER TABLE clips ADD COLUMN rationale TEXT;",
             ):
-                try:
+                with contextlib.suppress(Exception):
                     conn.execute(col_sql)
-                except Exception:
-                    # Sütun zaten varsa yok say
-                    pass
             conn.commit()
         logger.info("Database initialised at {}", self.db_path)
 
@@ -237,22 +235,18 @@ class DatabaseManager:
     def video_exists(self, video_id: str) -> bool:
         """Return True if *video_id* is in the videos table."""
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT 1 FROM videos WHERE id = ?;", (video_id,)
-            ).fetchone()
+            row = conn.execute("SELECT 1 FROM videos WHERE id = ?;", (video_id,)).fetchone()
             return row is not None
 
-    def get_video(self, video_id: str) -> Optional[Dict[str, Any]]:
+    def get_video(self, video_id: str) -> dict[str, Any] | None:
         """Return video metadata if it exists, otherwise None."""
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM videos WHERE id = ?;", (video_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM videos WHERE id = ?;", (video_id,)).fetchone()
             if row:
                 return dict(row)
             return None
 
-    def save_video(self, video_data: Dict[str, Any]) -> str:
+    def save_video(self, video_data: dict[str, Any]) -> str:
         """Upsert a video record.
 
         Args:
@@ -280,7 +274,7 @@ class DatabaseManager:
                 tags         = excluded.tags,
                 description  = excluded.description;
         """
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "id": vid_id,
             "url": video_data.get("url", ""),
             "title": video_data.get("title", ""),
@@ -290,8 +284,8 @@ class DatabaseManager:
             "has_heatmap": 1 if video_data.get("has_heatmap") else 0,
             "processed_at": video_data.get("processed_at", _utcnow()),
             "status": video_data.get("status", "pending"),
-            "tags": _json_dump(video_data.get("tags", None)),
-            "description": video_data.get("description", None),
+            "tags": _json_dump(video_data.get("tags")),
+            "description": video_data.get("description"),
         }
         with self._connect() as conn:
             conn.execute(sql, params)
@@ -299,12 +293,10 @@ class DatabaseManager:
         logger.debug("Upserted video id={}", vid_id)
         return vid_id
 
-    def get_unprocessed_videos(self) -> List[Dict[str, Any]]:
+    def get_unprocessed_videos(self) -> list[dict[str, Any]]:
         """Return all video rows whose status is ``'pending'``."""
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM videos WHERE status = 'pending';"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM videos WHERE status = 'pending';").fetchall()
         return [dict(r) for r in rows]
 
     def mark_video_done(self, video_id: str) -> None:
@@ -325,7 +317,7 @@ class DatabaseManager:
     # Clip operations
     # ------------------------------------------------------------------
 
-    def save_clips(self, video_id: str, clips: List[Dict[str, Any]]) -> List[str]:
+    def save_clips(self, video_id: str, clips: list[dict[str, Any]]) -> list[str]:
         """Bulk-insert clips linked to *video_id*.
 
         Existing rows are skipped (INSERT OR IGNORE) to avoid duplicates
@@ -350,14 +342,14 @@ class DatabaseManager:
                  :viral_confidence, :render_path, :created_at,
                  :description, :tags, :thumbnail_path, :score_band, :rationale);
         """
-        inserted_ids: List[str] = []
+        inserted_ids: list[str] = []
         with self._connect() as conn:
             for clip in clips:
                 rank = clip.get("rank", 0)
                 clip_id = f"{video_id}_clip_{rank}"
                 # Store the id back into the clip dict so the caller can use it
                 clip["id"] = clip_id
-                params: Dict[str, Any] = {
+                params: dict[str, Any] = {
                     "id": clip_id,
                     "video_id": video_id,
                     "rank": clip.get("rank", 0),
@@ -383,7 +375,7 @@ class DatabaseManager:
         logger.info("Saved {} clips for video {}", len(inserted_ids), video_id)
         return inserted_ids
 
-    def get_clips_for_video(self, video_id: str) -> List[Dict[str, Any]]:
+    def get_clips_for_video(self, video_id: str) -> list[dict[str, Any]]:
         """Return all clip rows for *video_id*, ordered by rank.
 
         Args:
@@ -436,16 +428,14 @@ class DatabaseManager:
                 (file_path, render_mode, clip_id),
             )
             conn.commit()
-        logger.debug(
-            "Saved render id={} clip_id={} path={}", render_id, clip_id, file_path
-        )
+        logger.debug("Saved render id={} clip_id={} path={}", render_id, clip_id, file_path)
         return render_id
 
     # ------------------------------------------------------------------
     # Channel operations
     # ------------------------------------------------------------------
 
-    def save_channel(self, channel_data: Dict[str, Any]) -> str:
+    def save_channel(self, channel_data: dict[str, Any]) -> str:
         """Upsert a channel record.
 
         Args:
@@ -469,7 +459,7 @@ class DatabaseManager:
                 last_checked = excluded.last_checked,
                 dna_json     = excluded.dna_json;
         """
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "id": chan_id,
             "url": channel_data.get("url", ""),
             "name": channel_data.get("name", ""),
@@ -482,7 +472,7 @@ class DatabaseManager:
         logger.debug("Upserted channel id={}", chan_id)
         return chan_id
 
-    def get_channel(self, channel_id_or_name: str) -> Optional[Dict[str, Any]]:
+    def get_channel(self, channel_id_or_name: str) -> dict[str, Any] | None:
         """Return channel metadata by id or name if it exists, otherwise None."""
         with self._connect() as conn:
             row = conn.execute(
@@ -493,7 +483,7 @@ class DatabaseManager:
                 return dict(row)
             return None
 
-    def get_channel_clips(self, channel_name_or_uploader: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_channel_clips(self, channel_name_or_uploader: str, limit: int = 50) -> list[dict[str, Any]]:
         """
         Return past clips for a given channel / uploader by joining videos and clips tables.
         """
@@ -512,7 +502,6 @@ class DatabaseManager:
             ).fetchall()
         return [dict(r) for r in rows]
 
-
     def save_heatmap_pattern(
         self,
         video_id: str,
@@ -520,7 +509,7 @@ class DatabaseManager:
         spike_heatmap_corr: float,
         silence_heatmap_corr: float,
         peak_ratio: float,
-        heatmap_meta: Optional[Dict[str, Any]] = None,
+        heatmap_meta: dict[str, Any] | None = None,
     ) -> None:
         """
         Bir videonun ses→heatmap korelasyon verilerini saklar.
@@ -551,15 +540,12 @@ class DatabaseManager:
         with self._connect() as conn:
             conn.execute(
                 sql,
-                (video_id, channel_id, spike_heatmap_corr,
-                 silence_heatmap_corr, peak_ratio, meta_json, _utcnow()),
+                (video_id, channel_id, spike_heatmap_corr, silence_heatmap_corr, peak_ratio, meta_json, _utcnow()),
             )
             conn.commit()
         logger.debug("Saved heatmap pattern for video {}", video_id)
 
-    def get_videos_with_heatmap_patterns(
-        self, channel_id: Optional[str] = None, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    def get_videos_with_heatmap_patterns(self, channel_id: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
         """
         Geçmiş heatmap korelasyon kayıtlarını döner.
         HeatmapPredictor model öğrenmesi için kullanır.
@@ -595,7 +581,7 @@ class DatabaseManager:
         url: str,
         name: str,
         min_score: int = 90,
-        target_playlist: Optional[str] = None,
+        target_playlist: str | None = None,
         auto_upload: int = 1,
     ) -> str:
         """Kanalı otomatik takip listesine ekler veya günceller."""
@@ -614,14 +600,13 @@ class DatabaseManager:
         with self._connect() as conn:
             conn.execute(
                 sql,
-                (channel_id, url.strip(), name.strip(), int(min_score),
-                 target_playlist, int(auto_upload), _utcnow()),
+                (channel_id, url.strip(), name.strip(), int(min_score), target_playlist, int(auto_upload), _utcnow()),
             )
             conn.commit()
         logger.info("Tracked channel added/updated: {} ({})", name, url)
         return channel_id
 
-    def get_tracked_channels(self, active_only: bool = True) -> List[Dict[str, Any]]:
+    def get_tracked_channels(self, active_only: bool = True) -> list[dict[str, Any]]:
         """Takip edilen kanalları listeler."""
         sql = "SELECT * FROM tracked_channels"
         if active_only:
@@ -685,7 +670,7 @@ class DatabaseManager:
             ).fetchone()
         return row is not None
 
-    def get_last_processed_video_id(self, channel_url: str) -> Optional[str]:
+    def get_last_processed_video_id(self, channel_url: str) -> str | None:
         """Bu kanal için en son işlenmiş video ID'sini (çapa) döner, yoksa None."""
         with self._connect() as conn:
             row = conn.execute(
@@ -698,16 +683,16 @@ class DatabaseManager:
     def add_to_autopilot_queue(
         self,
         video_id: str,
-        clip_id: Optional[str],
+        clip_id: str | None,
         channel_url: str,
         title: str,
         render_path: str,
-        thumbnail_path: Optional[str],
+        thumbnail_path: str | None,
         viral_score: int,
         scheduled_at: str,
         status: str = "QUEUED",
-        youtube_url: Optional[str] = None,
-        description: Optional[str] = None,
+        youtube_url: str | None = None,
+        description: str | None = None,
     ) -> str:
         """Zamanlanmış veya stoklanmış klibi autopilot kuyruğuna kaydeder."""
         queue_id = str(uuid.uuid4())
@@ -720,15 +705,27 @@ class DatabaseManager:
         with self._connect() as conn:
             conn.execute(
                 sql,
-                (queue_id, video_id, clip_id, channel_url, title, render_path,
-                 thumbnail_path, int(viral_score), scheduled_at, status, youtube_url,
-                 description, _utcnow()),
+                (
+                    queue_id,
+                    video_id,
+                    clip_id,
+                    channel_url,
+                    title,
+                    render_path,
+                    thumbnail_path,
+                    int(viral_score),
+                    scheduled_at,
+                    status,
+                    youtube_url,
+                    description,
+                    _utcnow(),
+                ),
             )
             conn.commit()
         logger.info("Added to autopilot queue id={} score={} scheduled_at={}", queue_id, viral_score, scheduled_at)
         return queue_id
 
-    def get_autopilot_queue(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_autopilot_queue(self, limit: int = 50) -> list[dict[str, Any]]:
         """Autopilot kuyruğundaki tüm klipleri tarih sırasıyla listeler."""
         sql = "SELECT * FROM autopilot_queue ORDER BY scheduled_at DESC LIMIT ?;"
         with self._connect() as conn:
@@ -739,8 +736,8 @@ class DatabaseManager:
         self,
         queue_id: str,
         status: str,
-        youtube_url: Optional[str] = None,
-        error_msg: Optional[str] = None,
+        youtube_url: str | None = None,
+        error_msg: str | None = None,
     ) -> None:
         """Kuyruk öğesinin durumunu günceller."""
         sql = """
@@ -753,7 +750,7 @@ class DatabaseManager:
             conn.commit()
         logger.debug("Updated autopilot queue {} status={}", queue_id, status)
 
-    def get_latest_scheduled_time(self) -> Optional[str]:
+    def get_latest_scheduled_time(self) -> str | None:
         """Kuyrukta en ileri tarihe planlanmış klibin ISO tarihini döner."""
         sql = "SELECT scheduled_at FROM autopilot_queue WHERE status IN ('QUEUED', 'SCHEDULED') ORDER BY scheduled_at DESC LIMIT 1;"
         with self._connect() as conn:
@@ -761,7 +758,6 @@ class DatabaseManager:
         return row["scheduled_at"] if row else None
 
     def delete_from_autopilot_queue(self, queue_id: str) -> None:
-
         """Kuyruk öğesini veritabanından siler."""
         sql = "DELETE FROM autopilot_queue WHERE id = ?;"
         with self._connect() as conn:
@@ -777,7 +773,7 @@ class DatabaseManager:
             conn.commit()
         logger.debug("Updated autopilot queue {} scheduled_at={}", queue_id, scheduled_at)
 
-    def get_all_active_scheduled_queue(self) -> List[Dict[str, Any]]:
+    def get_all_active_scheduled_queue(self) -> list[dict[str, Any]]:
         """Planlanmış ve stoktaki tüm klipleri kronolojik sırayla döner."""
         sql = "SELECT * FROM autopilot_queue WHERE status IN ('QUEUED', 'SCHEDULED') ORDER BY scheduled_at ASC;"
         with self._connect() as conn:
@@ -805,7 +801,7 @@ class DatabaseManager:
     # Targeted cleanup (keep planned schedule, re-anchor published videos)
     # ------------------------------------------------------------------
 
-    def cleanup_keep_planned(self, tz_offset_hours: int = 3) -> Dict[str, Any]:
+    def cleanup_keep_planned(self, tz_offset_hours: int = 3) -> dict[str, Any]:
         """Planlı (gelecekteki) kuyruk öğelerini ve bunlarla ilişkili kayıtları
         koruyarak veritabanını temizler.
 
@@ -822,15 +818,14 @@ class DatabaseManager:
         Returns:
             Özet metrikler.
         """
-        from datetime import timedelta
 
         now_utc = datetime.now(timezone.utc)
 
         with self._connect() as conn:
             rows = [dict(r) for r in conn.execute("SELECT * FROM autopilot_queue;").fetchall()]
 
-            kept: List[Dict[str, Any]] = []
-            yt_anchors: List[Tuple[str, str]] = []  # (channel_url, video_id)
+            kept: list[dict[str, Any]] = []
+            yt_anchors: list[tuple[str, str]] = []  # (channel_url, video_id)
             for r in rows:
                 sched = r.get("scheduled_at") or ""
                 keep = False
@@ -848,8 +843,8 @@ class DatabaseManager:
                     kept.append(r)
                 # YouTube'a atılmış olanları anchor listesine ekle
                 yt = r.get("youtube_url")
-                if yt and str(yt).strip():
-                    yt_anchors.append((r.get("channel_url"), r.get("video_id")))
+                if yt and str(yt).strip() and r.get("channel_url") and r.get("video_id"):
+                    yt_anchors.append((str(r.get("channel_url")), str(r.get("video_id"))))
 
             kept_ids = [r["id"] for r in kept]
 
@@ -862,10 +857,13 @@ class DatabaseManager:
 
             # Korunan öğelerin klip & video ID'lerini topla
             if kept_ids:
-                kept_rows = [dict(r) for r in conn.execute(
-                    f"SELECT clip_id, video_id, channel_url FROM autopilot_queue WHERE id IN ({qph});",
-                    kept_ids,
-                ).fetchall()]
+                kept_rows = [
+                    dict(r)
+                    for r in conn.execute(
+                        f"SELECT clip_id, video_id, channel_url FROM autopilot_queue WHERE id IN ({qph});",
+                        kept_ids,
+                    ).fetchall()
+                ]
             else:
                 kept_rows = []
 
@@ -874,7 +872,7 @@ class DatabaseManager:
             # Korunan planlı videoları da anchor'a ekle
             for r in kept_rows:
                 if r.get("video_id") and r.get("channel_url"):
-                    yt_anchors.append((r.get("channel_url"), r.get("video_id")))
+                    yt_anchors.append((str(r.get("channel_url")), str(r.get("video_id"))))
             kept_video_ids = list(set(kept_video_ids))
 
             # 2. clips
@@ -917,7 +915,10 @@ class DatabaseManager:
 
         logger.info(
             "cleanup_keep_planned: kept_queue={} kept_videos={} kept_clips={} anchors_added={}",
-            len(kept), len(kept_video_ids), len(kept_clip_ids), anchors_added,
+            len(kept),
+            len(kept_video_ids),
+            len(kept_clip_ids),
+            anchors_added,
         )
         return {
             "kept_queue": len(kept),
@@ -953,19 +954,27 @@ class DatabaseManager:
     def swap_clip_slots(self, queue_id_1: str, queue_id_2: str) -> bool:
         """İki klibin slot zamanlarını (scheduled_at) birbiriyle takas eder."""
         with self._connect() as conn:
-            row1 = conn.execute("SELECT scheduled_at, status FROM autopilot_queue WHERE id = ?;", (queue_id_1,)).fetchone()
-            row2 = conn.execute("SELECT scheduled_at, status FROM autopilot_queue WHERE id = ?;", (queue_id_2,)).fetchone()
+            row1 = conn.execute(
+                "SELECT scheduled_at, status FROM autopilot_queue WHERE id = ?;", (queue_id_1,)
+            ).fetchone()
+            row2 = conn.execute(
+                "SELECT scheduled_at, status FROM autopilot_queue WHERE id = ?;", (queue_id_2,)
+            ).fetchone()
             if not row1 or not row2:
                 return False
             time1, status1 = row1["scheduled_at"], row1["status"]
             time2, status2 = row2["scheduled_at"], row2["status"]
 
-            conn.execute("UPDATE autopilot_queue SET scheduled_at = ?, status = ? WHERE id = ?;", (time2, status2, queue_id_1))
-            conn.execute("UPDATE autopilot_queue SET scheduled_at = ?, status = ? WHERE id = ?;", (time1, status1, queue_id_2))
+            conn.execute(
+                "UPDATE autopilot_queue SET scheduled_at = ?, status = ? WHERE id = ?;", (time2, status2, queue_id_1)
+            )
+            conn.execute(
+                "UPDATE autopilot_queue SET scheduled_at = ?, status = ? WHERE id = ?;", (time1, status1, queue_id_2)
+            )
             conn.commit()
             return True
 
-    def get_pool_clips(self) -> List[Dict[str, Any]]:
+    def get_pool_clips(self) -> list[dict[str, Any]]:
         """Slota atanmamış (UNASSIGNED) veya henüz yayınlanmamış stoktaki klipleri getirir."""
         with self._connect() as conn:
             rows = conn.execute(
@@ -973,7 +982,7 @@ class DatabaseManager:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_day_slot_items(self, date_str: str, tz_offset_hours: int = 3) -> List[Dict[str, Any]]:
+    def get_day_slot_items(self, date_str: str, tz_offset_hours: int = 3) -> list[dict[str, Any]]:
         """Belirli bir güne ait (Türkiye saatine göre) planlanmış tüm kuyruk kliplerini getirir."""
         with self._connect() as conn:
             rows = conn.execute(
@@ -986,6 +995,7 @@ class DatabaseManager:
                 if sched:
                     try:
                         from datetime import timedelta
+
                         dt_utc = datetime.fromisoformat(sched.replace("Z", "+00:00"))
                         dt_local = dt_utc + timedelta(hours=tz_offset_hours)
                         if dt_local.strftime("%Y-%m-%d") == date_str:
@@ -995,7 +1005,3 @@ class DatabaseManager:
                     except Exception:
                         pass
             return day_items
-
-
-
-

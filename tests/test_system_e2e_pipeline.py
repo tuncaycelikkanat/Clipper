@@ -11,32 +11,25 @@ Bu test dosyası sistemin tüm katmanlarını birbirine bağlayan karmaşık ger
 7. Senaryo 7: Çoklu API Hata Dayanıklılığı (Gemini Quota Fallback + DeepSeek Heuristic Fallback)
 """
 
-import json
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from core.aligner import AlignmentEngine
-
-from core.audio_dsp import AudioDSPAnalyzer
 from core.candidate_ranker import CandidateRanker
 from core.channel_dna import ChannelDNAManager
 from core.comment_miner import CommentMiner
 from core.database import DatabaseManager
 from core.deepseek_engine import DeepSeekEngine
 from core.heatmap_predictor import HeatmapPredictor
-from core.llm_engine import GeminiHighlightEngine
 from core.notifier import Notifier
 from core.pipeline import ClipperPipeline
 from core.platform_scorer import PlatformScorer
 from core.quality_evaluator import QualityEvaluator
 from core.scene_detector import SceneDetector
-from core.subtitles import SubtitleGenerator
-from core.thumbnail import ThumbnailGenerator
-from core.uploader import YouTubeUploader
 
 
 @pytest.fixture
@@ -53,6 +46,7 @@ def test_db():
 # ===========================================================================
 # SENARYO 1: STANDART E2E GAMING PIPELINE
 # ===========================================================================
+
 
 @patch("core.pipeline.VideoCutter.cut_clip")
 @patch("core.thumbnail.ThumbnailGenerator.batch_generate_thumbnails")
@@ -136,7 +130,6 @@ def test_e2e_standard_gaming_pipeline(
         db=test_db,
     )
 
-
     assert len(results) == 1
     assert os.path.exists(results[0]["render_path"])
     assert isinstance(results[0]["title"], str) and len(results[0]["title"]) > 0
@@ -153,6 +146,7 @@ def test_e2e_standard_gaming_pipeline(
 # SENARYO 2: HEATMAP'SİZ & TRANSKRİPTSİZ VİDEO (PREDICTOR + WHISPER FALLBACK)
 # ===========================================================================
 
+
 def test_e2e_no_heatmap_fallback_scenario(test_db):
     # 1. DB'ye geçmiş video ve pattern'ı ekle
     test_db.save_video({"id": "hist_v1", "title": "History V1"})
@@ -161,7 +155,6 @@ def test_e2e_no_heatmap_fallback_scenario(test_db):
 
     test_db.save_heatmap_pattern("hist_v1", "TestGamer", 0.75, 0.45, 0.30, {"game": "Apex"})
     test_db.save_heatmap_pattern("hist_v2", "TestGamer", 0.80, 0.50, 0.35, {"game": "Apex"})
-
 
     # 2. Yeni heatmap'siz video verisi
     times = np.linspace(0, 120, 120)
@@ -209,6 +202,7 @@ def test_e2e_no_heatmap_fallback_scenario(test_db):
 # SENARYO 3: YORUM PATLAMASI + KANAL DNA + BİLDİRİM SENARYOSU
 # ===========================================================================
 
+
 @patch("requests.post")
 def test_e2e_comment_mining_channel_dna_and_notification(mock_post, test_db):
     # 1. Yorum madenciliği: 100+ yorum simülasyonu
@@ -243,7 +237,9 @@ def test_e2e_comment_mining_channel_dna_and_notification(mock_post, test_db):
 
     # 4. Bildirim Gönderimi (Discord & Telegram Webhook)
     mock_post.return_value.status_code = 204
-    notifier = Notifier(webhook_url="https://discord.com/api/webhooks/test", telegram_token="123", telegram_chat_id="456")
+    notifier = Notifier(
+        webhook_url="https://discord.com/api/webhooks/test", telegram_token="123", telegram_chat_id="456"
+    )
     test_clip = {
         "title": "Komik Kaza Anı",
         "category": "FUNNY",
@@ -260,6 +256,7 @@ def test_e2e_comment_mining_channel_dna_and_notification(mock_post, test_db):
 # ===========================================================================
 # SENARYO 4: ANİ ŞOK & SAHNE GEÇİŞİNE HİZALAMA (SCENE CUT SNAPPING)
 # ===========================================================================
+
 
 def test_e2e_audio_dip_and_scene_snap_alignment():
     scene_cuts = [10.2, 25.4, 42.8, 60.1]
@@ -286,10 +283,10 @@ def test_e2e_audio_dip_and_scene_snap_alignment():
     assert ref_end == 42.8
 
 
-
 # ===========================================================================
 # SENARYO 5: ÇOKLU PLATFORM UYUM VE ÖNERİ MATRİSİ
 # ===========================================================================
+
 
 def test_e2e_multi_platform_scoring_matrix():
     scorer = PlatformScorer()
@@ -324,6 +321,7 @@ def test_e2e_multi_platform_scoring_matrix():
 # SENARYO 6: MODEL ARIZALARI VE HATA DAYANIKLILIK ZİNCİRİ
 # ===========================================================================
 
+
 def test_e2e_ai_failover_and_heuristic_resilience():
     # 1. DeepSeek Engine: Başlık ve kopya üretimi
     meta = DeepSeekEngine.generate_shorts_copy(
@@ -341,8 +339,6 @@ def test_e2e_ai_failover_and_heuristic_resilience():
         "Heuristic Fallback",
     ]
 
-
-
     # 2. QualityEvaluator: API anahtarı yoksa kural tabanlı değerlendirme
     eval_res = QualityEvaluator.evaluate_clip(
         clip={
@@ -359,5 +355,3 @@ def test_e2e_ai_failover_and_heuristic_resilience():
     )
     assert eval_res["grade"] in ["A+", "A", "B+", "B", "C", "D"]
     assert 0 <= eval_res["composite_score"] <= 100
-
-

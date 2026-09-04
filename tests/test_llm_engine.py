@@ -1,9 +1,10 @@
-import os
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+import os
+from unittest.mock import MagicMock, patch
 
-from core.llm_engine import GeminiHighlightEngine, GeminiGamingBatchResult, GeminiBatchClipVerdict
+import pytest
+
+from core.llm_engine import GeminiHighlightEngine
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def mock_candidates():
             "end_time": 15.0,
             "signals": {"audio": True},
             "fusion_score": 90,
-            "transcript_snippet": "Hello world"
+            "transcript_snippet": "Hello world",
         },
         {
             "candidate_id": 2,
@@ -29,7 +30,7 @@ def mock_candidates():
             "end_time": 30.0,
             "signals": {"audio": False},
             "fusion_score": 80,
-            "transcript_snippet": "Test clip"
+            "transcript_snippet": "Test clip",
         },
         {
             "candidate_id": 3,
@@ -40,8 +41,8 @@ def mock_candidates():
             "end_time": 50.0,
             "signals": {"audio": True},
             "fusion_score": 75,
-            "transcript_snippet": "Snippet 3"
-        }
+            "transcript_snippet": "Snippet 3",
+        },
     ]
 
 
@@ -55,9 +56,7 @@ def test_no_api_key(mock_candidates):
     with patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "", "DEEPSEEK_API_KEY": ""}, clear=True):
         with pytest.raises(ValueError, match="GEMINI_API_KEY"):
             GeminiHighlightEngine.batch_judge_gaming_candidates(
-                candidates=mock_candidates,
-                video_title="Test Video",
-                total_duration=100
+                candidates=mock_candidates, video_title="Test Video", total_duration=100
             )
 
 
@@ -65,30 +64,29 @@ def test_no_api_key(mock_candidates):
 def test_success_first_model(mock_client_class, mock_candidates):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
-    
+
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 1,
-                "verdict": "KEEP",
-                "category": "EPIC_MOMENT",
-                "title": "Title 1",
-                "hook_caption": "Hook 1",
-                "why_viral": "Why 1",
-                "viral_confidence": 95,
-                "suggested_start": 0.0,
-                "suggested_end": 15.0
-            }
-        ]
-    })
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "KEEP",
+                    "category": "EPIC_MOMENT",
+                    "title": "Title 1",
+                    "hook_caption": "Hook 1",
+                    "why_viral": "Why 1",
+                    "viral_confidence": 95,
+                    "suggested_start": 0.0,
+                    "suggested_end": 15.0,
+                }
+            ]
+        }
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates,
-        video_title="Test Video",
-        total_duration=100,
-        api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
     )
 
     assert len(result) == 1
@@ -102,35 +100,31 @@ def test_success_first_model(mock_client_class, mock_candidates):
 def test_fallback_models(mock_client_class, mock_candidates):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
-    
+
     # First call fails, second call succeeds
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 2,
-                "verdict": "KEEP",
-                "category": "FAIL_FUNNY",
-                "title": "Title 2",
-                "hook_caption": "Hook 2",
-                "why_viral": "Why 2",
-                "viral_confidence": 85,
-                "suggested_start": 20.0,
-                "suggested_end": 30.0
-            }
-        ]
-    })
-    
-    mock_client.models.generate_content.side_effect = [
-        Exception("First model failed"),
-        mock_response
-    ]
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 2,
+                    "verdict": "KEEP",
+                    "category": "FAIL_FUNNY",
+                    "title": "Title 2",
+                    "hook_caption": "Hook 2",
+                    "why_viral": "Why 2",
+                    "viral_confidence": 85,
+                    "suggested_start": 20.0,
+                    "suggested_end": 30.0,
+                }
+            ]
+        }
+    )
+
+    mock_client.models.generate_content.side_effect = [Exception("First model failed"), mock_response]
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates,
-        video_title="Test Video",
-        total_duration=100,
-        api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
     )
 
     assert len(result) == 1
@@ -146,10 +140,7 @@ def test_all_models_fail(mock_client_class, mock_candidates):
 
     with pytest.raises(RuntimeError, match="Batch Analiz hatası"):
         GeminiHighlightEngine.batch_judge_gaming_candidates(
-            candidates=mock_candidates,
-            video_title="Test Video",
-            total_duration=100,
-            api_key="TEST_KEY"
+            candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
         )
 
 
@@ -157,35 +148,33 @@ def test_all_models_fail(mock_client_class, mock_candidates):
 def test_all_drop_fallback(mock_client_class, mock_candidates):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
-    
+
     # All clips marked DROP
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 1,
-                "verdict": "DROP",
-                "viral_confidence": 10,
-                "suggested_start": 0.0,
-                "suggested_end": 25.0
-            },
-            {
-                "candidate_id": 2,
-                "verdict": "DROP",
-                "viral_confidence": 20,
-                "suggested_start": 20.0,
-                "suggested_end": 45.0
-            }
-        ]
-    })
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "DROP",
+                    "viral_confidence": 10,
+                    "suggested_start": 0.0,
+                    "suggested_end": 25.0,
+                },
+                {
+                    "candidate_id": 2,
+                    "verdict": "DROP",
+                    "viral_confidence": 20,
+                    "suggested_start": 20.0,
+                    "suggested_end": 45.0,
+                },
+            ]
+        }
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates,
-        video_title="Test Video",
-        total_duration=100,
-        target_clips=1,
-        api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, target_clips=1, api_key="TEST_KEY"
     )
 
     assert len(result) == 1
@@ -199,35 +188,33 @@ def test_all_drop_fallback(mock_client_class, mock_candidates):
 def test_invalid_duration_adjustment(mock_client_class, mock_candidates):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
-    
+
     # Duration < 10 or end < start
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 1,
-                "verdict": "KEEP",
-                "viral_confidence": 99,
-                "suggested_start": 50.0,
-                "suggested_end": 55.0  # Duration is 5 < 10
-            },
-            {
-                "candidate_id": 3,
-                "verdict": "KEEP",
-                "viral_confidence": 98,
-                "suggested_start": 60.0,
-                "suggested_end": 50.0  # End < Start
-            }
-        ]
-    })
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "KEEP",
+                    "viral_confidence": 99,
+                    "suggested_start": 50.0,
+                    "suggested_end": 55.0,  # Duration is 5 < 10
+                },
+                {
+                    "candidate_id": 3,
+                    "verdict": "KEEP",
+                    "viral_confidence": 98,
+                    "suggested_start": 60.0,
+                    "suggested_end": 50.0,  # End < Start
+                },
+            ]
+        }
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates,
-        video_title="Test Video",
-        total_duration=100,
-        target_clips=2,
-        api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, target_clips=2, api_key="TEST_KEY"
     )
 
     assert len(result) == 2
@@ -238,52 +225,51 @@ def test_invalid_duration_adjustment(mock_client_class, mock_candidates):
     assert result[0]["candidate_id"] == 1
     assert result[0]["start_time"] == 50.0
     assert result[0]["duration"] == 35.0
-    
+
     assert result[1]["candidate_id"] == 3
     assert result[1]["start_time"] == 60.0
     assert result[1]["duration"] == 35.0
+
 
 @patch("core.llm_engine.genai.Client")
 def test_unmatched_candidate(mock_client_class, mock_candidates):
     # Test when candidate_id in LLM response does not match any candidate
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
-    
+
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 999,
-                "verdict": "KEEP",
-                "viral_confidence": 99,
-                "suggested_start": 10.0,
-                "suggested_end": 30.0
-            }
-        ]
-    })
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 999,
+                    "verdict": "KEEP",
+                    "viral_confidence": 99,
+                    "suggested_start": 10.0,
+                    "suggested_end": 30.0,
+                }
+            ]
+        }
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates,
-        video_title="Test Video",
-        total_duration=100,
-        api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
     )
 
     assert len(result) == 1
     assert result[0]["candidate_id"] == 999
-    assert result[0]["text"] == "" # Snippet should be empty
+    assert result[0]["text"] == ""  # Snippet should be empty
+
 
 def test_generate_shorts_metadata_no_api_key():
     with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=True):
         meta = GeminiHighlightEngine.generate_shorts_metadata(
-            clip_title="Clutch Moment",
-            hook_caption="Watch this!",
-            category="CLUTCH",
-            video_title="Main Video"
+            clip_title="Clutch Moment", hook_caption="Watch this!", category="CLUTCH", video_title="Main Video"
         )
         assert "Clutch Moment" in meta["title"]
         assert len(meta["tags"]) > 0
+
 
 @patch("core.llm_engine.genai.Client")
 def test_generate_shorts_metadata_success(mock_client_class):
@@ -291,21 +277,17 @@ def test_generate_shorts_metadata_success(mock_client_class):
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_response = MagicMock()
-        mock_response.text = json.dumps({
-            "title": "EN İYİ AN! 🔥 #Shorts",
-            "description": "Açıklama #Shorts",
-            "tags": ["gaming", "shorts"]
-        })
+        mock_response.text = json.dumps(
+            {"title": "EN İYİ AN! 🔥 #Shorts", "description": "Açıklama #Shorts", "tags": ["gaming", "shorts"]}
+        )
         mock_client.models.generate_content.return_value = mock_response
-        
+
         meta = GeminiHighlightEngine.generate_shorts_metadata(
-            clip_title="Clip",
-            hook_caption="Hook",
-            category="CLUTCH",
-            api_key="fake_key"
+            clip_title="Clip", hook_caption="Hook", category="CLUTCH", api_key="fake_key"
         )
         assert meta["title"] == "EN İYİ AN! 🔥 #Shorts"
         assert "gaming" in meta["tags"]
+
 
 @patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy")
 def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
@@ -313,14 +295,10 @@ def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
         "title": "DEEPSEEK TITLE #Shorts",
         "description": "Desc",
         "tags": ["tag1"],
-        "provider": "DeepSeek V3"
+        "provider": "DeepSeek V3",
     }
     with patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-or-test"}):
-        meta = GeminiHighlightEngine.generate_shorts_metadata(
-            clip_title="Clip",
-            hook_caption="Hook",
-            category="CLUTCH"
-        )
+        meta = GeminiHighlightEngine.generate_shorts_metadata(clip_title="Clip", hook_caption="Hook", category="CLUTCH")
         assert meta["title"] == "DEEPSEEK TITLE #Shorts"
 
 
@@ -328,10 +306,11 @@ def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
 # V2: Yeni özellikler
 # ---------------------------------------------------------------------------
 
+
 def test_score_to_band():
     """score_to_band() yardımcı fonksiyonu doğru bant etiketlerini döndürmeli."""
-    from core.llm_engine import score_to_band
     import core.scoring_config as SC
+    from core.llm_engine import score_to_band
 
     if not SC.BAND_LABELS_ENABLED:
         pytest.skip("Bant etiketleme kapalı (BAND_LABELS_ENABLED=False)")
@@ -355,34 +334,36 @@ def test_mundane_category_drops_verdict(mock_client_class, mock_candidates):
     mock_client_class.return_value = mock_client
 
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 1,
-                "verdict": "KEEP",
-                "category": "MUNDANE",
-                "title": "Sıradan Anı",
-                "hook_caption": "Hook",
-                "rationale": "Sıradan bir an, özel bir şey yok.",
-                "why_viral": "Neden viral olsun?",
-                "viral_confidence": 80,   # Yüksek skor ama MUNDANE
-                "suggested_start": 0.0,
-                "suggested_end": 15.0,
-            },
-            {
-                "candidate_id": 2,
-                "verdict": "KEEP",
-                "category": "CLUTCH",
-                "title": "Harika An",
-                "hook_caption": "Bunu izle!",
-                "rationale": "Ses spike'ı + silence burst birlikte.",
-                "why_viral": "1v4 clutch",
-                "viral_confidence": 75,
-                "suggested_start": 20.0,
-                "suggested_end": 30.0,
-            },
-        ]
-    })
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "KEEP",
+                    "category": "MUNDANE",
+                    "title": "Sıradan Anı",
+                    "hook_caption": "Hook",
+                    "rationale": "Sıradan bir an, özel bir şey yok.",
+                    "why_viral": "Neden viral olsun?",
+                    "viral_confidence": 80,  # Yüksek skor ama MUNDANE
+                    "suggested_start": 0.0,
+                    "suggested_end": 15.0,
+                },
+                {
+                    "candidate_id": 2,
+                    "verdict": "KEEP",
+                    "category": "CLUTCH",
+                    "title": "Harika An",
+                    "hook_caption": "Bunu izle!",
+                    "rationale": "Ses spike'ı + silence burst birlikte.",
+                    "why_viral": "1v4 clutch",
+                    "viral_confidence": 75,
+                    "suggested_start": 20.0,
+                    "suggested_end": 30.0,
+                },
+            ]
+        }
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
@@ -414,22 +395,24 @@ def test_rationale_field_in_output(mock_client_class, mock_candidates):
     mock_client_class.return_value = mock_client
 
     mock_response = MagicMock()
-    mock_response.text = json.dumps({
-        "selected_clips": [
-            {
-                "candidate_id": 1,
-                "verdict": "KEEP",
-                "category": "EPIC_MOMENT",
-                "title": "Epic",
-                "hook_caption": "Hook",
-                "rationale": "Ses spike'ı 0.85 ile doruk noktasında.",
-                "why_viral": "Epic moment",
-                "viral_confidence": 88,
-                "suggested_start": 0.0,
-                "suggested_end": 15.0,
-            }
-        ]
-    })
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "KEEP",
+                    "category": "EPIC_MOMENT",
+                    "title": "Epic",
+                    "hook_caption": "Hook",
+                    "rationale": "Ses spike'ı 0.85 ile doruk noktasında.",
+                    "why_viral": "Epic moment",
+                    "viral_confidence": 88,
+                    "suggested_start": 0.0,
+                    "suggested_end": 15.0,
+                }
+            ]
+        }
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
@@ -454,22 +437,24 @@ def test_ensemble_mode_median(mock_client_class, mock_candidates):
     # İlk çalışma: skor 80, ikinci çalışma: skor 60 → medyan 70
     def make_response(score: int):
         r = MagicMock()
-        r.text = json.dumps({
-            "selected_clips": [
-                {
-                    "candidate_id": 1,
-                    "verdict": "KEEP",
-                    "category": "CLUTCH",
-                    "title": "Title",
-                    "hook_caption": "Hook",
-                    "rationale": "Gerekçe",
-                    "why_viral": "Why",
-                    "viral_confidence": score,
-                    "suggested_start": 0.0,
-                    "suggested_end": 15.0,
-                }
-            ]
-        })
+        r.text = json.dumps(
+            {
+                "selected_clips": [
+                    {
+                        "candidate_id": 1,
+                        "verdict": "KEEP",
+                        "category": "CLUTCH",
+                        "title": "Title",
+                        "hook_caption": "Hook",
+                        "rationale": "Gerekçe",
+                        "why_viral": "Why",
+                        "viral_confidence": score,
+                        "suggested_start": 0.0,
+                        "suggested_end": 15.0,
+                    }
+                ]
+            }
+        )
         return r
 
     mock_client.models.generate_content.side_effect = [
@@ -499,22 +484,24 @@ def test_score_consistency_test_returns_stats(mock_client_class, mock_candidates
 
     def make_response(score: int):
         r = MagicMock()
-        r.text = json.dumps({
-            "selected_clips": [
-                {
-                    "candidate_id": 1,
-                    "verdict": "KEEP",
-                    "category": "CLUTCH",
-                    "title": "T",
-                    "hook_caption": "H",
-                    "rationale": "R",
-                    "why_viral": "W",
-                    "viral_confidence": score,
-                    "suggested_start": 0.0,
-                    "suggested_end": 15.0,
-                }
-            ]
-        })
+        r.text = json.dumps(
+            {
+                "selected_clips": [
+                    {
+                        "candidate_id": 1,
+                        "verdict": "KEEP",
+                        "category": "CLUTCH",
+                        "title": "T",
+                        "hook_caption": "H",
+                        "rationale": "R",
+                        "why_viral": "W",
+                        "viral_confidence": score,
+                        "suggested_start": 0.0,
+                        "suggested_end": 15.0,
+                    }
+                ]
+            }
+        )
         return r
 
     mock_client.models.generate_content.side_effect = [

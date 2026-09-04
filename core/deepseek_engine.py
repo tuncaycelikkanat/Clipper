@@ -7,18 +7,19 @@ core/deepseek_engine.py — DeepSeek V3 / R1 engine powering:
 
 from __future__ import annotations
 
-import os
 import json
-from typing import Dict, Any, Optional, List, Tuple
-from openai import OpenAI
+import os
+from typing import Any
+
 from loguru import logger
+from openai import OpenAI
 
 
 class DeepSeekEngine:
     """Uses DeepSeek V3 / R1 via OpenRouter or direct OpenAI-compatible endpoint."""
 
     @classmethod
-    def get_client_and_model(cls, api_key: Optional[str] = None) -> Tuple[OpenAI, str, str]:
+    def get_client_and_model(cls, api_key: str | None = None) -> tuple[OpenAI, str, str]:
         """Returns (client, model_name, provider_label)."""
         or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
         ds_key = (api_key or os.environ.get("DEEPSEEK_API_KEY", "")).strip()
@@ -44,7 +45,7 @@ class DeepSeekEngine:
         raise ValueError("Neither OPENROUTER_API_KEY nor DEEPSEEK_API_KEY found.")
 
     @classmethod
-    def is_available(cls, api_key: Optional[str] = None) -> bool:
+    def is_available(cls, api_key: str | None = None) -> bool:
         """Check if OpenRouter or direct DeepSeek API is configured."""
         or_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
         ds_key = (api_key or os.environ.get("DEEPSEEK_API_KEY", "")).strip()
@@ -53,12 +54,12 @@ class DeepSeekEngine:
     @classmethod
     def batch_judge_candidates(
         cls,
-        candidates_summary: List[Dict[str, Any]],
+        candidates_summary: list[dict[str, Any]],
         video_title: str,
         total_duration: int,
         target_clips: int = 3,
-        api_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        api_key: str | None = None,
+    ) -> dict[str, Any]:
         """Judge Top-15 candidates in a single batch call using DeepSeek V3."""
         client, model, provider_label = cls.get_client_and_model(api_key)
 
@@ -122,11 +123,11 @@ Lütfen şu JSON formatında yanıt ver:
     @classmethod
     def evaluate_quality(
         cls,
-        clip: Dict[str, Any],
+        clip: dict[str, Any],
         video_title: str,
         dur: float,
-        api_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        api_key: str | None = None,
+    ) -> dict[str, Any]:
         """Evaluate clip quality and action density using DeepSeek V3."""
         client, model, provider_label = cls.get_client_and_model(api_key)
 
@@ -137,11 +138,11 @@ Lütfen şu JSON formatında yanıt ver:
 
         user_prompt = f"""
 Video: {video_title}
-Klip Başlığı: {clip.get('title', '')}
-Kategori: {clip.get('category', 'ACTION')}
+Klip Başlığı: {clip.get("title", "")}
+Kategori: {clip.get("category", "ACTION")}
 Klip Süresi: {dur:.1f} sn
-Kanca (Hook): "{clip.get('hook_caption', '')}"
-Diyalog/Transkript: "{clip.get('text', '')}"
+Kanca (Hook): "{clip.get("hook_caption", "")}"
+Diyalog/Transkript: "{clip.get("text", "")}"
 
 Lütfen şu JSON formatında yanıt ver:
 {{
@@ -180,10 +181,11 @@ Lütfen şu JSON formatında yanıt ver:
         hook_caption: str = "",
         category: str = "GAMING",
         video_title: str = "",
-        original_tags: list = None,
-        api_key: Optional[str] = None,
+        channel_name: str = "",
+        original_tags: list[str] | None = None,
+        api_key: str | None = None,
         raise_on_error: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate high-CTR organic, human-like Turkish title, interactive description, and tags using DeepSeek."""
         client, model, provider_label = cls.get_client_and_model(api_key)
 
@@ -255,4 +257,3 @@ Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
                 "tags": [category.lower(), "shorts", "gaming"],
                 "provider": "Heuristic Fallback",
             }
-

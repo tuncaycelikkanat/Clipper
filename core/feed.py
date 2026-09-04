@@ -7,16 +7,16 @@ using yt-dlp, enabling automated new-video discovery for the scheduler.
 
 from __future__ import annotations
 
-import yt_dlp
-from typing import List, Dict, Any
+from typing import Any
 
+import yt_dlp
 from loguru import logger
 
 
 class ChannelFeed:
     """Retrieves video listings from YouTube channels and playlists via yt-dlp."""
 
-    _BASE_OPTS: Dict[str, Any] = {
+    _BASE_OPTS: dict[str, Any] = {
         "skip_download": True,
         "quiet": True,
         "no_warnings": True,
@@ -30,9 +30,15 @@ class ChannelFeed:
     def normalize_channel_url(url: str) -> str:
         """Kanal URL'sini sonuna /videos ekleyerek video sekmesine yönlendirir."""
         clean = url.strip().rstrip("/")
-        if ("youtube.com" in clean or "youtu.be" in clean) and "list=" not in clean:
-            if not any(clean.endswith(tab) for tab in ("/videos", "/shorts", "/streams", "/playlists", "/featured", "/community")):
-                clean += "/videos"
+        if (
+            ("youtube.com" in clean or "youtu.be" in clean)
+            and "list=" not in clean
+            and not any(
+                clean.endswith(tab)
+                for tab in ("/videos", "/shorts", "/streams", "/playlists", "/featured", "/community")
+            )
+        ):
+            clean += "/videos"
         return clean
 
     @classmethod
@@ -40,7 +46,7 @@ class ChannelFeed:
         cls,
         channel_url: str,
         max_count: int = 20,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve recent videos from a YouTube channel or playlist URL.
 
         Uses yt-dlp's flat extraction to quickly gather metadata without
@@ -67,18 +73,14 @@ class ChannelFeed:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(channel_url, download=False)
             except Exception:
-                raise RuntimeError(
-                    f"Kanal/oynatma listesi bilgileri alınamadı: {exc}"
-                ) from exc
+                raise RuntimeError(f"Kanal/oynatma listesi bilgileri alınamadı: {exc}") from exc
 
         if info is None:
-            raise RuntimeError(
-                f"yt-dlp kanal URL'sinden veri döndürmedi: {channel_url}"
-            )
+            raise RuntimeError(f"yt-dlp kanal URL'sinden veri döndürmedi: {channel_url}")
 
         raw_entries = info.get("entries") or []
         # Flatten nested entries (e.g. tabs)
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         for e in raw_entries:
             if not e:
                 continue
@@ -87,7 +89,7 @@ class ChannelFeed:
             else:
                 entries.append(e)
 
-        videos: List[Dict[str, Any]] = []
+        videos: list[dict[str, Any]] = []
         for entry in entries:
             if not isinstance(entry, dict):
                 continue
@@ -98,7 +100,9 @@ class ChannelFeed:
             # Kanal ID'lerini (UC...) veya oynatma listesi sekme başlıklarını filtrele
             if vid_id.startswith("UC") and len(vid_id) >= 20:
                 continue
-            if entry.get("ie_key") in ("YoutubeTab", "YoutubeChannel") or (entry.get("_type") == "playlist" and "entries" not in entry):
+            if entry.get("ie_key") in ("YoutubeTab", "YoutubeChannel") or (
+                entry.get("_type") == "playlist" and "entries" not in entry
+            ):
                 continue
 
             videos.append(
@@ -112,7 +116,6 @@ class ChannelFeed:
                 }
             )
 
-
         # Sort newest-first by upload_date string ('YYYYMMDD'). Videoları tarihsiz
         # (upload_date boş) olanları "en yeni" kabul et (büyük bir anahtarla) ki
         # tarihi eksik olsa bile yeni videolar en üstte kalsın ve anchor tespitinde
@@ -122,19 +125,16 @@ class ChannelFeed:
             reverse=True,
         )
 
-        logger.info(
-            "get_channel_videos: {} geçerli video alındı (URL: {})", len(videos), channel_url
-        )
+        logger.info("get_channel_videos: {} geçerli video alındı (URL: {})", len(videos), channel_url)
         return videos[:max_count]
-
 
     @classmethod
     def get_new_videos(
         cls,
         channel_url: str,
-        processed_ids: List[str],
+        processed_ids: list[str],
         max_count: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return only videos that have not yet been processed.
 
         Fetches up to ``max_count * 3`` recent videos from the channel and
@@ -165,7 +165,7 @@ class ChannelFeed:
         return new_videos[:max_count]
 
     @classmethod
-    def get_video_ids_from_playlist(cls, playlist_url: str) -> List[str]:
+    def get_video_ids_from_playlist(cls, playlist_url: str) -> list[str]:
         """Extract only the video IDs from a YouTube playlist.
 
         Args:
@@ -181,9 +181,7 @@ class ChannelFeed:
             with yt_dlp.YoutubeDL(cls._BASE_OPTS) as ydl:
                 info = ydl.extract_info(playlist_url, download=False)
         except Exception as exc:
-            raise RuntimeError(
-                f"Oynatma listesi ID'leri alınamadı: {exc}"
-            ) from exc
+            raise RuntimeError(f"Oynatma listesi ID'leri alınamadı: {exc}") from exc
 
         if info is None:
             return []
@@ -191,7 +189,5 @@ class ChannelFeed:
         entries = info.get("entries") or []
         ids = [e["id"] for e in entries if e and e.get("id")]
 
-        logger.info(
-            "get_video_ids_from_playlist: {} ID alındı ({})", len(ids), playlist_url
-        )
+        logger.info("get_video_ids_from_playlist: {} ID alındı ({})", len(ids), playlist_url)
         return ids

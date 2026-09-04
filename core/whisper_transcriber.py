@@ -7,13 +7,15 @@ Falls back gracefully (returns empty list) if faster-whisper is not available.
 import os
 import subprocess
 import tempfile
-from typing import List, Dict
 
 try:
     from faster_whisper import WhisperModel
+
     _FASTER_WHISPER_AVAILABLE = True
 except ImportError:
     _FASTER_WHISPER_AVAILABLE = False
+
+import contextlib
 
 from loguru import logger
 
@@ -58,10 +60,7 @@ class WhisperTranscriber:
             return True
 
         if not _FASTER_WHISPER_AVAILABLE:
-            logger.warning(
-                "faster-whisper is not installed. "
-                "Run: .venv/bin/pip install faster-whisper"
-            )
+            logger.warning("faster-whisper is not installed. Run: .venv/bin/pip install faster-whisper")
             return False
 
         try:
@@ -94,29 +93,29 @@ class WhisperTranscriber:
         os.close(tmp_fd)
 
         cmd = [
-            "ffmpeg", "-y",
-            "-i", video_path,
-            "-vn",                     # no video
-            "-acodec", "pcm_s16le",    # 16-bit PCM
-            "-ar", "16000",            # 16 kHz - Whisper's native rate
-            "-ac", "1",                # mono
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-vn",  # no video
+            "-acodec",
+            "pcm_s16le",  # 16-bit PCM
+            "-ar",
+            "16000",  # 16 kHz - Whisper's native rate
+            "-ac",
+            "1",  # mono
             tmp_path,
         ]
         result = subprocess.run(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             os.unlink(tmp_path)
-            raise RuntimeError(
-                f"ffmpeg audio extraction failed: {result.stderr.decode(errors='replace')}"
-            )
+            raise RuntimeError(f"ffmpeg audio extraction failed: {result.stderr.decode(errors='replace')}")
         return tmp_path
 
-    def _run_transcription(
-        self, audio_path: str, language: str
-    ) -> List[Dict]:
+    def _run_transcription(self, audio_path: str, language: str) -> list[dict]:
         """
         Core transcription logic shared by both public methods.
 
@@ -127,14 +126,14 @@ class WhisperTranscriber:
             return []
 
         try:
-            segments, _info = self._model.transcribe(  # type: ignore[union-attr]
+            segments, _info = self._model.transcribe(  # type: ignore[attr-defined,union-attr]
                 audio_path,
                 language=language,
                 word_timestamps=True,
                 beam_size=5,
             )
 
-            words: List[Dict] = []
+            words: list[dict] = []
             for segment in segments:
                 if segment.words is None:
                     continue
@@ -169,7 +168,7 @@ class WhisperTranscriber:
         self,
         audio_file_path: str,
         language: str = "tr",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Transcribe a pre-existing audio file and return word-level segments.
 
@@ -191,7 +190,7 @@ class WhisperTranscriber:
         self,
         video_path: str,
         language: str = "tr",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Extract audio from a video via FFmpeg pipe and transcribe word-by-word.
 
@@ -221,16 +220,14 @@ class WhisperTranscriber:
             return []
         finally:
             if tmp_audio and os.path.exists(tmp_audio):
-                try:
+                with contextlib.suppress(Exception):
                     os.unlink(tmp_audio)
-                except Exception:
-                    pass
 
     def transcribe_to_sentence_segments(
         self,
         media_path: str,
         language: str = "tr",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Transcribe an audio/video file or stream into sentence-level segments.
 
@@ -247,32 +244,36 @@ class WhisperTranscriber:
         tmp_audio = ""
         target_path = media_path
         try:
-            if not os.path.exists(media_path) and media_path.startswith(("http://", "https://")):
-                tmp_audio = self._extract_audio_to_tempfile(media_path)
-                target_path = tmp_audio
-            elif os.path.exists(media_path) and not media_path.endswith((".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus")):
+            if (
+                not os.path.exists(media_path)
+                and media_path.startswith(("http://", "https://"))
+                or os.path.exists(media_path)
+                and not media_path.endswith((".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"))
+            ):
                 tmp_audio = self._extract_audio_to_tempfile(media_path)
                 target_path = tmp_audio
 
-            segments, _ = self._model.transcribe(  # type: ignore[union-attr]
+            segments, _ = self._model.transcribe(  # type: ignore[attr-defined,union-attr]
                 target_path,
                 language=language,
                 beam_size=5,
             )
 
-            result: List[Dict] = []
+            result: list[dict] = []
             for seg in segments:
                 text = seg.text.strip()
                 if text:
                     st = round(float(seg.start), 2)
                     en = round(float(seg.end), 2)
                     dur = round(en - st, 2)
-                    result.append({
-                        "text": text,
-                        "start": st,
-                        "end": en,
-                        "duration": dur,
-                    })
+                    result.append(
+                        {
+                            "text": text,
+                            "start": st,
+                            "end": en,
+                            "duration": dur,
+                        }
+                    )
 
             logger.info(
                 "faster-whisper transcribed {} sentence segments from '{}'.",
@@ -286,7 +287,5 @@ class WhisperTranscriber:
             return []
         finally:
             if tmp_audio and os.path.exists(tmp_audio):
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(tmp_audio)
-                except OSError:
-                    pass

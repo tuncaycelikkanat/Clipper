@@ -1,18 +1,27 @@
 """backend/api/routes/channels.py — Channel CRUD."""
-from __future__ import annotations
-import os, sys
-_R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _R not in sys.path: sys.path.insert(0, _R)
 
-from typing import Optional
+from __future__ import annotations
+
+import os
+import sys
+
+_R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _R not in sys.path:
+    sys.path.insert(0, _R)
+
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from core.database import DatabaseManager
 
 router = APIRouter(prefix="/channels", tags=["channels"])
 
+
 def _db():
-    db = DatabaseManager(); db.init_db(); return db
+    db = DatabaseManager()
+    db.init_db()
+    return db
 
 
 class ChannelCreateRequest(BaseModel):
@@ -21,19 +30,19 @@ class ChannelCreateRequest(BaseModel):
     min_score: int = 90
     auto_upload: bool = True
     check_interval_h: float = 2.0
-    target_playlist: Optional[str] = None
+    target_playlist: str | None = None
 
 
 class ChannelUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    min_score: Optional[int] = None
-    auto_upload: Optional[bool] = None
-    active: Optional[bool] = None
-    check_interval_h: Optional[float] = None
+    name: str | None = None
+    min_score: int | None = None
+    auto_upload: bool | None = None
+    active: bool | None = None
+    check_interval_h: float | None = None
 
 
 @router.get("")
-async def list_channels(is_tracked: Optional[bool] = None, active_only: bool = False):
+async def list_channels(is_tracked: bool | None = None, active_only: bool = False):
     db = _db()
     with db._connect() as conn:
         sql = "SELECT * FROM tracked_channels"
@@ -69,8 +78,7 @@ async def get_channel(channel_id: str):
     db = _db()
     with db._connect() as conn:
         row = conn.execute(
-            "SELECT * FROM tracked_channels WHERE id = ? OR url = ?",
-            (channel_id, channel_id)
+            "SELECT * FROM tracked_channels WHERE id = ? OR url = ?", (channel_id, channel_id)
         ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Channel not found")

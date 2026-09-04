@@ -7,8 +7,10 @@ from __future__ import annotations
 import datetime
 import random
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 from loguru import logger
+
 from core.database import DatabaseManager
 
 
@@ -19,8 +21,8 @@ class SlotAllocator:
 
     def __init__(
         self,
-        db: Optional[DatabaseManager] = None,
-        daily_slots: Optional[List[str]] = None,
+        db: DatabaseManager | None = None,
+        daily_slots: list[str] | None = None,
         timezone_offset_hours: int = 3,
     ) -> None:
         self.db = db or DatabaseManager()
@@ -29,9 +31,9 @@ class SlotAllocator:
 
     def compute_next_available_slot(
         self,
-        reference_time_utc: Optional[datetime.datetime] = None,
-        latest_scheduled_iso: Optional[str] = None,
-    ) -> Tuple[datetime.datetime, str]:
+        reference_time_utc: datetime.datetime | None = None,
+        latest_scheduled_iso: str | None = None,
+    ) -> tuple[datetime.datetime, str]:
         """Sıradaki en erken boş yayın zamanını hesaplar."""
         now_utc = reference_time_utc or datetime.datetime.now(datetime.timezone.utc)
         if now_utc.tzinfo is not None:
@@ -41,9 +43,11 @@ class SlotAllocator:
 
         if latest_scheduled_iso:
             try:
-                latest_utc = datetime.datetime.fromisoformat(
-                    latest_scheduled_iso.replace("Z", "+00:00")
-                ).astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                latest_utc = (
+                    datetime.datetime.fromisoformat(latest_scheduled_iso.replace("Z", "+00:00"))
+                    .astimezone(datetime.timezone.utc)
+                    .replace(tzinfo=None)
+                )
                 if latest_utc > now_utc:
                     now_utc = latest_utc + datetime.timedelta(minutes=15)
             except Exception as e:
@@ -58,7 +62,7 @@ class SlotAllocator:
             h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
             parsed_slots.append(datetime.time(h, m))
 
-        candidate_local: Optional[datetime.datetime] = None
+        candidate_local: datetime.datetime | None = None
         for slot_time in parsed_slots:
             slot_dt = datetime.datetime.combine(today, slot_time)
             if slot_dt > (local_now + datetime.timedelta(minutes=15)):
@@ -80,7 +84,7 @@ class SlotAllocator:
 
         return candidate_utc, iso_str
 
-    def remove_and_refill_gap(self, queue_id: str) -> Dict[str, Any]:
+    def remove_and_refill_gap(self, queue_id: str) -> dict[str, Any]:
         """Kuyruktan bir videoyu siler ve arkasındakileri 1 slot öne kaydırır."""
         active_items = self.db.get_all_active_scheduled_queue()
         target_idx = None
@@ -101,11 +105,7 @@ class SlotAllocator:
             curr_item = active_items[i]
             curr_scheduled_time = curr_item["scheduled_at"]
             self.db.update_autopilot_queue_scheduled_time(curr_item["id"], target_slot_time)
-            shifted.append({
-                "id": curr_item["id"],
-                "title": curr_item["title"],
-                "new_time": target_slot_time
-            })
+            shifted.append({"id": curr_item["id"], "title": curr_item["title"], "new_time": target_slot_time})
             target_slot_time = curr_scheduled_time
 
         logger.info("Removed queue item '{}' and shifted {} items.", deleted_item["title"], len(shifted))
@@ -116,7 +116,7 @@ class SlotAllocator:
             "shifted_items": shifted,
         }
 
-    def diversified_shuffle(self, selected_dates: List[str]) -> Dict[str, Any]:
+    def diversified_shuffle(self, selected_dates: list[str]) -> dict[str, Any]:
         """Seçilen günlerdeki klipleri ardışık aynı kanal gelmeyecek şekilde dağıtır."""
         all_items = []
         all_slot_isos = []
@@ -156,7 +156,7 @@ class SlotAllocator:
                     shuffled_items.append(bucket.pop(0))
 
         with self.db._connect() as conn:
-            for item, target_iso in zip(shuffled_items, all_slot_isos):
+            for item, target_iso in zip(shuffled_items, all_slot_isos, strict=False):
                 conn.execute(
                     "UPDATE autopilot_queue SET scheduled_at = ?, status = 'QUEUED' WHERE id = ?;",
                     (target_iso, item["id"]),
@@ -165,10 +165,10 @@ class SlotAllocator:
 
         return {"shuffled_count": len(shuffled_items), "message": f"{len(shuffled_items)} klip akıllıca karıştırıldı!"}
 
-    def get_day_slots_grid(self, date_str: str) -> Dict[str, Optional[Dict[str, Any]]]:
+    def get_day_slots_grid(self, date_str: str) -> dict[str, dict[str, Any] | None]:
         """Günün slotlarındaki klipleri eşler."""
         day_items = self.db.get_day_slot_items(date_str, tz_offset_hours=self.tz_offset)
-        grid = {slot: None for slot in self.daily_slots}
+        grid: dict[str, dict[str, Any] | None] = {slot: None for slot in self.daily_slots}
         for item in day_items:
             slot_time = item.get("slot_time")
             if slot_time in grid:

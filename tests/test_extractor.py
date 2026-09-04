@@ -1,21 +1,29 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from core.extractor import YouTubeExtractor
+
 
 def test_clean_url():
     # Test valid 11 char ID
     assert YouTubeExtractor.clean_url("dQw4w9WgXcQ") == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     # Test full url
-    assert YouTubeExtractor.clean_url("https://youtube.com/watch?v=dQw4w9WgXcQ") == "https://youtube.com/watch?v=dQw4w9WgXcQ"
+    assert (
+        YouTubeExtractor.clean_url("https://youtube.com/watch?v=dQw4w9WgXcQ")
+        == "https://youtube.com/watch?v=dQw4w9WgXcQ"
+    )
     # Test whitespace
     assert YouTubeExtractor.clean_url("  dQw4w9WgXcQ  ") == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
 
 def test_format_seconds():
     assert YouTubeExtractor.format_seconds(45) == "00:45"
     assert YouTubeExtractor.format_seconds(125) == "02:05"
     assert YouTubeExtractor.format_seconds(3665) == "01:01:05"
 
-@patch('core.extractor.yt_dlp.YoutubeDL')
+
+@patch("core.extractor.yt_dlp.YoutubeDL")
 def test_get_video_data_success(mock_ytdl):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
@@ -28,8 +36,8 @@ def test_get_video_data_success(mock_ytdl):
         "view_count": 1000,
         "heatmap": [
             {"start_time": 0.0, "end_time": 10.0, "value": 0.5},
-            {"start_time": 10.0, "end_time": 20.0, "value": 0.8}
-        ]
+            {"start_time": 10.0, "end_time": 20.0, "value": 0.8},
+        ],
     }
 
     result = YouTubeExtractor.get_video_data("dQw4w9WgXcQ")
@@ -44,11 +52,12 @@ def test_get_video_data_success(mock_ytdl):
     assert len(result["heatmap"]) == 2
     assert result["heatmap"][0]["value"] == 0.5
 
-@patch('core.extractor.yt_dlp.YoutubeDL')
+
+@patch("core.extractor.yt_dlp.YoutubeDL")
 def test_get_video_data_defaults(mock_ytdl):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
-    mock_instance.extract_info.return_value = {} # Empty info
+    mock_instance.extract_info.return_value = {}  # Empty info
 
     result = YouTubeExtractor.get_video_data("dQw4w9WgXcQ")
     assert result["title"] == "Bilinmeyen Video"
@@ -59,16 +68,18 @@ def test_get_video_data_defaults(mock_ytdl):
     assert result["has_heatmap"] is False
     assert result["heatmap"] == []
 
-@patch('core.extractor.yt_dlp.YoutubeDL')
+
+@patch("core.extractor.yt_dlp.YoutubeDL")
 def test_get_video_data_uploader_fallback(mock_ytdl):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
-    mock_instance.extract_info.return_value = {"channel": "Channel Name"} 
+    mock_instance.extract_info.return_value = {"channel": "Channel Name"}
 
     result = YouTubeExtractor.get_video_data("dQw4w9WgXcQ")
     assert result["uploader"] == "Channel Name"
 
-@patch('core.extractor.yt_dlp.YoutubeDL')
+
+@patch("core.extractor.yt_dlp.YoutubeDL")
 def test_get_video_data_exception(mock_ytdl):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
@@ -78,7 +89,7 @@ def test_get_video_data_exception(mock_ytdl):
         YouTubeExtractor.get_video_data("dQw4w9WgXcQ")
 
 
-@patch('core.extractor.yt_dlp.YoutubeDL')
+@patch("core.extractor.yt_dlp.YoutubeDL")
 def test_get_video_comments_success(mock_ytdl):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
@@ -95,7 +106,7 @@ def test_get_video_comments_success(mock_ytdl):
     assert comments[0]["like_count"] == 12
 
 
-@patch('core.extractor.yt_dlp.YoutubeDL')
+@patch("core.extractor.yt_dlp.YoutubeDL")
 def test_get_video_comments_exception(mock_ytdl):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
@@ -127,5 +138,3 @@ def test_calculate_recommended_clips():
     # 180 min marathon
     res_marathon = YouTubeExtractor.calculate_recommended_clips(10800)
     assert res_marathon["recommended_clips"] >= 20
-
-

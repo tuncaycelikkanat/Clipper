@@ -1,11 +1,11 @@
 """Tests for core/types.py."""
 
 from core.types import (
-    VideoData,
     ClipData,
-    TranscriptSegment,
-    WordSegment,
     RenderResult,
+    TranscriptSegment,
+    VideoData,
+    WordSegment,
 )
 
 

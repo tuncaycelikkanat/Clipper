@@ -14,19 +14,20 @@ DEĞİŞİKLİK GEÇMİŞİ:
         - Ensemble/medyan skorlama modu eklendi (madde 3)
         - Skor tutarlılık testi altyapısı eklendi (madde 1)
 """
-import os
+
 import json
+import os
 import statistics
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from dotenv import load_dotenv
-from loguru import logger
-from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
+from loguru import logger
+from pydantic import BaseModel, Field
 
-from core.extractor import YouTubeExtractor
-from core.transcript import TranscriptManager
 import core.scoring_config as SC
+from core.extractor import YouTubeExtractor
 
 # Load .env file
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
@@ -35,6 +36,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 # ---------------------------------------------------------------------------
 # Pydantic Şemaları
 # ---------------------------------------------------------------------------
+
 
 class GeminiBatchClipVerdict(BaseModel):
     candidate_id: int = Field(description="Değerlendirilen adayın ID'si")
@@ -57,12 +59,13 @@ class GeminiBatchClipVerdict(BaseModel):
 
 
 class GeminiGamingBatchResult(BaseModel):
-    selected_clips: List[GeminiBatchClipVerdict] = Field(description="Seçilen ve değerlendirilen klipler")
+    selected_clips: list[GeminiBatchClipVerdict] = Field(description="Seçilen ve değerlendirilen klipler")
 
 
 # ---------------------------------------------------------------------------
 # Yardımcı Fonksiyonlar
 # ---------------------------------------------------------------------------
+
 
 def score_to_band(score: int) -> str:
     """
@@ -80,12 +83,14 @@ def score_to_band(score: int) -> str:
     if not SC.BAND_LABELS_ENABLED:
         return "—"
     for band in SC.SCORE_BANDS:
-        if band["min"] <= score <= band["max"]:
-            return band["label"]
+        b_min = int(float(str(band.get("min", 0))))
+        b_max = int(float(str(band.get("max", 100))))
+        if b_min <= score <= b_max:
+            return str(band.get("label", "Düşük"))
     return "Düşük"
 
 
-def _build_signal_validation_section(signals: Dict[str, Any]) -> str:
+def _build_signal_validation_section(signals: dict[str, Any]) -> str:
     """
     Sinyal doğrulama faktörü için prompt metnini oluşturur.
     Hem eski sinyalleri (audio_spike, silence_burst) hem yeni sinyalleri
@@ -119,10 +124,10 @@ def _build_signal_validation_section(signals: Dict[str, Any]) -> str:
 
 def _gemini_single_call(
     client: genai.Client,
-    models_to_try: List[str],
+    models_to_try: list[str],
     prompt: str,
     system_instruction: str,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Tek bir Gemini çağrısı yapar, model fallback uygular."""
     for model_name in models_to_try:
         try:
@@ -136,7 +141,9 @@ def _gemini_single_call(
                     temperature=0.3,
                 ),
             )
-            return json.loads(response.text)
+            if response and response.text:
+                return json.loads(response.text)
+            return None
         except Exception as e:
             logger.debug("Model {} failed: {}", model_name, e)
             continue
@@ -146,6 +153,7 @@ def _gemini_single_call(
 # ---------------------------------------------------------------------------
 # Ana Motor
 # ---------------------------------------------------------------------------
+
 
 class GeminiHighlightEngine:
     """Uses Google Gemini Flash to batch-judge Top-N gaming candidate clips in 1 structured call."""
@@ -157,17 +165,17 @@ class GeminiHighlightEngine:
         "gemini-3.7-flash",
         "gemini-3.6-flash",
         "gemini-3.5-flash",
-        "gemini-flash-latest"
+        "gemini-flash-latest",
     ]
 
     @classmethod
     def _build_prompt_and_system(
         cls,
-        candidates: List[Dict[str, Any]],
+        candidates: list[dict[str, Any]],
         video_title: str,
         total_duration: int,
         target_clips: int,
-        channel_dna: Optional[Dict[str, Any]] = None,
+        channel_dna: dict[str, Any] | None = None,
     ):
         """Prompt ve system_instruction metnini oluşturur — test/ensemble için tekrar kullanılabilir."""
         candidates_summary = []
@@ -223,6 +231,7 @@ class GeminiHighlightEngine:
         if channel_dna:
             try:
                 from core.channel_dna import ChannelDNAManager
+
                 dna_section = ChannelDNAManager().format_prompt_context(channel_dna)
             except Exception:
                 pass
@@ -243,14 +252,14 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
     @classmethod
     def batch_judge_gaming_candidates(
         cls,
-        candidates: List[Dict[str, Any]],
+        candidates: list[dict[str, Any]],
         video_title: str,
         total_duration: int,
         target_clips: int = 3,
-        api_key: Optional[str] = None,
-        channel_dna: Optional[Dict[str, Any]] = None,
-        ensemble_runs: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        api_key: str | None = None,
+        channel_dna: dict[str, Any] | None = None,
+        ensemble_runs: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Top-N adayı Gemini Flash ile yargılar, viral skor hesaplar.
 
@@ -279,7 +288,7 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
 
         # Ensemble modu: N kez çağır, her aday için medyan skor al
         logger.info("Ensemble modu: {} çalışma yapılıyor...", n_runs)
-        all_runs: List[List[Dict]] = []
+        all_runs: list[list[dict]] = []
         for run_idx in range(n_runs):
             run_data = _gemini_single_call(client, cls.MODELS_TO_TRY, prompt, system_instruction)
             if run_data:
@@ -290,8 +299,8 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             raise RuntimeError("Ensemble: tüm çalışmalar başarısız.")
 
         # Her aday_id için tüm run'lardaki viral_confidence medyanını hesapla
-        score_by_cid: Dict[int, List[int]] = {}
-        representative: Dict[int, Dict] = {}
+        score_by_cid: dict[int, list[int]] = {}
+        representative: dict[int, dict] = {}
         for run_verdicts in all_runs:
             for v in run_verdicts:
                 cid = v.get("candidate_id")
@@ -305,8 +314,7 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             median_score = int(statistics.median(scores))
             representative[cid]["viral_confidence"] = median_score
             representative[cid]["rationale"] = (
-                representative[cid].get("rationale", "") +
-                f" [Ensemble medyan: {median_score}, runs={scores}]"
+                representative[cid].get("rationale", "") + f" [Ensemble medyan: {median_score}, runs={scores}]"
             )
 
         ensemble_data = {"selected_clips": list(representative.values())}
@@ -315,11 +323,11 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
     @classmethod
     def _build_final_clips(
         cls,
-        data: Dict[str, Any],
-        candidates: List[Dict[str, Any]],
+        data: dict[str, Any],
+        candidates: list[dict[str, Any]],
         total_duration: int,
         target_clips: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Ham Gemini çıktısını standart klip listesine dönüştürür."""
         verdicts = data.get("selected_clips", [])
 
@@ -330,8 +338,12 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
                 v["viral_confidence"] = min(orig, SC.MUNDANE_SCORE_CAP)
                 if v.get("verdict", "").upper() == "KEEP":
                     v["verdict"] = "DROP"  # MUNDANE olanları zorla KEEP yapma
-                    logger.debug("MUNDANE aday {} DROP'a çevrildi (skor kırpıldı: {} → {})",
-                                 v.get("candidate_id"), orig, v["viral_confidence"])
+                    logger.debug(
+                        "MUNDANE aday {} DROP'a çevrildi (skor kırpıldı: {} → {})",
+                        v.get("candidate_id"),
+                        orig,
+                        v["viral_confidence"],
+                    )
 
         keep_clips = [v for v in verdicts if v.get("verdict", "").upper() == "KEEP"]
         if not keep_clips:
@@ -360,27 +372,29 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             rationale = clip.get("rationale", "")
             why_viral = clip.get("why_viral", "")
 
-            final_clips.append({
-                "rank": rank,
-                "candidate_id": clip.get("candidate_id"),
-                "title": clip.get("title", f"Gaming Klip #{rank}"),
-                "category": category,
-                "score": raw_score,
-                "score_band": score_to_band(raw_score),   # Bant etiketi (madde 2)
-                "intensity": raw_score,
-                "rationale": rationale,                    # Kısa gerekçe (madde 8)
-                "hook_caption": clip.get("hook_caption", ""),
-                "reason": f"🎮 [{category}] {clip.get('hook_caption', '')} — {why_viral}",
-                "peak_time": round((s_time + e_time) / 2.0, 1),
-                "peak_formatted": YouTubeExtractor.format_seconds((s_time + e_time) / 2.0),
-                "start_time": round(s_time, 1),
-                "start_formatted": YouTubeExtractor.format_seconds(s_time),
-                "end_time": round(e_time, 1),
-                "end_formatted": YouTubeExtractor.format_seconds(e_time),
-                "duration": dur,
-                "duration_formatted": f"{int(dur)} sn",
-                "text": snippet,
-            })
+            final_clips.append(
+                {
+                    "rank": rank,
+                    "candidate_id": clip.get("candidate_id"),
+                    "title": clip.get("title", f"Gaming Klip #{rank}"),
+                    "category": category,
+                    "score": raw_score,
+                    "score_band": score_to_band(raw_score),  # Bant etiketi (madde 2)
+                    "intensity": raw_score,
+                    "rationale": rationale,  # Kısa gerekçe (madde 8)
+                    "hook_caption": clip.get("hook_caption", ""),
+                    "reason": f"🎮 [{category}] {clip.get('hook_caption', '')} — {why_viral}",
+                    "peak_time": round((s_time + e_time) / 2.0, 1),
+                    "peak_formatted": YouTubeExtractor.format_seconds((s_time + e_time) / 2.0),
+                    "start_time": round(s_time, 1),
+                    "start_formatted": YouTubeExtractor.format_seconds(s_time),
+                    "end_time": round(e_time, 1),
+                    "end_formatted": YouTubeExtractor.format_seconds(e_time),
+                    "duration": dur,
+                    "duration_formatted": f"{int(dur)} sn",
+                    "text": snippet,
+                }
+            )
 
         final_clips.sort(key=lambda x: x["start_time"])
         return final_clips
@@ -391,12 +405,12 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
     @classmethod
     def score_consistency_test(
         cls,
-        candidates: List[Dict[str, Any]],
+        candidates: list[dict[str, Any]],
         video_title: str,
         total_duration: int,
-        api_key: Optional[str] = None,
-        runs: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        api_key: str | None = None,
+        runs: int | None = None,
+    ) -> dict[str, Any]:
         """
         Aynı aday listesini N kez bağımsız olarak skorlatır ve varyansı raporlar.
 
@@ -446,7 +460,7 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             logger.info("Tutarlılık testi run {}/{} tamamlandı", i + 1, n_runs)
 
         # Her aday için skor dizisi oluştur
-        per_candidate: Dict[int, Dict] = {}
+        per_candidate: dict[int, dict] = {}
         for run_data in run_results:
             for v in run_data.get("selected_clips", []):
                 cid = v.get("candidate_id")
@@ -459,7 +473,7 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
         # İstatistikler
         all_stds = []
         all_ranges = []
-        for cid, info in per_candidate.items():
+        for _cid, info in per_candidate.items():
             scores = info["scores"]
             if len(scores) < 2:
                 info["std"] = 0.0
@@ -482,22 +496,17 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
 
         if max_range > 25:
             recommendation = (
-                "⚠️ Yüksek varyans tespit edildi. "
-                "scoring_config.ENSEMBLE_RUNS=3 ve BAND_LABELS_ENABLED=True önerilir."
+                "⚠️ Yüksek varyans tespit edildi. scoring_config.ENSEMBLE_RUNS=3 ve BAND_LABELS_ENABLED=True önerilir."
             )
         elif max_range > 15:
             recommendation = (
-                "ℹ️ Orta varyans. Bant etiketleme açılabilir (BAND_LABELS_ENABLED=True). "
-                "Ensemble opsiyonel."
+                "ℹ️ Orta varyans. Bant etiketleme açılabilir (BAND_LABELS_ENABLED=True). Ensemble opsiyonel."
             )
         else:
-            recommendation = (
-                "✅ Sistem kararlı. Mevcut tekil çalışma yeterli."
-            )
+            recommendation = "✅ Sistem kararlı. Mevcut tekil çalışma yeterli."
 
         logger.info(
-            "Tutarlılık Testi Sonucu — Ortalama STD: {}, Max Aralık: {}\n{}",
-            mean_std, max_range, recommendation
+            "Tutarlılık Testi Sonucu — Ortalama STD: {}, Max Aralık: {}\n{}", mean_std, max_range, recommendation
         )
 
         return {
@@ -515,23 +524,16 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
     # -----------------------------------------------------------------------
     @classmethod
     def generate_shorts_metadata(
-        cls,
-        clip_title: str,
-        hook_caption: str,
-        category: str,
-        video_title: str = "",
-        api_key: Optional[str] = None
-    ) -> Dict[str, Any]:
+        cls, clip_title: str, hook_caption: str, category: str, video_title: str = "", api_key: str | None = None
+    ) -> dict[str, Any]:
         """Generate high-CTR title, SEO description, and tags for YouTube Shorts."""
         # 1. Try DeepSeek V3/R1 first if configured (Dream Team Creative Lead)
         try:
             from core.deepseek_engine import DeepSeekEngine
+
             if DeepSeekEngine.is_available():
                 res = DeepSeekEngine.generate_shorts_copy(
-                    clip_title=clip_title,
-                    hook_caption=hook_caption,
-                    category=category,
-                    video_title=video_title
+                    clip_title=clip_title, hook_caption=hook_caption, category=category, video_title=video_title
                 )
                 res["provider"] = "DeepSeek V3 (Kreatif Motor)"
                 return res
@@ -565,7 +567,7 @@ GÖREVLER:
         class GeminiShortsMeta(BaseModel):
             title: str = Field(description="Maks 90 karakterlik dikkat çekici YouTube Shorts başlığı")
             description: str = Field(description="Kanca ve hashtag içeren açıklama")
-            tags: List[str] = Field(description="Oyun ve klibe özel 10-14 adet arama etiketi")
+            tags: list[str] = Field(description="Oyun ve klibe özel 10-14 adet arama etiketi")
 
         for model_name in cls.MODELS_TO_TRY:
             try:
@@ -573,17 +575,15 @@ GÖREVLER:
                     model=model_name,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=GeminiShortsMeta,
-                        temperature=0.6
+                        response_mime_type="application/json", response_schema=GeminiShortsMeta, temperature=0.6
                     ),
                 )
-                res_dict = json.loads(response.text)
+                res_dict = json.loads(response.text) if (response and response.text) else {}
                 return {
                     "title": res_dict.get("title", f"{clip_title} #Shorts"),
                     "description": res_dict.get("description", f"{hook_caption}\n\n#Shorts"),
                     "tags": res_dict.get("tags", [video_title.lower(), clip_title.lower(), "shorts", "gaming"]),
-                    "provider": f"Google Gemini ({model_name})"
+                    "provider": f"Google Gemini ({model_name})",
                 }
             except Exception as e:
                 logger.debug("Gemini metadata model {} failed: {}", model_name, e)
@@ -593,5 +593,5 @@ GÖREVLER:
             "title": f"{clip_title} 🔥 #Shorts",
             "description": f"🎯 {hook_caption}\n\n#Shorts #Gaming",
             "tags": ["shorts", "gaming", "viral"],
-            "provider": "Google Gemini (Fallback)"
+            "provider": "Google Gemini (Fallback)",
         }

@@ -6,28 +6,27 @@ from __future__ import annotations
 
 import datetime
 import os
-import re
-import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
+
 from loguru import logger
 
+from core.copywriter import CopywriterEngine
+from core.database import DatabaseManager
 from core.feed import ChannelFeed
 from core.instagram_uploader import InstagramUploader
-from core.cutter import VideoCutter
-from core.database import DatabaseManager
 from core.notifier import Notifier
 from core.pipeline import ClipperPipeline
+from core.slot_allocator import SlotAllocator
 from core.thumbnail import ThumbnailGenerator
 from core.uploader import YouTubeUploader
-from core.copywriter import CopywriterEngine
-from core.slot_allocator import SlotAllocator
 
 
 class AutoPilotManager:
     """Otonom kanal takip, klip stoklama ve akıllı zamanlanmış yayın yöneticisi."""
 
-    _worker_scheduler: Optional[Any] = None
-    _worker_info: Dict[str, Any] = {
+    _worker_scheduler: Any | None = None
+    _worker_info: dict[str, Any] = {
         "running": False,
         "interval_hours": 2.0,
         "last_run": None,
@@ -36,15 +35,15 @@ class AutoPilotManager:
 
     def __init__(
         self,
-        db: Optional[DatabaseManager] = None,
-        daily_slots: Optional[List[str]] = None,
+        db: DatabaseManager | None = None,
+        daily_slots: list[str] | None = None,
         timezone_offset_hours: int = 3,
-        feed: Optional[ChannelFeed] = None,
-        uploader: Optional[YouTubeUploader] = None,
-        instagram: Optional[InstagramUploader] = None,
-        notifier: Optional[Notifier] = None,
-        copywriter: Optional[CopywriterEngine] = None,
-        slot_allocator: Optional[SlotAllocator] = None,
+        feed: ChannelFeed | None = None,
+        uploader: YouTubeUploader | None = None,
+        instagram: InstagramUploader | None = None,
+        notifier: Notifier | None = None,
+        copywriter: CopywriterEngine | None = None,
+        slot_allocator: SlotAllocator | None = None,
     ) -> None:
         self.db = db or DatabaseManager()
         self.db.init_db()
@@ -66,7 +65,7 @@ class AutoPilotManager:
     # ------------------------------------------------------------------
 
     @classmethod
-    def get_background_worker_info(cls) -> Dict[str, Any]:
+    def get_background_worker_info(cls) -> dict[str, Any]:
         return dict(cls._worker_info)
 
     @classmethod
@@ -74,9 +73,10 @@ class AutoPilotManager:
         return cls._worker_info.get("running", False)
 
     @classmethod
-    def start_background_worker(cls, interval_hours: float = 2.0, db: Optional[DatabaseManager] = None) -> bool:
+    def start_background_worker(cls, interval_hours: float = 2.0, db: DatabaseManager | None = None) -> bool:
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
+
             if cls._worker_scheduler and cls._worker_scheduler.running:
                 cls._worker_scheduler.shutdown(wait=False)
 
@@ -113,7 +113,9 @@ class AutoPilotManager:
                 "running": True,
                 "interval_hours": interval_hours,
                 "last_run": None,
-                "next_run": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=interval_hours)).isoformat(),
+                "next_run": (
+                    datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=interval_hours)
+                ).isoformat(),
             }
             logger.info("AutoPilot background worker started (interval: {}h).", interval_hours)
             return True
@@ -149,7 +151,7 @@ class AutoPilotManager:
         url: str,
         name: str,
         min_score: int = 90,
-        target_playlist: Optional[str] = None,
+        target_playlist: str | None = None,
         auto_upload: bool = True,
     ) -> str:
         clean_url = url.strip()
@@ -162,7 +164,7 @@ class AutoPilotManager:
             auto_upload=1 if auto_upload else 0,
         )
 
-    def get_tracked_channels(self, active_only: bool = True) -> List[Dict[str, Any]]:
+    def get_tracked_channels(self, active_only: bool = True) -> list[dict[str, Any]]:
         return self.db.get_tracked_channels(active_only=active_only)
 
     def remove_channel(self, channel_id_or_url: str) -> None:
@@ -174,18 +176,18 @@ class AutoPilotManager:
 
     def compute_next_available_slot(
         self,
-        reference_time_utc: Optional[datetime.datetime] = None,
-        latest_scheduled_iso: Optional[str] = None,
-    ) -> Tuple[datetime.datetime, str]:
+        reference_time_utc: datetime.datetime | None = None,
+        latest_scheduled_iso: str | None = None,
+    ) -> tuple[datetime.datetime, str]:
         return self.slot_allocator.compute_next_available_slot(reference_time_utc, latest_scheduled_iso)
 
-    def remove_and_refill_gap(self, queue_id: str) -> Dict[str, Any]:
+    def remove_and_refill_gap(self, queue_id: str) -> dict[str, Any]:
         return self.slot_allocator.remove_and_refill_gap(queue_id)
 
-    def diversified_shuffle(self, selected_dates: List[str]) -> Dict[str, Any]:
+    def diversified_shuffle(self, selected_dates: list[str]) -> dict[str, Any]:
         return self.slot_allocator.diversified_shuffle(selected_dates)
 
-    def get_day_slots_grid(self, date_str: str) -> Dict[str, Optional[Dict[str, Any]]]:
+    def get_day_slots_grid(self, date_str: str) -> dict[str, dict[str, Any] | None]:
         return self.slot_allocator.get_day_slots_grid(date_str)
 
     def assign_clip_to_date_slot(self, queue_id: str, date_str: str, slot_time: str) -> bool:
@@ -197,12 +199,16 @@ class AutoPilotManager:
         target_iso = target_utc_dt.replace(tzinfo=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         day_items = self.db.get_day_slot_items(date_str, tz_offset_hours=self.tz_offset)
-        occupant = next((item for item in day_items if item.get("slot_time") == slot_time and item["id"] != queue_id), None)
+        occupant = next(
+            (item for item in day_items if item.get("slot_time") == slot_time and item["id"] != queue_id), None
+        )
 
         if occupant:
             source_row = None
             with self.db._connect() as conn:
-                source_row = conn.execute("SELECT scheduled_at FROM autopilot_queue WHERE id = ?;", (queue_id,)).fetchone()
+                source_row = conn.execute(
+                    "SELECT scheduled_at FROM autopilot_queue WHERE id = ?;", (queue_id,)
+                ).fetchone()
             if source_row and source_row["scheduled_at"]:
                 return self.db.swap_clip_slots(queue_id, occupant["id"])
             else:
@@ -211,12 +217,12 @@ class AutoPilotManager:
         else:
             return self.db.assign_clip_to_slot(queue_id, target_iso)
 
-    def get_calendar_days_data(self, days_ahead: int = 14) -> List[Dict[str, Any]]:
+    def get_calendar_days_data(self, days_ahead: int = 14) -> list[dict[str, Any]]:
         now_local = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=self.tz_offset)
         today = now_local.date()
         queue = self.db.get_all_active_scheduled_queue()
 
-        items_by_date: Dict[str, List[Dict[str, Any]]] = {}
+        items_by_date: dict[str, list[dict[str, Any]]] = {}
         for item in queue:
             sched = item.get("scheduled_at", "")
             try:
@@ -243,26 +249,29 @@ class AutoPilotManager:
             else:
                 day_label = current_date.strftime("%d %b %a")
 
-            days_data.append({
-                "date": current_date,
-                "date_str": date_str,
-                "label": day_label,
-                "item_count": len(day_items),
-                "items": day_items,
-            })
+            days_data.append(
+                {
+                    "date": current_date,
+                    "date_str": date_str,
+                    "label": day_label,
+                    "item_count": len(day_items),
+                    "items": day_items,
+                }
+            )
         return days_data
 
     # ------------------------------------------------------------------
     # Backfill & Channel Operations
     # ------------------------------------------------------------------
 
-    def backfill_processed_videos(self, progress_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
+    def backfill_processed_videos(self, progress_callback: Callable[[str], None] | None = None) -> dict[str, Any]:
         cb = progress_callback or (lambda msg: None)
         channels = self.get_tracked_channels(active_only=False)
-        summary = {"channels": len(channels), "recorded": 0, "errors": []}
+        recorded_total = 0
+        backfill_errors: list[str] = []
         if not channels:
             cb("ℹ️ Takip listesinde kanal bulunamadı.")
-            return summary
+            return {"channels": 0, "recorded": 0, "errors": []}
 
         for ch in channels:
             ch_url = ch["url"]
@@ -276,28 +285,32 @@ class AutoPilotManager:
                     if not self.db.is_channel_video_processed(ch_url, vid):
                         self.db.record_processed_video(ch_url, vid, v.get("title", ""))
                         recorded_for_ch += 1
-                summary["recorded"] += recorded_for_ch
+                recorded_total += recorded_for_ch
                 cb(f"   ✓ '{ch_name}': {recorded_for_ch} eski video anchor yapıldı.")
             except Exception as exc:
                 logger.error("Backfill error: {}", exc)
-                summary["errors"].append(f"{ch_name}: {exc}")
+                backfill_errors.append(f"{ch_name}: {exc}")
 
-        return summary
+        return {"channels": len(channels), "recorded": recorded_total, "errors": backfill_errors}
 
-    def run_cycle(self, api_key: Optional[str] = None, progress_callback: Optional[Callable[[str], None]] = None) -> Dict[str, Any]:
+    def run_cycle(
+        self, api_key: str | None = None, progress_callback: Callable[[str], None] | None = None
+    ) -> dict[str, Any]:
         cb = progress_callback or (lambda msg: None)
         channels = self.get_tracked_channels(active_only=True)
         cb(f"🤖 [AutoPilot] {len(channels)} aktif kanal taranıyor…")
-        summary = {
-            "channels_checked": len(channels),
-            "new_videos_found": 0,
-            "clips_stockpiled": 0,
-            "clips_scheduled": 0,
-            "errors": [],
-        }
+        new_videos_found = 0
+        cycle_errors: list[str] = []
+
         if not channels:
             cb("ℹ️ Takip listesinde aktif kanal bulunamadı.")
-            return summary
+            return {
+                "channels_checked": 0,
+                "new_videos_found": 0,
+                "clips_stockpiled": 0,
+                "clips_scheduled": 0,
+                "errors": [],
+            }
 
         for ch in channels:
             ch_url = ch["url"]
@@ -317,7 +330,7 @@ class AutoPilotManager:
                     self.db.update_tracked_channel_checked(ch_url)
                     continue
 
-                summary["new_videos_found"] += len(new_videos)
+                new_videos_found += len(new_videos)
                 for vid in new_videos:
                     vid_url = vid["url"]
                     vid_title = vid.get("title", "Video")
@@ -329,30 +342,36 @@ class AutoPilotManager:
                         cb(f"   ⏩ [Zaten Var] {vid_title}")
             except Exception as e:
                 logger.error("Channel scan error: {}", e)
-                summary["errors"].append(str(e))
+                cycle_errors.append(str(e))
 
-        return summary
+        return {
+            "channels_checked": len(channels),
+            "new_videos_found": new_videos_found,
+            "clips_stockpiled": 0,
+            "clips_scheduled": 0,
+            "errors": cycle_errors,
+        }
 
     def process_pending_videos(
         self,
-        api_key: Optional[str] = None,
-        progress_callback: Optional[Callable[[str], None]] = None,
+        api_key: str | None = None,
+        progress_callback: Callable[[str], None] | None = None,
         max_videos: int = 5,
         add_subtitles: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         cb = progress_callback or (lambda msg: None)
         cb(f"⚙️ [İşleyici] 'Bekliyor' durumundaki videolar kontrol ediliyor (Limit: {max_videos})...")
-        summary = {"processed": 0, "errors": []}
+        processed_count = 0
+        proc_errors: list[str] = []
 
         with self.db._connect() as conn:
             pending_videos = conn.execute(
-                "SELECT id, url, title FROM videos WHERE status='pending' LIMIT ?",
-                (max_videos,)
+                "SELECT id, url, title FROM videos WHERE status='pending' LIMIT ?", (max_videos,)
             ).fetchall()
 
         if not pending_videos:
             cb("ℹ️ İşlenecek yeni video yok.")
-            return summary
+            return {"processed": 0, "errors": []}
 
         for p_vid in pending_videos:
             v_id, v_url, v_title = p_vid
@@ -423,30 +442,36 @@ class AutoPilotManager:
                 with self.db._connect() as conn:
                     conn.execute("UPDATE videos SET status='processed' WHERE id=?", (v_id,))
                     conn.commit()
-                summary["processed"] += 1
+                processed_count += 1
                 cb(f"✅ Başarıyla İşlendi: {v_title}")
 
             except Exception as e:
                 logger.error("Processing error for {}: {}", v_title, e)
-                summary["errors"].append(str(e))
+                proc_errors.append(str(e))
                 with self.db._connect() as conn:
                     conn.execute("UPDATE videos SET status='error' WHERE id=?", (v_id,))
                     conn.commit()
 
-        return summary
+        return {"processed": processed_count, "errors": proc_errors}
 
     def publish_due_socials(self) -> int:
         """Zamanı gelmiş videoları yayınlar."""
         from core.multi_publisher import MultiPublisher
-        multi_pub = MultiPublisher(youtube_uploader=self.uploader, instagram_uploader=self.instagram, notifier=self.notifier)
+
+        multi_pub = MultiPublisher(
+            youtube_uploader=self.uploader, instagram_uploader=self.instagram, notifier=self.notifier
+        )
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self.db._connect() as conn:
-            due_items = conn.execute("""
+            due_items = conn.execute(
+                """
                 SELECT id, video_id, clip_id, title, render_path, thumbnail_path, scheduled_at, description
-                FROM autopilot_queue 
+                FROM autopilot_queue
                 WHERE scheduled_at <= ? AND status = 'QUEUED'
                 ORDER BY scheduled_at ASC;
-            """, (now_iso,)).fetchall()
+            """,
+                (now_iso,),
+            ).fetchall()
 
         if not due_items:
             return 0

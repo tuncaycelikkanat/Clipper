@@ -9,7 +9,8 @@ import os
 import re
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from loguru import logger
 
 
@@ -17,7 +18,7 @@ class YouTubeTagMiner:
     """Mines real-time trending search queries from YouTube Autocomplete API."""
 
     @staticmethod
-    def get_live_youtube_suggestions(query: str, max_results: int = 10) -> List[str]:
+    def get_live_youtube_suggestions(query: str, max_results: int = 10) -> list[str]:
         encoded_query = urllib.parse.quote(query)
         url = f"https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={encoded_query}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -26,7 +27,7 @@ class YouTubeTagMiner:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=5) as response:
                 content = response.read().decode("utf-8", errors="ignore")
-                match = re.search(r'\[.*\]', content)
+                match = re.search(r"\[.*\]", content)
                 if match:
                     data = json.loads(match.group(0))
                     if len(data) > 1 and isinstance(data[1], list):
@@ -39,12 +40,8 @@ class YouTubeTagMiner:
 
     @classmethod
     def mine_popular_tags(
-        cls,
-        streamer_name: str,
-        game_name: Optional[str] = None,
-        clip_topic: Optional[str] = None,
-        max_tags: int = 15
-    ) -> Dict[str, Any]:
+        cls, streamer_name: str, game_name: str | None = None, clip_topic: str | None = None, max_tags: int = 15
+    ) -> dict[str, Any]:
         queries_to_try = [
             f"{streamer_name} {game_name}" if game_name else streamer_name,
             f"{streamer_name} komik anlar",
@@ -61,7 +58,7 @@ class YouTubeTagMiner:
             for r in results:
                 raw_suggestions.add(r.strip())
 
-        cleaned_tags = []
+        cleaned_tags: list[str] = []
         for s in raw_suggestions:
             if s and len(s) > 2 and s.lower() not in [t.lower() for t in cleaned_tags]:
                 cleaned_tags.append(s)
@@ -84,20 +81,16 @@ class YouTubeTagMiner:
 
         hashtags = []
         for t in final_tags[:6]:
-            tag_clean = re.sub(r'[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]', '', t)
+            tag_clean = re.sub(r"[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]", "", t)
             if tag_clean and len(tag_clean) > 2:
                 hashtags.append(f"#{tag_clean.lower()}")
 
-        return {
-            "tags": final_tags,
-            "hashtags": hashtags[:5],
-            "tags_comma_separated": ", ".join(final_tags)
-        }
+        return {"tags": final_tags, "hashtags": hashtags[:5], "tags_comma_separated": ", ".join(final_tags)}
 
 
 class HumanMetadataEngine:
     """
-    Generates 100% human-like, high-CTR titles, 3-second hook captions, 
+    Generates 100% human-like, high-CTR titles, 3-second hook captions,
     and engagement-focused descriptions using DeepSeek-V3 (with Gemini fallback).
     """
 
@@ -126,19 +119,17 @@ KESİN KURALLAR — ROBOTİK VE YAPAY OLMAKTAN KAÇIN
         transcript_snippet: str = "",
         streamer_name: str = "Yayıncı",
         video_title: str = "",
-        game_name: Optional[str] = None,
+        game_name: str | None = None,
         duration_sec: float = 30.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         tag_data = YouTubeTagMiner.mine_popular_tags(
-            streamer_name=streamer_name,
-            game_name=game_name,
-            clip_topic=video_title
+            streamer_name=streamer_name, game_name=game_name, clip_topic=video_title
         )
 
         user_prompt = f"""
 Klip Bilgileri:
 - Yayıncı / Kanal: {streamer_name}
-- Oyun / Kategori: {game_name or 'Bilinmiyor / Genel'}
+- Oyun / Kategori: {game_name or "Bilinmiyor / Genel"}
 - Video Başlığı: {video_title}
 - Klip Süresi: {duration_sec:.1f} saniye
 - Klipte Konuşulanlar (Transkript):
@@ -162,22 +153,26 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
         # 1. DeepSeek-V3 Call
         try:
             from core.deepseek_engine import DeepSeekEngine
+
             if DeepSeekEngine.is_available():
                 client, model_name, _ = DeepSeekEngine.get_client_and_model()
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {"role": "system", "content": cls.SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format={"type": "json_object"} if "deepseek" in model_name else None,
-                    temperature=0.7,
-                    max_tokens=800
-                )
+                messages_payload: list[Any] = [
+                    {"role": "system", "content": cls.SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ]
+                kwargs: dict[str, Any] = {
+                    "model": model_name,
+                    "messages": messages_payload,
+                    "temperature": 0.7,
+                    "max_tokens": 800,
+                }
+                if "deepseek" in model_name:
+                    kwargs["response_format"] = {"type": "json_object"}
+                response = client.chat.completions.create(**kwargs)
                 if response and getattr(response, "choices", None) and len(response.choices) > 0:
                     msg = response.choices[0].message
                     raw_text = getattr(msg, "content", "") or ""
-                    clean_json = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                    clean_json = re.search(r"\{.*\}", raw_text, re.DOTALL)
                     if clean_json:
                         result_json = json.loads(clean_json.group(0))
         except Exception as exc:
@@ -188,16 +183,18 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
             try:
                 from google import genai
                 from google.genai import types
+
                 api_key = os.getenv("GEMINI_API_KEY")
                 if not api_key:
                     try:
                         from dotenv import load_dotenv
+
                         load_dotenv(".env")
                         api_key = os.getenv("GEMINI_API_KEY")
                     except Exception:
                         pass
                 if api_key:
-                    client = genai.Client(api_key=api_key)
+                    g_client = genai.Client(api_key=api_key)
                     gemini_models = [
                         "gemini-3.5-flash-lite",
                         "gemini-flash-lite-latest",
@@ -208,13 +205,13 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
                     ]
                     for m in gemini_models:
                         try:
-                            resp = client.models.generate_content(
+                            resp = g_client.models.generate_content(
                                 model=m,
                                 contents=f"{cls.SYSTEM_PROMPT}\n\n{user_prompt}",
-                                config=types.GenerateContentConfig(response_mime_type="application/json")
+                                config=types.GenerateContentConfig(response_mime_type="application/json"),
                             )
                             if resp and resp.text:
-                                clean_json = re.search(r'\{.*\}', resp.text, re.DOTALL)
+                                clean_json = re.search(r"\{.*\}", resp.text, re.DOTALL)
                                 if clean_json:
                                     result_json = json.loads(clean_json.group(0))
                                     break
@@ -231,12 +228,12 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
                 "titles": {
                     "quote_based": f'"{snippet_part}..." dedi ve...',
                     "pov_reaction": f"kanka {streamer_name}'in bu pozisyona bak amk 😂",
-                    "streamer_tone": f"{streamer_name} bu sahnede çıldırdı!"
+                    "streamer_tone": f"{streamer_name} bu sahnede çıldırdı!",
                 },
                 "recommended_title": f"kanka {streamer_name}'in bu pozisyona bak amk 😂",
                 "hook_caption": "BUNU KİMSE BEKLEMİYORDU!",
                 "engagement_question": "Sizce burada ne yapılmalıydı? Yorumlara yazın 👇",
-                "description": f"Sizce burada ne yapılmalıydı? Yorumlara yazın 👇\n\n🎮 Yayıncı: @{streamer_name}\n🕹️ Oyun: {game_name or 'Gaming'}\n\n{' '.join(tag_data['hashtags'])}"
+                "description": f"Sizce burada ne yapılmalıydı? Yorumlara yazın 👇\n\n🎮 Yayıncı: @{streamer_name}\n🕹️ Oyun: {game_name or 'Gaming'}\n\n{' '.join(tag_data['hashtags'])}",
             }
 
         result_json["tags"] = tag_data["tags"]

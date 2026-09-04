@@ -11,7 +11,6 @@ Usage:
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 import requests
 from loguru import logger
@@ -29,9 +28,9 @@ class Notifier:
 
     def __init__(
         self,
-        webhook_url: Optional[str] = None,
-        telegram_token: Optional[str] = None,
-        telegram_chat_id: Optional[str] = None,
+        webhook_url: str | None = None,
+        telegram_token: str | None = None,
+        telegram_chat_id: str | None = None,
     ) -> None:
         """
         Initialise the notifier.
@@ -42,15 +41,9 @@ class Notifier:
             telegram_chat_id: Telegram chat / channel ID to post messages in.
         """
         # Allow environment variable overrides as a convenience
-        self.webhook_url: Optional[str] = webhook_url or os.environ.get(
-            "DISCORD_WEBHOOK_URL"
-        )
-        self.telegram_token: Optional[str] = telegram_token or os.environ.get(
-            "TELEGRAM_BOT_TOKEN"
-        )
-        self.telegram_chat_id: Optional[str] = telegram_chat_id or os.environ.get(
-            "TELEGRAM_CHAT_ID"
-        )
+        self.webhook_url: str | None = webhook_url or os.environ.get("DISCORD_WEBHOOK_URL")
+        self.telegram_token: str | None = telegram_token or os.environ.get("TELEGRAM_BOT_TOKEN")
+        self.telegram_chat_id: str | None = telegram_chat_id or os.environ.get("TELEGRAM_CHAT_ID")
 
     # ------------------------------------------------------------------
     # Public API
@@ -79,9 +72,7 @@ class Notifier:
 
         if not notified and self.telegram_token and self.telegram_chat_id:
             try:
-                self.send_telegram(
-                    self.telegram_token, self.telegram_chat_id, message
-                )
+                self.send_telegram(self.telegram_token, self.telegram_chat_id, message)
                 notified = True
             except Exception as exc:
                 logger.warning(f"Telegram notification failed: {exc}")
@@ -97,7 +88,7 @@ class Notifier:
     def send_discord_webhook(
         webhook_url: str,
         message: str,
-        embed: Optional[dict] = None,
+        embed: dict | None = None,
     ) -> None:
         """
         POST a message (and optional embed) to a Discord webhook URL.
@@ -173,7 +164,7 @@ class Notifier:
             f"⏱️  Range: {start_fmt} → {end_fmt}",
         ]
         if hook:
-            lines.append(f"🎯 Hook: \"{hook}\"")
+            lines.append(f'🎯 Hook: "{hook}"')
 
         return "\n".join(lines)
 

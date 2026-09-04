@@ -1,11 +1,11 @@
 """
 backend/api/routes/pipeline.py — Pipeline run + SSE streaming endpoints.
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
@@ -24,7 +24,7 @@ class PipelineRunRequest(BaseModel):
     add_subtitles: bool = True
     add_hook_card: bool = True
     enhance_colors: bool = True
-    api_key: Optional[str] = None
+    api_key: str | None = None
 
 
 @router.post("/run")
@@ -76,13 +76,15 @@ async def stream_job(job_id: str):
     async def event_generator():
         try:
             # Emit current state & past logs immediately
-            init_data = json.dumps({
-                "status": job.status,
-                "progress": job.progress,
-                "current_step": job.current_step,
-                "logs": job.logs,
-                "clips": job.result or [],
-            })
+            init_data = json.dumps(
+                {
+                    "status": job.status,
+                    "progress": job.progress,
+                    "current_step": job.current_step,
+                    "logs": job.logs,
+                    "clips": job.result or [],
+                }
+            )
             yield f"event: init\ndata: {init_data}\n\n"
 
             if job.status in ("done", "failed", "cancelled"):

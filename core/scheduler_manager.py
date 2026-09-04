@@ -8,11 +8,13 @@ channels for new videos and trigger processing callbacks.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.interval import IntervalTrigger
+
     _APSCHEDULER_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _APSCHEDULER_AVAILABLE = False
@@ -23,7 +25,8 @@ try:
     from core.logger import logger
 except ImportError:
     import logging
-    logger = logging.getLogger(__name__)
+
+    logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 try:
     from core.database import DatabaseManager  # noqa: F401 — optional
@@ -50,19 +53,14 @@ class SchedulerManager:
 
     def __init__(self) -> None:
         if not _APSCHEDULER_AVAILABLE:
-            raise ImportError(
-                "APScheduler kurulu değil. Lütfen şunu çalıştırın: "
-                "pip install apscheduler"
-            )
-        self._scheduler: BackgroundScheduler = BackgroundScheduler(
-            job_defaults={"coalesce": True, "max_instances": 1}
-        )
+            raise ImportError("APScheduler kurulu değil. Lütfen şunu çalıştırın: pip install apscheduler")
+        self._scheduler: BackgroundScheduler = BackgroundScheduler(job_defaults={"coalesce": True, "max_instances": 1})
         # Optional callback: Callable[[str, list[dict]], None]
         # Receives (channel_url, new_video_list) whenever new videos are found.
-        self.on_new_videos: Optional[Callable[[str, List[Dict[str, Any]]], None]] = None
+        self.on_new_videos: Callable[[str, list[dict[str, Any]]], None] | None = None
 
         # Internal registry: job_id -> channel_url
-        self._job_registry: Dict[str, str] = {}
+        self._job_registry: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -95,7 +93,7 @@ class SchedulerManager:
         self,
         channel_url: str,
         interval_hours: int = 24,
-        job_id: Optional[str] = None,
+        job_id: str | None = None,
     ) -> str:
         """Register a recurring job that checks *channel_url* every N hours.
 
@@ -148,7 +146,7 @@ class SchedulerManager:
         self._job_registry.pop(job_id, None)
         logger.info("Job kaldırıldı: {}", job_id)
 
-    def list_jobs(self) -> List[Dict[str, Any]]:
+    def list_jobs(self) -> list[dict[str, Any]]:
         """Return a list of all registered jobs with their metadata.
 
         Returns:
@@ -169,7 +167,6 @@ class SchedulerManager:
         for job in self._scheduler.get_jobs():
             next_run = getattr(job, "next_run_time", None)
             jobs.append(
-
                 {
                     "id": job.id,
                     "name": job.name,
@@ -180,7 +177,7 @@ class SchedulerManager:
             )
         return jobs
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Return the current scheduler status.
 
         Returns:
@@ -209,28 +206,22 @@ class SchedulerManager:
             from core.feed import ChannelFeed  # lazy import
 
             # Determine already-processed IDs from DB (optional)
-            processed_ids: List[str] = []
+            processed_ids: list[str] = []
             if DatabaseManager is not None:
                 try:
                     db = DatabaseManager()
-                    processed_ids = db.get_processed_video_ids(channel_url)
+                    processed_ids = list(db.get_processed_video_ids(channel_url))
                 except Exception as db_err:
                     logger.warning("DB sorgu hatası, atlanıyor: {}", db_err)
 
-            new_videos = ChannelFeed.get_new_videos(
-                channel_url, processed_ids=processed_ids, max_count=10
-            )
+            new_videos = ChannelFeed.get_new_videos(channel_url, processed_ids=processed_ids, max_count=10)
 
             if new_videos:
-                logger.info(
-                    "{} yeni video bulundu: {}", len(new_videos), channel_url
-                )
+                logger.info("{} yeni video bulundu: {}", len(new_videos), channel_url)
                 if self.on_new_videos is not None:
                     self.on_new_videos(channel_url, new_videos)
             else:
                 logger.info("Yeni video yok: {}", channel_url)
 
         except Exception as exc:
-            logger.error(
-                "Kanal kontrolü sırasında hata ({}): {}", channel_url, exc
-            )
+            logger.error("Kanal kontrolü sırasında hata ({}): {}", channel_url, exc)

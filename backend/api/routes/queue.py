@@ -1,20 +1,31 @@
 """backend/api/routes/queue.py — Publish queue + calendar."""
-from __future__ import annotations
-import os, sys, datetime
-_R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _R not in sys.path: sys.path.insert(0, _R)
 
-from typing import Optional
+from __future__ import annotations
+
+import datetime
+import os
+import sys
+
+_R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _R not in sys.path:
+    sys.path.insert(0, _R)
+
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from core.database import DatabaseManager
+
 from core.autopilot import AutoPilotManager
+from core.database import DatabaseManager
 
 router = APIRouter(tags=["queue"])
 _TZ_OFFSET = 3  # UTC+3
 
+
 def _db():
-    db = DatabaseManager(); db.init_db(); return db
+    db = DatabaseManager()
+    db.init_db()
+    return db
+
 
 def _ap():
     db = _db()
@@ -23,16 +34,16 @@ def _ap():
 
 class QueueAddRequest(BaseModel):
     clip_id: str
-    scheduled_at: Optional[str] = None   # ISO UTC, None = pool
+    scheduled_at: str | None = None  # ISO UTC, None = pool
 
 
 class QueueUpdateRequest(BaseModel):
-    scheduled_at: Optional[str] = None
-    status: Optional[str] = None
+    scheduled_at: str | None = None
+    status: str | None = None
 
 
 @router.get("/queue")
-async def list_queue(status: Optional[str] = None, limit: int = 100):
+async def list_queue(status: str | None = None, limit: int = 100):
     db = _db()
     items = db.get_autopilot_queue(limit=limit)
     if status:
@@ -104,22 +115,24 @@ async def get_calendar(days: int = 14):
             t = item.get("local_time", "")
             if t in slot_map:
                 slot_map[t] = item
-        result.append({
-            "date": day["date_str"],
-            "label": day["label"],
-            "slots": [{"time": s, "item": slot_map[s]} for s in SLOTS],
-        })
+        result.append(
+            {
+                "date": day["date_str"],
+                "label": day["label"],
+                "slots": [{"time": s, "item": slot_map[s]} for s in SLOTS],
+            }
+        )
     return result
 
 
 class ShuffleRequest(BaseModel):
-    selected_dates: Optional[list[str]] = None
+    selected_dates: list[str] | None = None
 
 
 @router.post("/queue/shuffle")
-async def shuffle_queue(body: Optional[ShuffleRequest] = None):
+async def shuffle_queue(body: ShuffleRequest | None = None):
     ap, db = _ap()
-    dates = (body.selected_dates if body and body.selected_dates else None)
+    dates = body.selected_dates if body and body.selected_dates else None
     if not dates:
         now_local = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=_TZ_OFFSET)
         dates = [(now_local + datetime.timedelta(days=i)).date().isoformat() for i in range(14)]

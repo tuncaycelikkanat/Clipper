@@ -1,6 +1,8 @@
 """Tests for FastAPI backend routes and API behavior."""
+
 import pytest
 from fastapi.testclient import TestClient
+
 from backend.main import app
 from core.database import DatabaseManager
 
@@ -12,27 +14,32 @@ def seed_database():
     """Seed test data in database before testing API endpoints."""
     db = DatabaseManager()
     db.init_db()
-    db.save_video({
-        "id": "api_test_vid",
-        "url": "https://youtube.com/watch?v=api_test_vid",
-        "title": "API Test Video",
-        "uploader": "Test Channel",
-        "duration": 120,
-        "view_count": 500,
-        "has_heatmap": True
-    })
-    clip_ids = db.save_clips("api_test_vid", [
+    db.save_video(
         {
-            "rank": 1,
-            "title": "Awesome Highlight",
-            "category": "CLUTCH",
-            "start_time": 10.0,
-            "end_time": 25.0,
-            "duration": 15.0,
-            "score": 95,
-            "hook_caption": "Unbelievable moment!"
+            "id": "api_test_vid",
+            "url": "https://youtube.com/watch?v=api_test_vid",
+            "title": "API Test Video",
+            "uploader": "Test Channel",
+            "duration": 120,
+            "view_count": 500,
+            "has_heatmap": True,
         }
-    ])
+    )
+    db.save_clips(
+        "api_test_vid",
+        [
+            {
+                "rank": 1,
+                "title": "Awesome Highlight",
+                "category": "CLUTCH",
+                "start_time": 10.0,
+                "end_time": 25.0,
+                "duration": 15.0,
+                "score": 95,
+                "hook_caption": "Unbelievable moment!",
+            }
+        ],
+    )
     yield
     with db._connect() as conn:
         conn.execute("DELETE FROM clips WHERE video_id = 'api_test_vid'")
@@ -87,12 +94,15 @@ def test_update_clip():
 
 
 def test_channels_crud():
-    create_res = client.post("/api/channels", json={
-        "url": "https://youtube.com/@testchannel_fastapi",
-        "name": "FastAPI Test Channel",
-        "min_score": 85,
-        "auto_upload": True
-    })
+    create_res = client.post(
+        "/api/channels",
+        json={
+            "url": "https://youtube.com/@testchannel_fastapi",
+            "name": "FastAPI Test Channel",
+            "min_score": 85,
+            "auto_upload": True,
+        },
+    )
     assert create_res.status_code == 201
     channel = create_res.json()
     channel_id = channel.get("id") or "https://youtube.com/@testchannel_fastapi"
@@ -121,16 +131,21 @@ def test_scheduler_status():
 
 def test_preview_video(monkeypatch):
     from core.extractor import YouTubeExtractor
-    monkeypatch.setattr(YouTubeExtractor, "get_video_data", lambda u: {
-        "id": "mock_vid",
-        "url": u,
-        "title": "Mock Video",
-        "uploader": "Mock Uploader",
-        "duration": 2220,
-        "duration_formatted": "37:00",
-        "thumbnail": "https://example.com/thumb.jpg",
-        "view_count": 1000
-    })
+
+    monkeypatch.setattr(
+        YouTubeExtractor,
+        "get_video_data",
+        lambda u: {
+            "id": "mock_vid",
+            "url": u,
+            "title": "Mock Video",
+            "uploader": "Mock Uploader",
+            "duration": 2220,
+            "duration_formatted": "37:00",
+            "thumbnail": "https://example.com/thumb.jpg",
+            "view_count": 1000,
+        },
+    )
 
     res = client.post("/api/videos/preview", json={"url": "https://youtu.be/mock_vid"})
     assert res.status_code == 200
@@ -145,7 +160,8 @@ def test_preview_video(monkeypatch):
     assert res_err.status_code == 400
 
     # Test error handling
-    monkeypatch.setattr(YouTubeExtractor, "get_video_data", lambda u: (_ for _ in ()).throw(RuntimeError("Invalid URL")))
+    monkeypatch.setattr(
+        YouTubeExtractor, "get_video_data", lambda u: (_ for _ in ()).throw(RuntimeError("Invalid URL"))
+    )
     res_fail = client.post("/api/videos/preview", json={"url": "https://youtu.be/bad_vid"})
     assert res_fail.status_code == 400
-

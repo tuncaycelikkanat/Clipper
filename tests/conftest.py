@@ -51,4 +51,3 @@ def reset_test_state():
     SC.STORY_COMPLETENESS_WEIGHT = orig_story
     SC.SIGNAL_VALIDATION_WEIGHT = orig_sig
     job_store._jobs.clear()
-

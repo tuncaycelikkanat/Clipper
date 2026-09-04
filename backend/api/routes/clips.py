@@ -1,14 +1,18 @@
 """backend/api/routes/clips.py — Clip CRUD + file serving."""
+
 from __future__ import annotations
 
 import os
 import sys
+
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+
+import contextlib
+
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -17,21 +21,22 @@ router = APIRouter(prefix="/clips", tags=["clips"])
 
 def _get_db():
     from core.database import DatabaseManager
+
     db = DatabaseManager()
     db.init_db()
     return db
 
 
 class ClipUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    tags: Optional[str] = None
-    hook_caption: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    tags: str | None = None
+    hook_caption: str | None = None
 
 
 @router.get("")
 async def list_clips(
-    video_id: Optional[str] = None,
+    video_id: str | None = None,
     limit: int = Query(50, le=200),
     offset: int = 0,
 ):
@@ -39,13 +44,11 @@ async def list_clips(
     with db._connect() as conn:
         if video_id:
             rows = conn.execute(
-                "SELECT * FROM clips WHERE video_id = ? ORDER BY rank LIMIT ? OFFSET ?",
-                (video_id, limit, offset)
+                "SELECT * FROM clips WHERE video_id = ? ORDER BY rank LIMIT ? OFFSET ?", (video_id, limit, offset)
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM clips ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (limit, offset)
+                "SELECT * FROM clips ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)
             ).fetchall()
     return [dict(r) for r in rows]
 
@@ -87,10 +90,8 @@ async def delete_clip(clip_id: str):
         # Delete file if exists
         render_path = row["render_path"]
         if render_path and os.path.exists(render_path):
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(render_path)
-            except Exception:
-                pass
         conn.execute("DELETE FROM clips WHERE id = ?", (clip_id,))
         conn.execute("DELETE FROM autopilot_queue WHERE clip_id = ?", (clip_id,))
         conn.commit()
@@ -111,10 +112,8 @@ async def batch_delete_clips(body: BatchDeleteRequest):
             if row:
                 rpath = row["render_path"]
                 if rpath and os.path.exists(rpath):
-                    try:
+                    with contextlib.suppress(Exception):
                         os.remove(rpath)
-                    except Exception:
-                        pass
                 conn.execute("DELETE FROM clips WHERE id = ?", (cid,))
                 conn.execute("DELETE FROM autopilot_queue WHERE clip_id = ?", (cid,))
                 deleted += 1
@@ -174,8 +173,10 @@ async def upload_clip_video_thumbnail(clip_id: str, file: UploadFile = File(...)
     os.makedirs(thumb_dir, exist_ok=True)
     target_path = os.path.join(thumb_dir, f"thumb_{video_id}.jpg")
 
-    from PIL import Image
     import io
+
+    from PIL import Image
+
     content = await file.read()
     try:
         img = Image.open(io.BytesIO(content)).convert("RGB")
@@ -186,17 +187,16 @@ async def upload_clip_video_thumbnail(clip_id: str, file: UploadFile = File(...)
     with db._connect() as conn:
         conn.execute(
             "UPDATE clips SET thumbnail_path = ? WHERE video_id = ? OR id LIKE ?",
-            (target_path, video_id, f"{video_id}%")
+            (target_path, video_id, f"{video_id}%"),
         )
         conn.execute(
             "UPDATE autopilot_queue SET thumbnail_path = ? WHERE video_id = ? OR clip_id LIKE ?",
-            (target_path, video_id, f"{video_id}%")
+            (target_path, video_id, f"{video_id}%"),
         )
         conn.commit()
 
         updated_count = conn.execute(
-            "SELECT COUNT(*) FROM clips WHERE video_id = ? OR id LIKE ?",
-            (video_id, f"{video_id}%")
+            "SELECT COUNT(*) FROM clips WHERE video_id = ? OR id LIKE ?", (video_id, f"{video_id}%")
         ).fetchone()[0]
 
     return {

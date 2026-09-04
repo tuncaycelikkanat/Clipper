@@ -2,10 +2,9 @@
 tests/test_instagram_uploader.py — Unit tests for InstagramUploader (Meta Graph API)
 """
 
-import os
 from unittest.mock import MagicMock, patch
+
 import pytest
-import requests
 
 from core.instagram_uploader import InstagramUploader
 
@@ -151,4 +150,3 @@ def test_check_container_status_timeout(mock_get, ig_uploader):
 
     with pytest.raises(TimeoutError):
         ig_uploader.check_container_status("c123", timeout=0.1, interval=0.05)
-

@@ -11,7 +11,6 @@ Kapsam:
 """
 
 import concurrent.futures
-import json
 import os
 import tempfile
 from pathlib import Path
@@ -24,10 +23,8 @@ from core.cache_manager import CacheManager
 from core.candidate_ranker import CandidateRanker
 from core.database import DatabaseManager
 from core.feed import ChannelFeed
-from core.heatmap_predictor import HeatmapPredictor
 from core.scheduler_manager import SchedulerManager
 from core.subtitles import SubtitleGenerator
-from core.thumbnail import ThumbnailGenerator
 from core.uploader import YouTubeUploader
 
 
@@ -46,23 +43,30 @@ def stress_db():
 # 1. CONCURRENT DATABASE THREAD-SAFETY STRESS TEST
 # ===========================================================================
 
+
 def test_stress_concurrent_database_writes(stress_db):
     """Birden fazla iş parçacığı aynı anda video, klip ve render kaydederken SQLite WAL kilitlenmemelidir."""
+
     def worker(worker_id: int):
         vid_id = f"stress_vid_{worker_id}"
-        stress_db.save_video({
-            "id": vid_id,
-            "url": f"https://youtube.com/watch?v={vid_id}",
-            "title": f"Stress Video {worker_id}",
-            "uploader": f"Streamer {worker_id % 3}",
-            "duration": 600,
-            "view_count": 1000 * worker_id,
-            "has_heatmap": 1 if worker_id % 2 == 0 else 0,
-        })
-        clip_ids = stress_db.save_clips(vid_id, [
-            {"rank": 1, "title": f"Clip 1 from {vid_id}", "score": 90 + (worker_id % 10)},
-            {"rank": 2, "title": f"Clip 2 from {vid_id}", "score": 80 + (worker_id % 10)},
-        ])
+        stress_db.save_video(
+            {
+                "id": vid_id,
+                "url": f"https://youtube.com/watch?v={vid_id}",
+                "title": f"Stress Video {worker_id}",
+                "uploader": f"Streamer {worker_id % 3}",
+                "duration": 600,
+                "view_count": 1000 * worker_id,
+                "has_heatmap": 1 if worker_id % 2 == 0 else 0,
+            }
+        )
+        clip_ids = stress_db.save_clips(
+            vid_id,
+            [
+                {"rank": 1, "title": f"Clip 1 from {vid_id}", "score": 90 + (worker_id % 10)},
+                {"rank": 2, "title": f"Clip 2 from {vid_id}", "score": 80 + (worker_id % 10)},
+            ],
+        )
         stress_db.save_render(clip_ids[0], "square_1x1_black", f"/tmp/render_{worker_id}.mp4")
         stress_db.save_heatmap_pattern(vid_id, f"Streamer {worker_id % 3}", 0.7, 0.4, 0.3)
         return vid_id
@@ -83,17 +87,20 @@ def test_stress_concurrent_database_writes(stress_db):
 # 2. KARAOKE SUBTITLE 0-OVERLAP STRESS TEST
 # ===========================================================================
 
+
 def test_stress_subtitles_word_level_no_overlap(tmp_path):
     """100 kelimelik yoğun ve hızlı bir transkriptte altyazı zamanlamaları asla çakışmamalıdır."""
     word_segments = []
     current_t = 0.0
     for i in range(100):
         dur = 0.25 + (i % 3) * 0.10
-        word_segments.append({
-            "word": f"KELIME_{i}",
-            "start": round(current_t, 2),
-            "end": round(current_t + dur, 2),
-        })
+        word_segments.append(
+            {
+                "word": f"KELIME_{i}",
+                "start": round(current_t, 2),
+                "end": round(current_t + dur, 2),
+            }
+        )
         current_t += dur + 0.05
 
     ass_path = str(tmp_path / "stress_subtitles.ass")
@@ -118,6 +125,7 @@ def test_stress_subtitles_word_level_no_overlap(tmp_path):
 # ===========================================================================
 # 3. GİZLİ VİRAL ARBİTRAJI ENTEGRASYONU
 # ===========================================================================
+
 
 def test_e2e_hidden_viral_arbitrage_flow(stress_db):
     """Düşük izlenmeli (<50k) ama %85+ izleyici tekrarı olan bir videonun gizli viral olarak tespiti."""
@@ -155,15 +163,37 @@ def test_e2e_hidden_viral_arbitrage_flow(stress_db):
 # 4. CHANNEL FEED + SCHEDULER + DATABASE DEDUP
 # ===========================================================================
 
+
 @patch("core.feed.yt_dlp.YoutubeDL")
 def test_e2e_feed_scheduler_database_deduplication(mock_ytdl, stress_db):
     mock_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_instance
     mock_instance.extract_info.return_value = {
         "entries": [
-            {"id": "feed_v1", "url": "http://yt.com/1", "title": "V1", "upload_date": "20260820", "duration": 200, "view_count": 500},
-            {"id": "feed_v2", "url": "http://yt.com/2", "title": "V2", "upload_date": "20260821", "duration": 300, "view_count": 800},
-            {"id": "feed_v3", "url": "http://yt.com/3", "title": "V3", "upload_date": "20260822", "duration": 400, "view_count": 1200},
+            {
+                "id": "feed_v1",
+                "url": "http://yt.com/1",
+                "title": "V1",
+                "upload_date": "20260820",
+                "duration": 200,
+                "view_count": 500,
+            },
+            {
+                "id": "feed_v2",
+                "url": "http://yt.com/2",
+                "title": "V2",
+                "upload_date": "20260821",
+                "duration": 300,
+                "view_count": 800,
+            },
+            {
+                "id": "feed_v3",
+                "url": "http://yt.com/3",
+                "title": "V3",
+                "upload_date": "20260822",
+                "duration": 400,
+                "view_count": 1200,
+            },
         ]
     }
 
@@ -184,9 +214,7 @@ def test_e2e_feed_scheduler_database_deduplication(mock_ytdl, stress_db):
     # 4. Scheduler ekleme & silme
     sched = SchedulerManager()
     job_id = sched.add_channel_job(
-        channel_url="https://youtube.com/@streamer",
-        interval_hours=12,
-        job_id="job_streamer_12h"
+        channel_url="https://youtube.com/@streamer", interval_hours=12, job_id="job_streamer_12h"
     )
     assert job_id == "job_streamer_12h"
     assert len(sched.list_jobs()) == 1
@@ -197,6 +225,7 @@ def test_e2e_feed_scheduler_database_deduplication(mock_ytdl, stress_db):
 # ===========================================================================
 # 5. CACHE MANAGER TEMİZLİK YAŞAM DÖNGÜSÜ
 # ===========================================================================
+
 
 def test_e2e_cache_manager_lifecycle(tmp_path):
     clip_dir = tmp_path / "clips"
@@ -220,10 +249,10 @@ def test_e2e_cache_manager_lifecycle(tmp_path):
     assert usage["total_bytes"] > 0
 
 
-
 # ===========================================================================
 # 6. YOUTUBE UPLOADER GELİŞMİŞ AYARLAR ENTEGRASYONU
 # ===========================================================================
+
 
 @patch("core.uploader.MediaFileUpload")
 @patch("core.uploader.build")
@@ -234,9 +263,7 @@ def test_e2e_youtube_uploader_full_settings(mock_get_creds, mock_build, mock_med
     mock_build.return_value = mock_yt
 
     mock_req = MagicMock()
-    mock_req.next_chunk.side_effect = [
-        (None, {"id": "yt_short_99", "status": {"uploadStatus": "uploaded"}})
-    ]
+    mock_req.next_chunk.side_effect = [(None, {"id": "yt_short_99", "status": {"uploadStatus": "uploaded"}})]
     mock_yt.videos().insert.return_value = mock_req
 
     fake_video = tmp_path / "short_video.mp4"

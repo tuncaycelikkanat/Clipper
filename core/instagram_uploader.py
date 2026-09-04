@@ -10,14 +10,13 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
 from loguru import logger
 
 load_dotenv()
-
 
 
 class InstagramUploader:
@@ -28,8 +27,8 @@ class InstagramUploader:
 
     def __init__(
         self,
-        access_token: Optional[str] = None,
-        instagram_account_id: Optional[str] = None,
+        access_token: str | None = None,
+        instagram_account_id: str | None = None,
     ) -> None:
         load_dotenv(override=True)
         self._explicit_token = access_token
@@ -53,8 +52,7 @@ class InstagramUploader:
         """Return True if both access token and account ID are present."""
         return bool(self.access_token and self.account_id)
 
-
-    def upload_temp_cover_image(self, thumbnail_path: str) -> Optional[str]:
+    def upload_temp_cover_image(self, thumbnail_path: str) -> str | None:
         """Uploads local thumbnail to a temporary public host so Meta Graph API can download it via cover_url."""
         if not thumbnail_path or not os.path.exists(thumbnail_path):
             return None
@@ -64,20 +62,25 @@ class InstagramUploader:
                 img_bytes = f.read()
 
             body = (
-                f"--{boundary}\r\n"
-                f'Content-Disposition: form-data; name="reqtype"\r\n\r\nfileupload\r\n'
-                f"--{boundary}\r\n"
-                f'Content-Disposition: form-data; name="time"\r\n\r\n72h\r\n'
-                f"--{boundary}\r\n"
-                f'Content-Disposition: form-data; name="fileToUpload"; filename="cover.jpg"\r\n'
-                f"Content-Type: image/jpeg\r\n\r\n"
-            ).encode("utf-8") + img_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+                (
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="reqtype"\r\n\r\nfileupload\r\n'
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="time"\r\n\r\n72h\r\n'
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="fileToUpload"; filename="cover.jpg"\r\n'
+                    f"Content-Type: image/jpeg\r\n\r\n"
+                ).encode()
+                + img_bytes
+                + f"\r\n--{boundary}--\r\n".encode()
+            )
 
             import urllib.request
+
             req = urllib.request.Request(
                 "https://litterbox.catbox.moe/resources/internals/api.php",
                 data=body,
-                headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "User-Agent": "Mozilla/5.0"}
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "User-Agent": "Mozilla/5.0"},
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 url = resp.read().decode("utf-8").strip()
@@ -94,14 +97,16 @@ class InstagramUploader:
         caption: str = "",
         share_to_feed: bool = True,
         thumb_offset: int = 1000,
-        cover_url: Optional[str] = None,
-        scheduled_publish_time: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        cover_url: str | None = None,
+        scheduled_publish_time: int | None = None,
+    ) -> dict[str, Any]:
         """
         Step 1: Initiate a resumable Reels container session on Meta Graph API.
         """
         if not self.is_authenticated():
-            raise RuntimeError("Instagram kimlik bilgileri eksik. INSTAGRAM_ACCESS_TOKEN ve INSTAGRAM_ACCOUNT_ID gereklidir.")
+            raise RuntimeError(
+                "Instagram kimlik bilgileri eksik. INSTAGRAM_ACCESS_TOKEN ve INSTAGRAM_ACCOUNT_ID gereklidir."
+            )
 
         url = f"{self.BASE_URL}/{self.account_id}/media"
         params = {
@@ -124,7 +129,9 @@ class InstagramUploader:
 
         # Meta Graph API: If scheduled_publish_time fails due to whitelist restrictions, fall back to instant publish
         if (resp.status_code != 200 or "id" not in data) and scheduled_publish_time:
-            logger.warning("Meta scheduled upload failed with whitelist requirement. Falling back to instant Reels publication…")
+            logger.warning(
+                "Meta scheduled upload failed with whitelist requirement. Falling back to instant Reels publication…"
+            )
             params.pop("scheduled_publish_time", None)
             resp = requests.post(url, params=params, timeout=30)
             data = resp.json()
@@ -137,7 +144,6 @@ class InstagramUploader:
             "container_id": data["id"],
             "upload_url": data.get("uri"),  # Resumable upload URI
         }
-
 
     def upload_binary_to_container(
         self,
@@ -166,7 +172,6 @@ class InstagramUploader:
         logger.debug(f"Meta rupload status: {resp.status_code}, response: {resp.text[:120]}")
         return True
 
-
     def check_container_status(self, container_id: str, timeout: int = 180, interval: int = 5) -> str:
         """
         Step 3: Poll the container until processing is FINISHED or ERROR.
@@ -194,7 +199,7 @@ class InstagramUploader:
 
         raise TimeoutError(f"Instagram video işleme zaman aşımına uğradı ({timeout} sn).")
 
-    def publish_container(self, container_id: str) -> Dict[str, Any]:
+    def publish_container(self, container_id: str) -> dict[str, Any]:
         """
         Step 4: Publish or finalize the verified container to the Instagram feed as a Reel.
         """
@@ -225,11 +230,11 @@ class InstagramUploader:
         caption: str = "",
         share_to_feed: bool = True,
         thumb_offset: int = 1000,
-        thumbnail_path: Optional[str] = None,
-        cover_url: Optional[str] = None,
-        scheduled_publish_time: Optional[int] = None,
+        thumbnail_path: str | None = None,
+        cover_url: str | None = None,
+        scheduled_publish_time: int | None = None,
         timeout: int = 180,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         End-to-end workflow: Create Container -> Upload Binary -> Wait Processing -> Publish Reel.
         """
@@ -238,7 +243,7 @@ class InstagramUploader:
             raise FileNotFoundError(f"Video bulunamadı: {video_path}")
 
         file_size = path.stat().st_size
-        logger.info(f"Uploading Reel to Instagram ({file_size / (1024*1024):.1f} MB)…")
+        logger.info(f"Uploading Reel to Instagram ({file_size / (1024 * 1024):.1f} MB)…")
 
         # Resolve cover_url if local thumbnail_path is provided
         resolved_cover_url = cover_url
@@ -272,9 +277,8 @@ class InstagramUploader:
             res["status"] = "scheduled"
         return res
 
-
     @staticmethod
-    def generate_caption(clip: Dict[str, Any], video_title: str = "") -> str:
+    def generate_caption(clip: dict[str, Any], video_title: str = "") -> str:
         """Generate an authentic, high-converting Instagram Reels caption."""
         title = clip.get("title", "").replace("#Shorts", "").strip()
         hook = clip.get("hook_caption", "").strip()

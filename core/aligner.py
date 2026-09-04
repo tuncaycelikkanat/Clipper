@@ -1,9 +1,12 @@
+from typing import Any
+
 import numpy as np
-from typing import List, Dict, Any, Tuple, Optional
+
 from core.transcript import TranscriptManager
 
 try:
     from core.scene_detector import SceneDetector
+
     _SCENE_DETECTOR_AVAILABLE = True
 except ImportError:
     _SCENE_DETECTOR_AVAILABLE = False
@@ -26,12 +29,12 @@ class AlignmentEngine:
         end_time: float,
         times: np.ndarray,
         rms: np.ndarray,
-        transcript: List[Dict[str, Any]],
+        transcript: list[dict[str, Any]],
         max_drift_sec: float = 3.0,
-        scene_cuts: Optional[List[float]] = None,
-        frame_diff_times: Optional[np.ndarray] = None,
-        frame_diff_scores: Optional[np.ndarray] = None,
-    ) -> Tuple[float, float]:
+        scene_cuts: list[float] | None = None,
+        frame_diff_times: np.ndarray | None = None,
+        frame_diff_scores: np.ndarray | None = None,
+    ) -> tuple[float, float]:
         """Cross-validates boundaries with scene cuts, frame-diff, transcript, and audio dips.
 
         Args:
@@ -53,12 +56,8 @@ class AlignmentEngine:
         """
         # 1. First priority: SceneDetector hard cuts
         if scene_cuts and _SCENE_DETECTOR_AVAILABLE:
-            snapped_start = SceneDetector.snap_to_scene_boundary(
-                start_time, scene_cuts, max_snap_sec=max_drift_sec
-            )
-            snapped_end = SceneDetector.snap_to_scene_boundary(
-                end_time, scene_cuts, max_snap_sec=max_drift_sec
-            )
+            snapped_start = SceneDetector.snap_to_scene_boundary(start_time, scene_cuts, max_snap_sec=max_drift_sec)
+            snapped_end = SceneDetector.snap_to_scene_boundary(end_time, scene_cuts, max_snap_sec=max_drift_sec)
             if snapped_end > snapped_start and (snapped_end - snapped_start) >= 10.0:
                 return round(snapped_start, 1), round(snapped_end, 1)
 
@@ -111,11 +110,12 @@ class AlignmentEngine:
         fd_times: np.ndarray,
         fd_scores: np.ndarray,
         max_drift_sec: float,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Frame-diff skor dizisindeki local maxima'ya en yakın sınır noktasını bulur.
 
         Yüksek frame-diff = sahne değişimi = ideal klip başlangıcı/bitişi.
         """
+
         # Sınır etrafındaki pencerede en yüksek frame-diff zirvesini bul
         def _find_best_snap(boundary: float) -> float:
             mask = (fd_times >= boundary - max_drift_sec) & (fd_times <= boundary + max_drift_sec)

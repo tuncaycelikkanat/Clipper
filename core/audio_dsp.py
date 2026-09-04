@@ -1,11 +1,11 @@
 import subprocess
+from typing import Any
+
 import numpy as np
-from typing import Dict, List, Any, Tuple
 import yt_dlp
 
-
 _YDL_EXTRACTOR_ARGS = {
-    'extractor_args': {'youtube': {'player_client': ['ios', 'android_creator', 'tv_embedded', 'web']}}
+    "extractor_args": {"youtube": {"player_client": ["ios", "android_creator", "tv_embedded", "web"]}}
 }
 
 
@@ -19,23 +19,23 @@ class AudioDSPAnalyzer:
         strategies = [
             # Strateji 1: Standart yt-dlp format seçimi (en yüksek uyumluluk)
             {
-                'format': 'bestaudio/ba/b/best',
-                'quiet': True,
-                'no_warnings': True,
+                "format": "bestaudio/ba/b/best",
+                "quiet": True,
+                "no_warnings": True,
             },
             # Strateji 2: Mobil web & web client ile
             {
-                'format': 'ba/b/bestaudio/best',
-                'quiet': True,
-                'no_warnings': True,
-                'extractor_args': {'youtube': {'player_client': ['mweb', 'web', 'android']}},
+                "format": "ba/b/bestaudio/best",
+                "quiet": True,
+                "no_warnings": True,
+                "extractor_args": {"youtube": {"player_client": ["mweb", "web", "android"]}},
             },
             # Strateji 3: Herhangi bir akış formatı (audio/video birleşik dahil)
             {
-                'format': 'worst/best',
-                'quiet': True,
-                'no_warnings': True,
-            }
+                "format": "worst/best",
+                "quiet": True,
+                "no_warnings": True,
+            },
         ]
 
         last_err = None
@@ -45,13 +45,13 @@ class AudioDSPAnalyzer:
                     info = ydl.extract_info(url, download=False)
                     if not info:
                         continue
-                    stream_url = info.get('url')
+                    stream_url = info.get("url")
                     if stream_url:
                         return stream_url
                     # Format listesinden doğrudan geçerli ses veya video akış URL'si bul
-                    for f in info.get('formats', []):
-                        if (f.get('acodec') != 'none' or f.get('vcodec') != 'none') and f.get('url'):
-                            return f['url']
+                    for f in info.get("formats", []):
+                        if (f.get("acodec") != "none" or f.get("vcodec") != "none") and f.get("url"):
+                            return f["url"]
             except Exception as e:
                 last_err = e
                 continue
@@ -59,23 +59,37 @@ class AudioDSPAnalyzer:
         raise RuntimeError(f"Ses akış URL'si alınamadı: {last_err}")
 
     @staticmethod
-    def _extract_chunk_raw(stream_url: str, start_sec: float, dur_sec: float, sample_rate: int) -> Tuple[float, np.ndarray]:
+    def _extract_chunk_raw(
+        stream_url: str, start_sec: float, dur_sec: float, sample_rate: int
+    ) -> tuple[float, np.ndarray]:
         """Extracts raw mono float32 PCM samples for a specific time window via FFmpeg stream."""
         cmd = [
-            'ffmpeg',
-            '-reconnect', '1',
-            '-reconnect_at_eof', '1',
-            '-reconnect_streamed', '1',
-            '-reconnect_delay_max', '2',
-            '-ss', str(start_sec),
-            '-i', stream_url,
-            '-t', str(dur_sec),
-            '-f', 'f32le',
-            '-acodec', 'pcm_f32le',
-            '-ac', '1',
-            '-ar', str(sample_rate),
-            '-v', 'quiet',
-            '-'
+            "ffmpeg",
+            "-reconnect",
+            "1",
+            "-reconnect_at_eof",
+            "1",
+            "-reconnect_streamed",
+            "1",
+            "-reconnect_delay_max",
+            "2",
+            "-ss",
+            str(start_sec),
+            "-i",
+            stream_url,
+            "-t",
+            str(dur_sec),
+            "-f",
+            "f32le",
+            "-acodec",
+            "pcm_f32le",
+            "-ac",
+            "1",
+            "-ar",
+            str(sample_rate),
+            "-v",
+            "quiet",
+            "-",
         ]
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -100,8 +114,8 @@ class AudioDSPAnalyzer:
         sample_rate: int = 8000,
         hop_sec: float = 0.5,
         num_workers: int = 8,
-        pitch_window_sec: float = 3.0
-    ) -> Dict[str, Any]:
+        pitch_window_sec: float = 3.0,
+    ) -> dict[str, Any]:
         """
         Ultra-fast unified Audio DSP extraction:
         Resolves stream URL once, downloads parallel chunks, and vectorizes RMS,
@@ -118,22 +132,29 @@ class AudioDSPAnalyzer:
                 "pitch_var": empty,
             }
 
-        import tempfile
         import os
+        import tempfile
 
         audio = None
         # 1. Hızlı Yerel Decode / yt-dlp Çoklu Parça İndirme (20-30s)
         if not url.startswith(("http://", "https://")) and os.path.exists(url):
             try:
                 cmd = [
-                    'ffmpeg', '-y',
-                    '-i', url,
-                    '-f', 'f32le',
-                    '-acodec', 'pcm_f32le',
-                    '-ac', '1',
-                    '-ar', str(sample_rate),
-                    '-v', 'quiet',
-                    '-'
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    url,
+                    "-f",
+                    "f32le",
+                    "-acodec",
+                    "pcm_f32le",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    str(sample_rate),
+                    "-v",
+                    "quiet",
+                    "-",
                 ]
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 raw_data, _ = proc.communicate(timeout=60)
@@ -146,12 +167,12 @@ class AudioDSPAnalyzer:
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     tmp_pattern = os.path.join(tmp_dir, "audio.%(ext)s")
                     ydl_opts = {
-                        'format': 'ba/bestaudio[ext=m4a]/bestaudio/best',
-                        'outtmpl': tmp_pattern,
-                        'concurrent_fragment_downloads': 8,
-                        'buffersize': 1048576,
-                        'quiet': True,
-                        'no_warnings': True,
+                        "format": "ba/bestaudio[ext=m4a]/bestaudio/best",
+                        "outtmpl": tmp_pattern,
+                        "concurrent_fragment_downloads": 8,
+                        "buffersize": 1048576,
+                        "quiet": True,
+                        "no_warnings": True,
                     }
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(url, download=True)
@@ -163,14 +184,21 @@ class AudioDSPAnalyzer:
                                 break
                         if os.path.exists(downloaded_path):
                             cmd = [
-                                'ffmpeg', '-y',
-                                '-i', downloaded_path,
-                                '-f', 'f32le',
-                                '-acodec', 'pcm_f32le',
-                                '-ac', '1',
-                                '-ar', str(sample_rate),
-                                '-v', 'quiet',
-                                '-'
+                                "ffmpeg",
+                                "-y",
+                                "-i",
+                                downloaded_path,
+                                "-f",
+                                "f32le",
+                                "-acodec",
+                                "pcm_f32le",
+                                "-ac",
+                                "1",
+                                "-ar",
+                                str(sample_rate),
+                                "-v",
+                                "quiet",
+                                "-",
                             ]
                             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                             raw_data, _ = proc.communicate(timeout=60)
@@ -191,7 +219,9 @@ class AudioDSPAnalyzer:
                     for i in range(num_workers):
                         s_sec = i * chunk_dur
                         d_sec = chunk_dur if i < num_workers - 1 else duration_sec - s_sec
-                        futures.append(executor.submit(AudioDSPAnalyzer._extract_chunk_raw, stream_url, s_sec, d_sec, sample_rate))
+                        futures.append(
+                            executor.submit(AudioDSPAnalyzer._extract_chunk_raw, stream_url, s_sec, d_sec, sample_rate)
+                        )
 
                 chunk_results = [f.result() for f in futures]
                 chunk_results.sort(key=lambda x: x[0])
@@ -228,7 +258,7 @@ class AudioDSPAnalyzer:
         times = np.linspace(0, n_hops * hop_sec, n_hops, endpoint=False, dtype=np.float32)
 
         # 1. Vectorized RMS Profile
-        rms = np.sqrt(np.mean(audio_matrix ** 2, axis=1)).astype(np.float32)
+        rms = np.sqrt(np.mean(audio_matrix**2, axis=1)).astype(np.float32)
         mx_rms = np.max(rms)
         rms_norm = rms / (mx_rms + 1e-6) if mx_rms > 0 else rms
 
@@ -275,20 +305,24 @@ class AudioDSPAnalyzer:
         }
 
     @staticmethod
-    def _extract_chunk(stream_url: str, start_sec: float, dur_sec: float, sample_rate: int, hop_sec: float) -> Tuple[np.ndarray, np.ndarray]:
+    def _extract_chunk(
+        stream_url: str, start_sec: float, dur_sec: float, sample_rate: int, hop_sec: float
+    ) -> tuple[np.ndarray, np.ndarray]:
         s_sec, raw_samples = AudioDSPAnalyzer._extract_chunk_raw(stream_url, start_sec, dur_sec, sample_rate)
         hop_samples = int(sample_rate * hop_sec)
         n_hops = int(len(raw_samples) / hop_samples)
         if n_hops <= 0:
             return np.array([], dtype=np.float32), np.array([], dtype=np.float32)
         mat = raw_samples[: n_hops * hop_samples].reshape((n_hops, hop_samples))
-        power = np.mean(mat ** 2, axis=1)
+        power = np.mean(mat**2, axis=1)
         rms = np.sqrt(power).astype(np.float32)
         times = np.linspace(start_sec, start_sec + n_hops * hop_sec, n_hops, endpoint=False, dtype=np.float32)
         return times, rms
 
     @staticmethod
-    def extract_audio_energy(url: str, duration_sec: int, sample_rate: int = 8000, hop_sec: float = 0.5, num_chunks: int = 8) -> Tuple[np.ndarray, np.ndarray]:
+    def extract_audio_energy(
+        url: str, duration_sec: int, sample_rate: int = 8000, hop_sec: float = 0.5, num_chunks: int = 8
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Extract audio energy in chunks via yt-dlp."""
         stream_url = AudioDSPAnalyzer._get_stream_url(url)
         chunk_dur = duration_sec / num_chunks
@@ -316,8 +350,8 @@ class AudioDSPAnalyzer:
         rms: np.ndarray,
         z_thresh: float = 2.0,
         silence_thresh: float = 0.15,
-        vocal_energy: Optional[np.ndarray] = None,
-    ) -> Dict[str, np.ndarray]:
+        vocal_energy: np.ndarray | None = None,
+    ) -> dict[str, np.ndarray]:
         """
         Detects highlight signal markers from RMS energy:
         1. audio_spikes: High-energy shouting / reactions (z-score >= threshold).
@@ -325,7 +359,12 @@ class AudioDSPAnalyzer:
         3. vocal_spikes: High-energy speech/reaction (vocal band isolation).
         """
         if len(rms) == 0:
-            return {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([]), "vocal_spikes": np.array([])}
+            return {
+                "times": times,
+                "audio_spikes": np.array([]),
+                "silence_bursts": np.array([]),
+                "vocal_spikes": np.array([]),
+            }
 
         mean = np.mean(rms)
         std = np.std(rms) + 1e-6
@@ -337,7 +376,7 @@ class AudioDSPAnalyzer:
         # 2. Silence to Burst (Shock pattern)
         silence_bursts = np.zeros_like(rms)
         for i in range(2, len(rms)):
-            pre_min = np.min(rms[max(0, i-4):i])
+            pre_min = np.min(rms[max(0, i - 4) : i])
             cur = rms[i]
             if pre_min < silence_thresh and cur > 0.6:
                 silence_bursts[i] = min(1.0, (cur - pre_min) / 0.8)
@@ -365,7 +404,9 @@ class AudioDSPAnalyzer:
         sample_rate: int = 8000,
         hop_sec: float = 0.5,
         pitch_window_sec: float = 3.0,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Fast pitch variance wrapper for backward compatibility."""
-        res = AudioDSPAnalyzer.extract_all_signals_fast(url, duration_sec, sample_rate=sample_rate, hop_sec=hop_sec, pitch_window_sec=pitch_window_sec)
+        res = AudioDSPAnalyzer.extract_all_signals_fast(
+            url, duration_sec, sample_rate=sample_rate, hop_sec=hop_sec, pitch_window_sec=pitch_window_sec
+        )
         return res["pitch_times"], res["pitch_var"]

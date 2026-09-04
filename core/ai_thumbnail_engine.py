@@ -7,20 +7,22 @@ into a high-impact, mobile-optimized 2:3 vertical Shorts cover using Gemini Visi
 
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import re
 import urllib.request
-from typing import List, Optional
-from PIL import Image
-from loguru import logger
+from typing import Any
+
 from google import genai
 from google.genai import types
+from loguru import logger
+from PIL import Image
 
 
 class AIThumbnailEngine:
     """
-    Downloads original YouTube thumbnail and reframes it into 
+    Downloads original YouTube thumbnail and reframes it into
     a high-impact 2:3 vertical Shorts cover using Gemini / Nano Banana.
     """
 
@@ -46,12 +48,13 @@ class AIThumbnailEngine:
         "gemini-3.1-flash-image",
     ]
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         if not api_key:
             api_key = os.environ.get("GEMINI_API_KEY")
             if not api_key:
                 try:
                     from dotenv import load_dotenv
+
                     load_dotenv(".env")
                     api_key = os.environ.get("GEMINI_API_KEY")
                 except Exception:
@@ -60,17 +63,17 @@ class AIThumbnailEngine:
         self.client = genai.Client(api_key=self.api_key) if self.api_key else None
 
     @staticmethod
-    def extract_youtube_id(url_or_id: str) -> Optional[str]:
+    def extract_youtube_id(url_or_id: str) -> str | None:
         """Extracts 11-char YouTube ID from URL or returns if already an ID."""
         if not url_or_id:
             return None
         url_or_id = str(url_or_id).strip()
-        if len(url_or_id) == 11 and re.match(r'^[0-9A-Za-z_-]{11}$', url_or_id):
+        if len(url_or_id) == 11 and re.match(r"^[0-9A-Za-z_-]{11}$", url_or_id):
             return url_or_id
-        m = re.search(r'(?:v=|\/|youtu\.be\/)([0-9A-Za-z_-]{11})', url_or_id)
+        m = re.search(r"(?:v=|\/|youtu\.be\/)([0-9A-Za-z_-]{11})", url_or_id)
         return m.group(1) if m else None
 
-    def download_youtube_cover(self, video_url_or_id: str, output_path: str) -> Optional[str]:
+    def download_youtube_cover(self, video_url_or_id: str, output_path: str) -> str | None:
         """Downloads the highest available resolution cover (maxres -> sd -> hq)."""
         vid = self.extract_youtube_id(video_url_or_id)
         if not vid:
@@ -104,12 +107,12 @@ class AIThumbnailEngine:
         return None
 
     def generate_vertical_thumbnail(
-        self, 
-        source_image_path: str, 
-        output_path: str, 
+        self,
+        source_image_path: str,
+        output_path: str,
         aspect_ratio: str = "2:3",
-        prompt: Optional[str] = None,
-    ) -> Optional[str]:
+        prompt: str | None = None,
+    ) -> str | None:
         """
         Sends the 16:9 cover to Gemini with the Universal Re-framing Prompt and aspect ratio 2:3.
         """
@@ -126,26 +129,26 @@ class AIThumbnailEngine:
 
         for model_name in self.IMAGE_MODELS:
             try:
-                logger.info("Attempting vertical thumbnail re-framing using model: {}", model_name)
+                contents_payload: Any = [pil_img, prompt_to_use]
                 response = self.client.models.generate_content(
                     model=model_name,
-                    contents=[pil_img, prompt_to_use],
+                    contents=contents_payload,
                     config=types.GenerateContentConfig(
-                        response_modalities=["IMAGE"],
-                        image_config=types.ImageConfig(aspect_ratio=aspect_ratio)
-                    )
+                        response_modalities=["IMAGE"], image_config=types.ImageConfig(aspect_ratio=aspect_ratio)
+                    ),
                 )
 
                 if response and hasattr(response, "candidates") and response.candidates:
                     candidate = response.candidates[0]
-                    if hasattr(candidate, "content") and candidate.content and hasattr(candidate.content, "parts"):
-                        for part in candidate.content.parts:
+                    if hasattr(candidate, "content") and candidate.content and getattr(candidate.content, "parts", None):
+                        for part in (candidate.content.parts or []):
                             if hasattr(part, "inline_data") and part.inline_data:
                                 img_data = part.inline_data.data
-                                image = Image.open(io.BytesIO(img_data))
-                                image.save(output_path, "JPEG", quality=95)
-                                logger.info("AI vertical thumbnail successfully generated -> {}", output_path)
-                                return output_path
+                                if img_data:
+                                    image = Image.open(io.BytesIO(bytes(img_data)))
+                                    image.save(output_path, "JPEG", quality=95)
+                                    logger.info("AI vertical thumbnail successfully generated -> {}", output_path)
+                                    return output_path
             except Exception as e:
                 logger.debug("Model {} image generation failed: {} -> Trying next model...", model_name, e)
                 continue
@@ -153,10 +156,10 @@ class AIThumbnailEngine:
         logger.warning("AI Thumbnail generation failed across all models. Falling back to local smart crop.")
         return self._fallback_local_crop(source_image_path, output_path, aspect_ratio)
 
-    def _fallback_local_crop(self, source_path: str, output_path: str, aspect_ratio: str = "2:3") -> Optional[str]:
+    def _fallback_local_crop(self, source_path: str, output_path: str, aspect_ratio: str = "2:3") -> str | None:
         """Local high quality vertical poster fallback (Blurred background + sharp centered 16:9 cover)."""
         try:
-            from PIL import ImageFilter, ImageEnhance
+            from PIL import ImageEnhance, ImageFilter
 
             img = Image.open(source_path).convert("RGB")
             w, h = img.size
@@ -194,25 +197,18 @@ class AIThumbnailEngine:
             return None
 
     def process_video_to_thumbnail(
-        self,
-        video_url_or_id: str,
-        output_path: str,
-        aspect_ratio: str = "2:3"
-    ) -> Optional[str]:
+        self, video_url_or_id: str, output_path: str, aspect_ratio: str = "2:3"
+    ) -> str | None:
         """End-to-end convenience method: Downloads original cover and reframes to 2:3 vertical."""
         temp_cover = output_path.replace(".jpg", "_orig_16x9.jpg")
         if not self.download_youtube_cover(video_url_or_id, temp_cover):
             return None
-        
+
         result = self.generate_vertical_thumbnail(
-            source_image_path=temp_cover,
-            output_path=output_path,
-            aspect_ratio=aspect_ratio
+            source_image_path=temp_cover, output_path=output_path, aspect_ratio=aspect_ratio
         )
         # Cleanup temp 16:9 file if desired
         if os.path.exists(temp_cover):
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(temp_cover)
-            except Exception:
-                pass
         return result

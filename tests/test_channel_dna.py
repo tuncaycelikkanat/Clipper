@@ -4,9 +4,10 @@ tests/test_channel_dna.py — Unit tests for ChannelDNAManager
 
 import json
 from unittest.mock import MagicMock
+
 import pytest
 
-from core.channel_dna import ChannelDNAManager, DEFAULT_CHANNEL_DNA
+from core.channel_dna import ChannelDNAManager
 
 
 @pytest.fixture
@@ -84,9 +85,7 @@ def test_get_or_compute_dna_cached_in_db(mock_db):
 
 def test_get_or_compute_dna_computes_and_saves(mock_db):
     mock_db.get_channel.return_value = None
-    mock_db.get_channel_clips.return_value = [
-        {"category": "CLUTCH", "duration": 28.0, "score": 92}
-    ]
+    mock_db.get_channel_clips.return_value = [{"category": "CLUTCH", "duration": 28.0, "score": 92}]
 
     mgr = ChannelDNAManager(mock_db)
     dna = mgr.get_or_compute_dna("ClutchMaster")

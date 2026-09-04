@@ -1,11 +1,12 @@
-import os
-from typing import List, Dict, Any
+from typing import Any
+
 
 class TimedWord:
     def __init__(self, text: str, start: float, end: float):
         self.text = text
         self.start = start
         self.end = end
+
 
 class SubtitleGenerator:
     """Generates ultra-bold, strictly single-line Karaoke ASS subtitles preventing any overlap."""
@@ -22,14 +23,14 @@ class SubtitleGenerator:
     @classmethod
     def generate_ass_file(
         cls,
-        transcript_segments: List[Dict[str, Any]],
+        transcript_segments: list[dict[str, Any]],
         clip_start_sec: float,
         clip_end_sec: float,
         output_path: str,
         video_width: int = 1080,
         video_height: int = 1080,
         font_size: int = 34,
-        margin_v: int = 120
+        margin_v: int = 120,
     ) -> str:
         """
         Creates max 3-word, single-line Karaoke subtitles.
@@ -54,7 +55,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         NORMAL_TAG = r"{\c&H00FFFFFF\fscx100\fscy100}"
 
         # 1. Flatten all segments into a strict, non-overlapping sequential timeline of words
-        all_timed_words: List[TimedWord] = []
+        all_timed_words: list[TimedWord] = []
         last_end_time = 0.0
 
         for seg in transcript_segments:
@@ -69,11 +70,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             s_rel = max(0.0, s_abs - clip_start_sec)
             e_rel = min(clip_end_sec - clip_start_sec, e_abs - clip_start_sec)
 
-            # CRITICAL FIX FOR OVERLAPPING SEGMENTS: 
+            # CRITICAL FIX FOR OVERLAPPING SEGMENTS:
             # Push start time forward if it overlaps with the previous segment
             if s_rel < last_end_time:
                 s_rel = last_end_time
-                
+
             if e_rel <= s_rel:
                 continue
 
@@ -85,7 +86,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             # Distribute time among words based on character length
             total_chars = sum(len(w) for w in words)
             curr_w_start = s_rel
-            
+
             for w in words:
                 w_dur = (e_rel - s_rel) * (len(w) / max(1, total_chars))
                 w_end = curr_w_start + w_dur
@@ -98,14 +99,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         batch_size = 2
         word_batches = []
         for i in range(0, len(all_timed_words), batch_size):
-            word_batches.append(all_timed_words[i:i + batch_size])
+            word_batches.append(all_timed_words[i : i + batch_size])
 
         # 3. Generate ASS Events
         for batch in word_batches:
             for w_idx, active_word in enumerate(batch):
                 w_start = active_word.start
                 w_end = active_word.end
-                
+
                 # Construct the single line with only one active word highlighted
                 line_parts = []
                 for i, w in enumerate(batch):
@@ -113,11 +114,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         line_parts.append(f"{ACTIVE_TAG}{w.text}{NORMAL_TAG}")
                     else:
                         line_parts.append(f"{NORMAL_TAG}{w.text}")
-                
+
                 formatted_line = " ".join(line_parts)
                 start_str = cls.format_ass_time(w_start)
                 end_str = cls.format_ass_time(w_end)
-                
+
                 events.append(f"Dialogue: 0,{start_str},{end_str},ShortsKaraoke,,0,0,0,,{formatted_line}")
 
         full_content = ass_header + "\n".join(events)
@@ -129,7 +130,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     @classmethod
     def generate_ass_from_words(
         cls,
-        word_segments: List[Dict[str, Any]],
+        word_segments: list[dict[str, Any]],
         clip_start_sec: float,
         clip_end_sec: float,
         output_path: str,
@@ -159,14 +160,14 @@ Style: ShortsKaraoke,DejaVu Sans,{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
-        events: List[str] = []
+        events: list[str] = []
         ACTIVE_TAG = r"{\c&H0000FFFF\fscx115\fscy115}"
         NORMAL_TAG = r"{\c&H00FFFFFF\fscx100\fscy100}"
 
         clip_duration = clip_end_sec - clip_start_sec
 
         # 1. Filter and convert to relative timestamps
-        relative_words: List[TimedWord] = []
+        relative_words: list[TimedWord] = []
         for seg in word_segments:
             s_abs = float(seg["start"])
             e_abs = float(seg["end"])
@@ -189,9 +190,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         # 2. Group into punchy 2-word batches for immediate screen pacing
         batch_size = max(1, min(max_words_per_batch, 3))
-        word_batches: List[List[TimedWord]] = [
-            relative_words[i : i + batch_size]
-            for i in range(0, len(relative_words), batch_size)
+        word_batches: list[list[TimedWord]] = [
+            relative_words[i : i + batch_size] for i in range(0, len(relative_words), batch_size)
         ]
 
         # 3. Generate ASS Events - one dialogue line per active word
@@ -200,7 +200,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 w_start = active_word.start
                 w_end = active_word.end
 
-                line_parts: List[str] = []
+                line_parts: list[str] = []
                 for i, w in enumerate(batch):
                     if i == w_idx:
                         line_parts.append(f"{ACTIVE_TAG}{w.text}{NORMAL_TAG}")
@@ -211,10 +211,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 start_str = cls.format_ass_time(w_start)
                 end_str = cls.format_ass_time(w_end)
 
-                events.append(
-                    f"Dialogue: 0,{start_str},{end_str},ShortsKaraoke,,0,0,0,,{formatted_line}"
-                )
-
+                events.append(f"Dialogue: 0,{start_str},{end_str},ShortsKaraoke,,0,0,0,,{formatted_line}")
 
         full_content = ass_header + "\n".join(events)
         with open(output_path, "w", encoding="utf-8") as f:

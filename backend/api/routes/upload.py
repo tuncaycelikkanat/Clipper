@@ -1,18 +1,27 @@
 """backend/api/routes/upload.py — Platform upload endpoints."""
+
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 _R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _R not in sys.path: sys.path.insert(0, _R)
+if _R not in sys.path:
+    sys.path.insert(0, _R)
 
 from fastapi import APIRouter, HTTPException
+
 from core.database import DatabaseManager
-from core.uploader import YouTubeUploader
 from core.instagram_uploader import InstagramUploader
+from core.uploader import YouTubeUploader
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
+
 def _db():
-    db = DatabaseManager(); db.init_db(); return db
+    db = DatabaseManager()
+    db.init_db()
+    return db
 
 
 def _get_clip(clip_id: str):
@@ -63,10 +72,10 @@ async def upload_instagram(clip_id: str):
         )
         return {"success": True, "instagram_url": result.get("url")}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/tiktok/{clip_id}")
 async def upload_tiktok(clip_id: str):
-    clip = _get_clip(clip_id)
+    _get_clip(clip_id)
     return {"success": False, "detail": "TikTok upload not yet implemented"}

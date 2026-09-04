@@ -2,9 +2,10 @@
 tests/test_autopilot_advanced.py — Advanced coverage tests for AutoPilotManager and SlotAllocator
 """
 
-import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
 import pytest
+
 from core.autopilot import AutoPilotManager
 from core.database import DatabaseManager
 
@@ -23,9 +24,9 @@ def test_autopilot_channel_tracking_and_backfill(auto_mgr):
     channels = auto_mgr.get_tracked_channels()
     assert len(channels) == 1
 
-    auto_mgr.feed.get_channel_videos = MagicMock(return_value=[
-        {"id": "vid1", "url": "https://yt.com/watch?v=vid1", "title": "Old Stream"}
-    ])
+    auto_mgr.feed.get_channel_videos = MagicMock(
+        return_value=[{"id": "vid1", "url": "https://yt.com/watch?v=vid1", "title": "Old Stream"}]
+    )
 
     summary = auto_mgr.backfill_processed_videos()
     assert summary["recorded"] == 1
@@ -38,7 +39,7 @@ def test_autopilot_channel_tracking_and_backfill(auto_mgr):
 def test_autopilot_calendar_days_and_slots(auto_mgr):
     # Add dummy item to queue
     auto_mgr.db.save_video({"id": "v10", "title": "V10"})
-    qid = auto_mgr.db.add_to_autopilot_queue(
+    auto_mgr.db.add_to_autopilot_queue(
         video_id="v10",
         clip_id="c10",
         channel_url="https://yt.com/@ch",
@@ -47,7 +48,7 @@ def test_autopilot_calendar_days_and_slots(auto_mgr):
         thumbnail_path="",
         viral_score=92,
         scheduled_at="2026-09-02T12:00:00Z",
-        status="QUEUED"
+        status="QUEUED",
     )
 
     days = auto_mgr.get_calendar_days_data(days_ahead=3)
@@ -68,7 +69,7 @@ def test_autopilot_assign_clip_to_date_slot(auto_mgr):
         thumbnail_path="",
         viral_score=92,
         scheduled_at="2026-09-02T12:00:00Z",
-        status="QUEUED"
+        status="QUEUED",
     )
 
     res = auto_mgr.assign_clip_to_date_slot(qid, "2026-09-03", "15:30")

@@ -3,6 +3,7 @@ tests/test_game_detector.py — Unit tests for GameDetector
 """
 
 from unittest.mock import MagicMock, patch
+
 from core.game_detector import GameDetector
 
 
@@ -37,8 +38,13 @@ def test_detect_game_llm_fallback():
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = mock_response
 
-    with patch("core.deepseek_engine.DeepSeekEngine.is_available", return_value=True), \
-         patch("core.deepseek_engine.DeepSeekEngine.get_client_and_model", return_value=(mock_client, "deepseek-chat", "openrouter")):
+    with (
+        patch("core.deepseek_engine.DeepSeekEngine.is_available", return_value=True),
+        patch(
+            "core.deepseek_engine.DeepSeekEngine.get_client_and_model",
+            return_value=(mock_client, "deepseek-chat", "openrouter"),
+        ),
+    ):
         desc = "Uzayda canavarlardan kaçtığımız çok gizemli ve korkunç bir indie yapım oynadık."
         game = GameDetector.detect_game(description=desc)
         assert game == "Lethal Company"

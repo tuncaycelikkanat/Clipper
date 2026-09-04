@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-from typing import List
 
 from loguru import logger
 
@@ -22,7 +21,7 @@ class SceneDetector:
     def detect_scenes(
         video_path: str,
         threshold: float = 30.0,
-    ) -> List[float]:
+    ) -> list[float]:
         """Find scene-change timestamps in a local video file.
 
         Runs FFmpeg's ``scdet`` filter over the video stream (no audio
@@ -47,19 +46,21 @@ class SceneDetector:
         """
         cmd = [
             "ffmpeg",
-            "-i", video_path,
-            "-vf", f"scdet=threshold={threshold}",
-            "-an",                   # skip audio decode
-            "-f", "null",
+            "-i",
+            video_path,
+            "-vf",
+            f"scdet=threshold={threshold}",
+            "-an",  # skip audio decode
+            "-f",
+            "null",
             "-",
         ]
 
         try:
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=False,         # we parse output regardless of exit code
+                capture_output=True,
+                check=False,  # we parse output regardless of exit code
             )
             stderr_text = result.stderr.decode("utf-8", errors="replace")
         except FileNotFoundError:
@@ -71,7 +72,7 @@ class SceneDetector:
 
         # FFmpeg scdet output lines look like:
         #   [Parsed_scdet_0 @ 0xADDR] lavfi.scd.score: 45.23, lavfi.scd.time: 12.083
-        timestamps: List[float] = []
+        timestamps: list[float] = []
         pattern = re.compile(r"lavfi\.scd\.time:\s*([\d.]+)")
 
         for line in stderr_text.splitlines():
@@ -94,7 +95,7 @@ class SceneDetector:
     @staticmethod
     def snap_to_scene_boundary(
         timestamp: float,
-        scene_cuts: List[float],
+        scene_cuts: list[float],
         max_snap_sec: float = 2.0,
     ) -> float:
         """Snap *timestamp* to the nearest scene cut within *max_snap_sec*.

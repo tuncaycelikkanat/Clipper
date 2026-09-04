@@ -5,8 +5,9 @@ tests/test_slot_allocator.py — Tests for SlotAllocator
 import datetime
 import os
 import tempfile
+
 import pytest
-from unittest.mock import MagicMock
+
 from core.database import DatabaseManager
 from core.slot_allocator import SlotAllocator
 
@@ -44,14 +45,26 @@ def test_slot_allocator_gap_refill_and_shuffle(test_db):
     test_db.save_video({"id": "v1", "title": "Vid 1"})
 
     q1 = test_db.add_to_autopilot_queue(
-        video_id="v1", clip_id="c1", channel_url="http://yt.com/1",
-        title="Klip 1", render_path="", thumbnail_path="",
-        viral_score=92, scheduled_at="2026-08-25T08:30:00Z", status="SCHEDULED"
+        video_id="v1",
+        clip_id="c1",
+        channel_url="http://yt.com/1",
+        title="Klip 1",
+        render_path="",
+        thumbnail_path="",
+        viral_score=92,
+        scheduled_at="2026-08-25T08:30:00Z",
+        status="SCHEDULED",
     )
     q2 = test_db.add_to_autopilot_queue(
-        video_id="v1", clip_id="c2", channel_url="http://yt.com/1",
-        title="Klip 2", render_path="", thumbnail_path="",
-        viral_score=94, scheduled_at="2026-08-25T12:30:00Z", status="SCHEDULED"
+        video_id="v1",
+        clip_id="c2",
+        channel_url="http://yt.com/1",
+        title="Klip 2",
+        render_path="",
+        thumbnail_path="",
+        viral_score=94,
+        scheduled_at="2026-08-25T12:30:00Z",
+        status="SCHEDULED",
     )
 
     # q1 silinince q2 08:30'a kaymalı

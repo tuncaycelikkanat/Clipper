@@ -21,33 +21,96 @@ Kullanım::
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import numpy as np
-
-from core.logger import logger
 
 # ---------------------------------------------------------------------------
 # Türkçe Gaming & Reaksiyon Yüksek Enerji Sözlüğü
 # ---------------------------------------------------------------------------
-_HIGH_ENERGY_KEYWORDS: Set[str] = {
+_HIGH_ENERGY_KEYWORDS: set[str] = {
     # Panik & Kaçış
-    "dur", "durun", "kaç", "kaçın", "geliyor", "arkanda", "pusmuş", "öldüm",
-    "öldü", "ölme", "canım", "bitti", "bittik", "yardım", "help", "kurtar",
-    "bas", "bastım", "patladı", "patladık", "bomba", "at", "attım", "tut",
-    
+    "dur",
+    "durun",
+    "kaç",
+    "kaçın",
+    "geliyor",
+    "arkanda",
+    "pusmuş",
+    "öldüm",
+    "öldü",
+    "ölme",
+    "canım",
+    "bitti",
+    "bittik",
+    "yardım",
+    "help",
+    "kurtar",
+    "bas",
+    "bastım",
+    "patladı",
+    "patladık",
+    "bomba",
+    "at",
+    "attım",
+    "tut",
     # Şok & Nida
-    "lan", "lanet", "oha", "çüş", "yuh", "yok", "imkansız", "inanılmaz",
-    "nasıl", "ne", "noldu", "yalan", "vallahi", "billahi", "hadi", "haydi",
-    "lütfen", "nolur", "allahım", "tövbe", "aga", "abi", "kanka", "bro",
-    
+    "lan",
+    "lanet",
+    "oha",
+    "çüş",
+    "yuh",
+    "yok",
+    "imkansız",
+    "inanılmaz",
+    "nasıl",
+    "ne",
+    "noldu",
+    "yalan",
+    "vallahi",
+    "billahi",
+    "hadi",
+    "haydi",
+    "lütfen",
+    "nolur",
+    "allahım",
+    "tövbe",
+    "aga",
+    "abi",
+    "kanka",
+    "bro",
     # Başarı & Reaksiyon
-    "vurdum", "headshot", "aldım", "aldık", "temiz", "ez", "kolaydı", "efsane",
-    "mükemmel", "harika", "god", "clutch", "ace", "gg", "helal", "kral",
-    "yürü", "koydum", "çaktım", "kazandık", "win", "şov", "show",
-    
+    "vurdum",
+    "headshot",
+    "aldım",
+    "aldık",
+    "temiz",
+    "ez",
+    "kolaydı",
+    "efsane",
+    "mükemmel",
+    "harika",
+    "god",
+    "clutch",
+    "ace",
+    "gg",
+    "helal",
+    "kral",
+    "yürü",
+    "koydum",
+    "çaktım",
+    "kazandık",
+    "win",
+    "şov",
+    "show",
     # Kahkaha & İroni
-    "hahaha", "ahahaha", "koptum", "gümledim", "yarıldım", "komik", "rezil",
+    "hahaha",
+    "ahahaha",
+    "koptum",
+    "gümledim",
+    "yarıldım",
+    "komik",
+    "rezil",
 }
 
 _WORD_SPLIT_REGEX = re.compile(r"[\s,.;:!?\"'()\[\]{}—–-]+")
@@ -75,7 +138,7 @@ class TranscriptDensityAnalyzer:
 
     def compute_density_curve(
         self,
-        transcript_segments: List[Dict[str, Any]],
+        transcript_segments: list[dict[str, Any]],
         timeline_times: np.ndarray,
         total_duration: float,
     ) -> np.ndarray:
@@ -95,7 +158,7 @@ class TranscriptDensityAnalyzer:
             return np.zeros(n_pts)
 
         # 1. Her transkript segmenti için enerji puanı hesapla
-        scored_events: List[Dict[str, float]] = []
+        scored_events: list[dict[str, float]] = []
         for seg in transcript_segments:
             text = seg.get("text", "") or ""
             start = float(seg.get("start", 0.0))
@@ -104,12 +167,14 @@ class TranscriptDensityAnalyzer:
 
             score = self.score_segment_text(text, dur)
             if score > 0 and 0 <= mid <= total_duration:
-                scored_events.append({
-                    "start": start,
-                    "end": start + dur,
-                    "mid": mid,
-                    "score": score,
-                })
+                scored_events.append(
+                    {
+                        "start": start,
+                        "end": start + dur,
+                        "mid": mid,
+                        "score": score,
+                    }
+                )
 
         if not scored_events:
             return np.zeros(n_pts)
@@ -177,7 +242,6 @@ class TranscriptDensityAnalyzer:
         if keyword_hits > 0:
             score += keyword_hits * self.keyword_weight
 
-
         # Tekrarlanan kelimeler (örn: "dur dur", "kaç kaç kaç")
         repetition_count = self._count_consecutive_repetitions(lower_words)
         if repetition_count > 0:
@@ -198,9 +262,9 @@ class TranscriptDensityAnalyzer:
 
     def extract_hotspots(
         self,
-        transcript_segments: List[Dict[str, Any]],
+        transcript_segments: list[dict[str, Any]],
         top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Transkriptten en yüksek enerjili / en hararetli N segmenti ayıklar.
         """
@@ -211,20 +275,22 @@ class TranscriptDensityAnalyzer:
             dur = float(seg.get("duration", 2.0))
             score = self.score_segment_text(text, dur)
             if score > 1.0:
-                scored.append({
-                    "start": start,
-                    "end": start + dur,
-                    "duration": dur,
-                    "text": text,
-                    "energy_score": round(score, 2),
-                })
+                scored.append(
+                    {
+                        "start": start,
+                        "end": start + dur,
+                        "duration": dur,
+                        "text": text,
+                        "energy_score": round(score, 2),
+                    }
+                )
 
         scored.sort(key=lambda x: x["energy_score"], reverse=True)
         return scored[:top_k]
 
     def compute_speech_rate_acceleration(
         self,
-        transcript_segments: List[Dict[str, Any]],
+        transcript_segments: list[dict[str, Any]],
         timeline_times: np.ndarray,
         total_duration: float,
         accel_window_sec: float = 10.0,
@@ -252,7 +318,7 @@ class TranscriptDensityAnalyzer:
             return np.zeros(n_pts)
 
         # 1. Her segment için WPS hesapla
-        wps_events: List[Dict[str, float]] = []
+        wps_events: list[dict[str, float]] = []
         for seg in transcript_segments:
             text = seg.get("text", "") or ""
             start = float(seg.get("start", 0.0))
@@ -278,8 +344,8 @@ class TranscriptDensityAnalyzer:
         win_pts = max(2, int(accel_window_sec / hop))
         accel = np.zeros(n_pts, dtype=np.float64)
         for i in range(win_pts, n_pts):
-            prev = np.mean(wps_timeline[i - win_pts: i - win_pts // 2])
-            curr = np.mean(wps_timeline[i - win_pts // 2: i])
+            prev = np.mean(wps_timeline[i - win_pts : i - win_pts // 2])
+            curr = np.mean(wps_timeline[i - win_pts // 2 : i])
             accel[i] = max(0.0, curr - prev)  # Sadece pozitif ivme
 
         # 4. 0-1 normalize
@@ -294,7 +360,7 @@ class TranscriptDensityAnalyzer:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _count_consecutive_repetitions(words: List[str]) -> int:
+    def _count_consecutive_repetitions(words: list[str]) -> int:
         """Art arda tekrarlanan kelime sayısını bulur (örn: 'dur dur' -> 1, 'hayır hayır hayır' -> 2)."""
         reps = 0
         for i in range(len(words) - 1):

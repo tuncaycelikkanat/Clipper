@@ -1,10 +1,12 @@
-import os
 import json
+import os
+from typing import Any
+
 import numpy as np
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
+
 
 class ClipQualityReport(BaseModel):
     hook_score: int = Field(description="İlk 3 saniye dikkat çekme ve merak puanı (1-100)")
@@ -14,19 +16,20 @@ class ClipQualityReport(BaseModel):
     editor_feedback: str = Field(description="Klibin güçlü ve zayıf yönlerine dair editör yorumu")
     viral_tips: str = Field(description="Shorts/TikTok'ta etkileşimi artırmak için pratik tavsiye")
 
+
 class QualityEvaluator:
     """Evaluates the technical, gaming entertainment, and viral quality of clips."""
 
     @classmethod
     def evaluate_clip(
         cls,
-        clip: Dict[str, Any],
+        clip: dict[str, Any],
         video_title: str,
         times: np.ndarray,
         rms: np.ndarray,
-        transcript: List[Dict[str, Any]],
-        api_key: Optional[str] = None
-    ) -> Dict[str, Any]:
+        transcript: list[dict[str, Any]],
+        api_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         Evaluates a clip based on gaming short-form entertainment standards:
         - Hook & Opening Curiosity
@@ -66,13 +69,13 @@ Sen YouTube Shorts, TikTok ve Reels için milyonlar izlenen Gaming ve Yayın iç
 Aşağıdaki Gaming / Oyun klibini değerlendir.
 
 Video: {video_title}
-Klip Başlığı: {clip.get('title', '')}
-Kategori: {clip.get('category', 'ACTION')}
-Klip Süresi: {dur:.1f} sn ({clip.get('start_formatted', '')} - {clip.get('end_formatted', '')})
-Kanca (Hook): "{clip.get('hook_caption', '')}"
-Neden Seçildi: {clip.get('reason', '')}
+Klip Başlığı: {clip.get("title", "")}
+Kategori: {clip.get("category", "ACTION")}
+Klip Süresi: {dur:.1f} sn ({clip.get("start_formatted", "")} - {clip.get("end_formatted", "")})
+Kanca (Hook): "{clip.get("hook_caption", "")}"
+Neden Seçildi: {clip.get("reason", "")}
 Konuşma / Diyalog Metni:
-"{clip.get('text', '')}"
+"{clip.get("text", "")}"
 
 Kriterler (Oyun & Eğlence Kriterleri):
 1. Hook (1-100): İlk 3 saniyedeki olay, kanca veya çığlık izleyicinin kaydırmasını (scroll) durdurur mu?
@@ -88,7 +91,7 @@ Lütfen Pydantic JSON olarak değerlendir.
                     "gemini-3.7-flash",
                     "gemini-3.6-flash",
                     "gemini-3.5-flash",
-                    "gemini-flash-latest"
+                    "gemini-flash-latest",
                 ]:
                     try:
                         response = client.models.generate_content(
@@ -97,11 +100,12 @@ Lütfen Pydantic JSON olarak değerlendir.
                             config=types.GenerateContentConfig(
                                 response_mime_type="application/json",
                                 response_schema=ClipQualityReport,
-                                temperature=0.2
-                            )
+                                temperature=0.2,
+                            ),
                         )
-                        llm_eval = json.loads(response.text)
-                        break
+                        if response and response.text:
+                            llm_eval = json.loads(response.text)
+                            break
                     except Exception:
                         continue
             except Exception:
@@ -114,7 +118,7 @@ Lütfen Pydantic JSON olarak değerlendir.
                 "payoff_score": 86,
                 "grade": "A",
                 "editor_feedback": "Yüksek aksiyon ve güçlü yayıncı tepkisi yakalandı.",
-                "viral_tips": "Kancayı ekranda vurgulu renkli altyazıyla verin."
+                "viral_tips": "Kancayı ekranda vurgulu renkli altyazıyla verin.",
             }
 
         hook_s = llm_eval.get("hook_score", 85)
@@ -122,12 +126,7 @@ Lütfen Pydantic JSON olarak değerlendir.
         payoff_s = llm_eval.get("payoff_score", 85)
 
         # Composite Score
-        composite_quality = int(
-            (hook_s * 0.35) +
-            (ent_s * 0.35) +
-            (payoff_s * 0.15) +
-            (tech_score * 0.15)
-        )
+        composite_quality = int((hook_s * 0.35) + (ent_s * 0.35) + (payoff_s * 0.15) + (tech_score * 0.15))
 
         # Calibrated Grading Scale for Gaming Shorts:
         # 85+ = A+, 75-84 = A, 65-74 = B, 50-64 = C, <50 = D
@@ -146,10 +145,10 @@ Lütfen Pydantic JSON olarak değerlendir.
             "composite_score": composite_quality,
             "grade": grade,
             "hook_score": hook_s,
-            "context_score": ent_s, # maps to entertainment
+            "context_score": ent_s,  # maps to entertainment
             "payoff_score": payoff_s,
             "technical_score": tech_score,
             "action_density": action_density,
             "editor_feedback": llm_eval.get("editor_feedback", ""),
-            "viral_tips": llm_eval.get("viral_tips", "")
+            "viral_tips": llm_eval.get("viral_tips", ""),
         }

@@ -1,5 +1,6 @@
+from typing import TYPE_CHECKING, Any, Optional
+
 import numpy as np
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from loguru import logger
 
 from core.extractor import YouTubeExtractor
@@ -53,16 +54,16 @@ class CandidateRanker:
         times: np.ndarray,
         audio_spikes: np.ndarray,
         silence_bursts: np.ndarray,
-        heatmap: List[Dict[str, float]],  # ARTIK KULLANILMIYOR — parametre uyum için tutuldu
-        transcript: List[Dict[str, Any]],
+        heatmap: list[dict[str, float]],  # ARTIK KULLANILMIYOR — parametre uyum için tutuldu
+        transcript: list[dict[str, Any]],
         total_duration: int,
-        video_id: Optional[str] = None,
+        video_id: str | None = None,
         view_count: int = 0,
-        comments: Optional[List[Any]] = None,
-        pitch_variance: Optional[np.ndarray] = None,
-        frame_diff: Optional[np.ndarray] = None,
-        vocal_spikes: Optional[np.ndarray] = None,
-    ) -> List[Dict[str, Any]]:
+        comments: list[Any] | None = None,
+        pitch_variance: np.ndarray | None = None,
+        frame_diff: np.ndarray | None = None,
+        vocal_spikes: np.ndarray | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Tüm sinyalleri tek bir bileşik skora kaynaştırır ve Top-N aday klip üretir.
 
@@ -84,11 +85,12 @@ class CandidateRanker:
         # 1. Yorumları İşle
         # ----------------------------------------------------------------
         comment_curve = np.zeros(n_points)
-        comment_clusters: List[Dict[str, Any]] = []
+        comment_clusters: list[dict[str, Any]] = []
         has_comments = False
         if comments:
             try:
                 from core.comment_miner import CommentMiner
+
                 miner = CommentMiner()
                 comment_res = miner.process_comments(
                     comments=comments,
@@ -111,6 +113,7 @@ class CandidateRanker:
         if transcript:
             try:
                 from core.transcript_density import TranscriptDensityAnalyzer
+
                 t_analyzer = TranscriptDensityAnalyzer()
                 transcript_curve = t_analyzer.compute_density_curve(
                     transcript_segments=transcript,
@@ -140,11 +143,10 @@ class CandidateRanker:
         if self._db is not None and view_count > 0:
             try:
                 from core.heatmap_predictor import HeatmapPredictor
+
                 predictor = HeatmapPredictor(self._db)
                 if len(heatmap) > 0:
-                    hidden_viral_peaks = predictor.detect_hidden_viral_from_real(
-                        heatmap, view_count
-                    )
+                    hidden_viral_peaks = predictor.detect_hidden_viral_from_real(heatmap, view_count)
                     heatmap_source = "real"
                 else:
                     pred_res = predictor.predict(
@@ -195,7 +197,7 @@ class CandidateRanker:
         speech_norm = _zscore_normalize(speech_rate_curve) if np.any(speech_rate_curve > 0) else speech_rate_curve
         pitch_norm = _zscore_normalize(pitch_curve) if has_pitch else pitch_curve
         fdiff_norm = _zscore_normalize(frame_diff_curve) if has_frame_diff else frame_diff_curve
-        vocal_norm = _zscore_normalize(vocal_spikes) if has_vocal else np.zeros(n_points)
+        vocal_norm = _zscore_normalize(vocal_spikes) if (has_vocal and vocal_spikes is not None) else np.zeros(n_points)
 
         # ----------------------------------------------------------------
         # 6. Adaptif Ağırlık Füzyonu (Yorum & Vokal & Sinyal Entegrasyonu)
@@ -238,10 +240,10 @@ class CandidateRanker:
         # ----------------------------------------------------------------
         candidate_indices = np.where(composite_score > 0.18)[0]
         if len(candidate_indices) < self.top_n:
-            fallback_indices = np.argsort(composite_score)[::-1][:self.top_n]
+            fallback_indices = np.argsort(composite_score)[::-1][: self.top_n]
             candidate_indices = np.unique(np.concatenate([candidate_indices, fallback_indices]))
 
-        clusters = []
+        clusters: list[dict[str, Any]] = []
         for idx in candidate_indices:
             t = times[idx]
             score = float(composite_score[idx])
@@ -276,13 +278,15 @@ class CandidateRanker:
                         found = True
                         break
                 if not found:
-                    clusters.append({
-                        "peak_time": comm_t,
-                        "score": vip_score,
-                        "indices": [idx_comm],
-                        "is_vip": True,
-                        "comment_info": comm_cl
-                    })
+                    clusters.append(
+                        {
+                            "peak_time": comm_t,
+                            "score": vip_score,
+                            "indices": [idx_comm],
+                            "is_vip": True,
+                            "comment_info": comm_cl,
+                        }
+                    )
 
         # ----------------------------------------------------------------
         # 8. Çeşitlilik Kısıtı — art arda aşırı yakın anları dengele (Makul 20-30s aralık)
@@ -291,11 +295,10 @@ class CandidateRanker:
         clusters.sort(key=lambda x: (1 if x.get("is_vip") else 0, x["score"]), reverse=True)
         min_gap_sec = max(float(self.merge_threshold_sec), min(30.0, float(total_duration) * self.min_diversity_ratio))
 
-        diverse_clusters = []
+        diverse_clusters: list[dict[str, Any]] = []
         for clu in clusters:
             too_close = any(
-                abs(clu["peak_time"] - accepted["peak_time"]) < min_gap_sec
-                for accepted in diverse_clusters
+                abs(clu["peak_time"] - accepted["peak_time"]) < min_gap_sec for accepted in diverse_clusters
             )
             # VIP adaylar veya yeterli mesafedeki adaylar kabul edilir
             if not too_close or clu.get("is_vip"):
@@ -356,13 +359,19 @@ class CandidateRanker:
             # Eğer diyalog/espri başlamışsa cümlenin başını ve vurucu sonunu içine al
             if transcript:
                 matching_segs = [
-                    seg for seg in transcript
+                    seg
+                    for seg in transcript
                     if float(seg.get("end", float(seg.get("start", 0)) + float(seg.get("duration", 0)))) >= start_t
                     and float(seg.get("start", 0)) <= end_t
                 ]
                 if matching_segs:
                     first_seg_start = float(matching_segs[0].get("start", start_t))
-                    last_seg_end = float(matching_segs[-1].get("end", float(matching_segs[-1].get("start", 0)) + float(matching_segs[-1].get("duration", 0))))
+                    last_seg_end = float(
+                        matching_segs[-1].get(
+                            "end",
+                            float(matching_segs[-1].get("start", 0)) + float(matching_segs[-1].get("duration", 0)),
+                        )
+                    )
                     if 0 < (start_t - first_seg_start) <= 3.0:
                         start_t = max(0.0, first_seg_start)
                     if 0 < (last_seg_end - end_t) <= 3.0:
@@ -388,51 +397,64 @@ class CandidateRanker:
                         matched_comment_cl = cl
                         break
 
-            is_vip_candidate = bool(clus.get("is_vip") or (matched_comment_cl and matched_comment_cl.get("count", 0) >= 1))
+            is_vip_candidate = bool(
+                clus.get("is_vip") or (matched_comment_cl and matched_comment_cl.get("count", 0) >= 1)
+            )
 
             # Heatmap kontrolü
             matching_hm = [
-                float(h.get("value", 0.0)) for h in (heatmap or [])
+                float(h.get("value", 0.0))
+                for h in (heatmap or [])
                 if float(h.get("start_time", 0.0)) <= peak_t <= float(h.get("end_time", 0.0))
             ]
-            hm_val = float(max(matching_hm)) if matching_hm else (float(heatmap[0].get("value", 0.0)) if (heatmap and len(heatmap) > 0) else 0.0)
-            has_hm = bool(heatmap_source == "real" or (heatmap and len(heatmap) > 0 and (hm_val > 0.0 or heatmap[0].get("value", 0) > 0)))
+            hm_val = (
+                float(max(matching_hm))
+                if matching_hm
+                else (float(heatmap[0].get("value", 0.0)) if (heatmap and len(heatmap) > 0) else 0.0)
+            )
+            has_hm = bool(
+                heatmap_source == "real"
+                or (heatmap and len(heatmap) > 0 and (hm_val > 0.0 or heatmap[0].get("value", 0) > 0))
+            )
 
-            candidates.append({
-                "candidate_id": cand_id,
-                "peak_time": round(float(peak_t), 1),
-                "peak_formatted": YouTubeExtractor.format_seconds(peak_t),
-                "start_time": round(float(start_t), 1),
-                "start_formatted": YouTubeExtractor.format_seconds(start_t),
-                "end_time": round(float(end_t), 1),
-                "end_formatted": YouTubeExtractor.format_seconds(end_t),
-                "duration": round(float(end_t - start_t), 1),
-                "fusion_score": int(clus["score"] * 100),
-                "is_vip": is_vip_candidate,
-                "from_comment": bool(matched_comment_cl is not None or clus.get("is_vip")),
-                "signals": {
-                    "audio_spike": round(float(audio_spikes[idx_near]), 2),
-                    "silence_burst": round(float(silence_bursts[idx_near]), 2),
-                    "vocal_spike": round(float(vocal_spikes[idx_near]), 2) if has_vocal else 0.0,
-                    "has_heatmap": has_hm,
-                    "heatmap_val": round(hm_val, 2),
-                    "heatmap_source": heatmap_source if heatmap_source != "disabled" else ("real" if has_hm else "disabled"),
-                    "predicted_confidence": predicted_confidence,
-                    "comment_density": round(float(comment_curve[idx_near]), 2) if has_comments else 0.0,
-                    "comment_reaction": matched_comment_cl.get("dominant_reaction") if matched_comment_cl else None,
-                    "comment_count": matched_comment_cl.get("count", 0) if matched_comment_cl else 0,
-                    "transcript_density": round(float(transcript_curve[idx_near]), 2) if has_transcript_density else 0.0,
-                    "speech_rate_accel": round(float(speech_rate_curve[idx_near]), 2),
-                    "pitch_variance": round(float(pitch_curve[idx_near]), 2),
-                    "frame_diff": round(float(frame_diff_curve[idx_near]), 2),
-                },
-                "hidden_viral": any(
-                    abs(hvp["time"] - peak_t) <= half_win
-                    for hvp in hidden_viral_peaks
-                ),
-                "comment_samples": matched_comment_cl.get("samples", []) if matched_comment_cl else [],
-                "transcript_snippet": transcript_snippet or "Ses/Tepki ağırlıklı an (Konuşma transkripti yok)"
-            })
+            candidates.append(
+                {
+                    "candidate_id": cand_id,
+                    "peak_time": round(float(peak_t), 1),
+                    "peak_formatted": YouTubeExtractor.format_seconds(peak_t),
+                    "start_time": round(float(start_t), 1),
+                    "start_formatted": YouTubeExtractor.format_seconds(start_t),
+                    "end_time": round(float(end_t), 1),
+                    "end_formatted": YouTubeExtractor.format_seconds(end_t),
+                    "duration": round(float(end_t - start_t), 1),
+                    "fusion_score": int(clus["score"] * 100),
+                    "is_vip": is_vip_candidate,
+                    "from_comment": bool(matched_comment_cl is not None or clus.get("is_vip")),
+                    "signals": {
+                        "audio_spike": round(float(audio_spikes[idx_near]), 2),
+                        "silence_burst": round(float(silence_bursts[idx_near]), 2),
+                        "vocal_spike": round(float(vocal_spikes[idx_near]), 2) if (has_vocal and vocal_spikes is not None) else 0.0,
+                        "has_heatmap": has_hm,
+                        "heatmap_val": round(hm_val, 2),
+                        "heatmap_source": heatmap_source
+                        if heatmap_source != "disabled"
+                        else ("real" if has_hm else "disabled"),
+                        "predicted_confidence": predicted_confidence,
+                        "comment_density": round(float(comment_curve[idx_near]), 2) if has_comments else 0.0,
+                        "comment_reaction": matched_comment_cl.get("dominant_reaction") if matched_comment_cl else None,
+                        "comment_count": matched_comment_cl.get("count", 0) if matched_comment_cl else 0,
+                        "transcript_density": round(float(transcript_curve[idx_near]), 2)
+                        if has_transcript_density
+                        else 0.0,
+                        "speech_rate_accel": round(float(speech_rate_curve[idx_near]), 2),
+                        "pitch_variance": round(float(pitch_curve[idx_near]), 2),
+                        "frame_diff": round(float(frame_diff_curve[idx_near]), 2),
+                    },
+                    "hidden_viral": any(abs(hvp["time"] - peak_t) <= half_win for hvp in hidden_viral_peaks),
+                    "comment_samples": matched_comment_cl.get("samples", []) if matched_comment_cl else [],
+                    "transcript_snippet": transcript_snippet or "Ses/Tepki ağırlıklı an (Konuşma transkripti yok)",
+                }
+            )
 
         # Kronolojik sırayla döndür
         candidates.sort(key=lambda x: x["start_time"])

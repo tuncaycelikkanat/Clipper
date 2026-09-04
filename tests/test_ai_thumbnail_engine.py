@@ -4,8 +4,9 @@ tests/test_ai_thumbnail_engine.py — Unit tests for AIThumbnailEngine
 
 import io
 import os
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from PIL import Image
 
 from core.ai_thumbnail_engine import AIThumbnailEngine
@@ -147,8 +148,10 @@ def test_process_video_to_thumbnail_end_to_end(sample_image_path, tmp_path):
     engine = AIThumbnailEngine(api_key="fake_key")
     out_path = str(tmp_path / "final_thumb.jpg")
 
-    with patch.object(engine, "download_youtube_cover", return_value=sample_image_path), \
-         patch.object(engine, "generate_vertical_thumbnail", return_value=out_path):
+    with (
+        patch.object(engine, "download_youtube_cover", return_value=sample_image_path),
+        patch.object(engine, "generate_vertical_thumbnail", return_value=out_path),
+    ):
         res = engine.process_video_to_thumbnail("https://youtu.be/dQw4w9WgXcQ", out_path)
         assert res == out_path
 

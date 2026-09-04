@@ -1,14 +1,15 @@
 """
 backend/workers/job_store.py — In-memory + DB-backed pipeline job tracker.
 """
+
 from __future__ import annotations
 
 import asyncio
-import json
+import contextlib
 import uuid
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 from loguru import logger
 
@@ -21,20 +22,20 @@ def _utcnow() -> str:
 class JobState:
     id: str
     video_url: str
-    status: str = "queued"          # queued | running | done | failed | cancelled
-    progress: int = 0               # 0-100
-    current_step: Optional[str] = None
-    result: Optional[List[Dict]] = None
-    error_msg: Optional[str] = None
+    status: str = "queued"  # queued | running | done | failed | cancelled
+    progress: int = 0  # 0-100
+    current_step: str | None = None
+    result: list[dict] | None = None
+    error_msg: str | None = None
     created_at: str = field(default_factory=_utcnow)
     updated_at: str = field(default_factory=_utcnow)
-    logs: List[Dict[str, Any]] = field(default_factory=list)
+    logs: list[dict[str, Any]] = field(default_factory=list)
 
     # Legacy SSE queue + multi-subscriber list
     _sse_queue: asyncio.Queue = field(default_factory=asyncio.Queue, repr=False)
-    _subscribers: List[asyncio.Queue] = field(default_factory=list, repr=False)
+    _subscribers: list[asyncio.Queue] = field(default_factory=list, repr=False)
 
-    def add_log(self, message: str, step: str = "processing", progress: int = 0) -> Dict[str, Any]:
+    def add_log(self, message: str, step: str = "processing", progress: int = 0) -> dict[str, Any]:
         log_entry = {
             "time": _utcnow(),
             "step": step,
@@ -47,7 +48,7 @@ class JobState:
         self.updated_at = _utcnow()
         return log_entry
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "video_url": self.video_url,
@@ -66,7 +67,7 @@ class JobStore:
     """Thread-safe in-memory job store with multi-client pub/sub support."""
 
     def __init__(self) -> None:
-        self._jobs: Dict[str, JobState] = {}
+        self._jobs: dict[str, JobState] = {}
 
     def create(self, video_url: str) -> JobState:
         job = JobState(id=str(uuid.uuid4()), video_url=video_url)
@@ -74,10 +75,10 @@ class JobStore:
         logger.debug("Job created: {}", job.id)
         return job
 
-    def get(self, job_id: str) -> Optional[JobState]:
+    def get(self, job_id: str) -> JobState | None:
         return self._jobs.get(job_id)
 
-    def list_recent(self, limit: int = 20) -> List[JobState]:
+    def list_recent(self, limit: int = 20) -> list[JobState]:
         jobs = sorted(self._jobs.values(), key=lambda j: j.created_at, reverse=True)
         return jobs[:limit]
 
@@ -85,12 +86,12 @@ class JobStore:
         self,
         job_id: str,
         *,
-        status: Optional[str] = None,
-        progress: Optional[int] = None,
-        current_step: Optional[str] = None,
-        result: Optional[List[Dict]] = None,
-        error_msg: Optional[str] = None,
-    ) -> Optional[JobState]:
+        status: str | None = None,
+        progress: int | None = None,
+        current_step: str | None = None,
+        result: list[dict] | None = None,
+        error_msg: str | None = None,
+    ) -> JobState | None:
         job = self._jobs.get(job_id)
         if not job:
             return None
@@ -107,7 +108,7 @@ class JobStore:
         job.updated_at = _utcnow()
         return job
 
-    async def push_sse(self, job_id: str, event_type: str, data: Dict) -> None:
+    async def push_sse(self, job_id: str, event_type: str, data: dict) -> None:
         job = self._jobs.get(job_id)
         if not job:
             return
@@ -122,20 +123,18 @@ class JobStore:
         await job._sse_queue.put(event_payload)
 
         for q in list(job._subscribers):
-            try:
+            with contextlib.suppress(Exception):
                 await q.put(event_payload)
-            except Exception:
-                pass
 
-    async def get_sse_queue(self, job_id: str) -> Optional[asyncio.Queue]:
+    async def get_sse_queue(self, job_id: str) -> asyncio.Queue | None:
         job = self._jobs.get(job_id)
         return job._sse_queue if job else None
 
-    def subscribe(self, job_id: str) -> Optional[asyncio.Queue]:
+    def subscribe(self, job_id: str) -> asyncio.Queue | None:
         job = self._jobs.get(job_id)
         if not job:
             return None
-        q = asyncio.Queue()
+        q: asyncio.Queue = asyncio.Queue()
         job._subscribers.append(q)
         return q
 

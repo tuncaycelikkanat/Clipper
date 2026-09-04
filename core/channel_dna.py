@@ -24,7 +24,7 @@ Kullanım::
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Default General Gaming DNA (Yeterli geçmiş olmadığında kullanılır)
 # ---------------------------------------------------------------------------
-DEFAULT_CHANNEL_DNA: Dict[str, Any] = {
+DEFAULT_CHANNEL_DNA: dict[str, Any] = {
     "channel_name": "General",
     "dominant_category": "GAMING",
     "avg_clip_duration": 30.0,
@@ -54,16 +54,14 @@ DEFAULT_CHANNEL_DNA: Dict[str, Any] = {
         "silence_burst": 0.30,
         "heatmap": 0.30,
     },
-    "dna_summary": (
-        "Genel oyun profili: Dengeli aksiyon, komedi ve reaksiyon odaklı içerik yapısı."
-    ),
+    "dna_summary": ("Genel oyun profili: Dengeli aksiyon, komedi ve reaksiyon odaklı içerik yapısı."),
 }
 
 
 class ChannelDNAManager:
     """Kanal parmak izini (DNA) çıkarır, saklar ve sinyal/LLM optimizasyonuna sunar."""
 
-    def __init__(self, db: Optional["DatabaseManager"] = None) -> None:
+    def __init__(self, db: DatabaseManager | None = None) -> None:
         self.db = db
 
     # ------------------------------------------------------------------
@@ -73,9 +71,9 @@ class ChannelDNAManager:
     def compute_dna_from_clips(
         self,
         channel_name: str,
-        clips: List[Dict[str, Any]],
-        heatmap_patterns: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        clips: list[dict[str, Any]],
+        heatmap_patterns: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """
         Geçmiş klip ve heatmap verilerinden kanal DNA'sı hesaplar.
 
@@ -93,9 +91,9 @@ class ChannelDNAManager:
             return dna
 
         total_clips = len(clips)
-        categories: Dict[str, float] = {}
-        durations: List[float] = []
-        scores: List[float] = []
+        categories: dict[str, float] = {}
+        durations: list[float] = []
+        scores: list[float] = []
 
         for c in clips:
             cat = (c.get("category") or "GAMING").upper()
@@ -152,15 +150,18 @@ class ChannelDNAManager:
 
         logger.info(
             "ChannelDNAManager: DNA hesaplandı — channel='{}' clips={} dominant={} avg_dur={}s",
-            channel_name, total_clips, dominant_cat, avg_dur
+            channel_name,
+            total_clips,
+            dominant_cat,
+            avg_dur,
         )
         return dna
 
     def get_or_compute_dna(
         self,
         channel_name: str,
-        uploader: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        uploader: str | None = None,
+    ) -> dict[str, Any]:
         """
         Kanalın DB'de kayıtlı DNA'sını döner; yoksa geçmiş klipleri toplayıp hesaplar ve kaydeder.
         """
@@ -189,18 +190,20 @@ class ChannelDNAManager:
 
         # 3. Sonucu DB'ye kaydet
         try:
-            self.db.save_channel({
-                "id": lookup_name,
-                "url": f"https://youtube.com/@{lookup_name.replace(' ', '')}",
-                "name": lookup_name,
-                "dna_json": dna,
-            })
+            self.db.save_channel(
+                {
+                    "id": lookup_name,
+                    "url": f"https://youtube.com/@{lookup_name.replace(' ', '')}",
+                    "name": lookup_name,
+                    "dna_json": dna,
+                }
+            )
         except Exception as exc:
             logger.warning(f"Could not persist channel DNA: {exc}")
 
         return dna
 
-    def format_prompt_context(self, channel_dna: Dict[str, Any]) -> str:
+    def format_prompt_context(self, channel_dna: dict[str, Any]) -> str:
         """Gemini veya DeepSeek prompt'larına eklenecek DNA yönlendirme metnini döner."""
         if not channel_dna:
             return ""

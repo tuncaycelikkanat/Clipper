@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import List
 
 from loguru import logger
 
@@ -59,36 +58,35 @@ class ThumbnailGenerator:
         )
 
         cmd = [
-            "ffmpeg", "-y",
-            "-ss", str(peak_time),
-            "-i", video_path,
-            "-vframes", "1",
-            "-vf", scale_filter,
-            "-q:v", str(cls.JPEG_QUALITY),
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(peak_time),
+            "-i",
+            video_path,
+            "-vframes",
+            "1",
+            "-vf",
+            scale_filter,
+            "-q:v",
+            str(cls.JPEG_QUALITY),
             output_path,
         ]
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=True,
             )
         except subprocess.CalledProcessError as exc:
             stderr = exc.stderr.decode("utf-8", errors="replace")
-            raise RuntimeError(
-                f"FFmpeg thumbnail çıkarma başarısız oldu: {stderr[:300]}"
-            ) from exc
+            raise RuntimeError(f"FFmpeg thumbnail çıkarma başarısız oldu: {stderr[:300]}") from exc
         except FileNotFoundError as exc:
-            raise RuntimeError(
-                "FFmpeg bulunamadı. Lütfen kurulu olduğundan emin olun."
-            ) from exc
+            raise RuntimeError("FFmpeg bulunamadı. Lütfen kurulu olduğundan emin olun.") from exc
 
         if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
-            raise RuntimeError(
-                f"Thumbnail oluşturulamadı (boş dosya): {output_path}"
-            )
+            raise RuntimeError(f"Thumbnail oluşturulamadı (boş dosya): {output_path}")
 
         logger.info(
             "extract_best_frame: thumbnail oluşturuldu -> {} (t={:.2f}s)",
@@ -145,9 +143,7 @@ class ThumbnailGenerator:
                             stream_url = fmt["url"]
                             break
         except Exception as exc:
-            raise RuntimeError(
-                f"yt-dlp stream URL çözümlenemedi: {exc}"
-            ) from exc
+            raise RuntimeError(f"yt-dlp stream URL çözümlenemedi: {exc}") from exc
 
         if not stream_url:
             raise RuntimeError("Geçerli video stream URL'si bulunamadı.")
@@ -158,23 +154,31 @@ class ThumbnailGenerator:
             relative_peak = 0.0
 
         cmd = [
-            "ffmpeg", "-y",
-            "-reconnect", "1",
-            "-reconnect_streamed", "1",
-            "-reconnect_delay_max", "5",
-            "-ss", str(start_time),
-            "-i", stream_url,
-            "-ss", str(relative_peak),
-            "-vframes", "1",
-            "-q:v", str(cls.JPEG_QUALITY),
+            "ffmpeg",
+            "-y",
+            "-reconnect",
+            "1",
+            "-reconnect_streamed",
+            "1",
+            "-reconnect_delay_max",
+            "5",
+            "-ss",
+            str(start_time),
+            "-i",
+            stream_url,
+            "-ss",
+            str(relative_peak),
+            "-vframes",
+            "1",
+            "-q:v",
+            str(cls.JPEG_QUALITY),
             output_path,
         ]
 
         try:
             subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=True,
                 timeout=15,
             )
@@ -182,21 +186,23 @@ class ThumbnailGenerator:
             raise RuntimeError("FFmpeg bulunamadı.") from exc
         except Exception as exc:
             # Fallback: YouTube orijinal video thumbnail resmini indir
-            fb_thumb = info.get("thumbnail") if 'info' in locals() else None
+            fb_thumb = info.get("thumbnail") if "info" in locals() else None
             if fb_thumb:
                 try:
                     import urllib.request
+
                     urllib.request.urlretrieve(fb_thumb, output_path)
-                    logger.info("extract_best_frame_from_url: FFmpeg stream yerine fallback thumbnail indirildi -> {}", output_path)
+                    logger.info(
+                        "extract_best_frame_from_url: FFmpeg stream yerine fallback thumbnail indirildi -> {}",
+                        output_path,
+                    )
                     return output_path
                 except Exception:
                     pass
             stderr = ""
             if hasattr(exc, "stderr") and exc.stderr:
                 stderr = exc.stderr.decode("utf-8", errors="replace")[:200]
-            raise RuntimeError(
-                f"Stream thumbnail çıkarma başarısız: {stderr or str(exc)}"
-            ) from exc
+            raise RuntimeError(f"Stream thumbnail çıkarma başarısız: {stderr or str(exc)}") from exc
 
         if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
             raise RuntimeError(f"Thumbnail oluşturulamadı: {output_path}")
@@ -211,10 +217,10 @@ class ThumbnailGenerator:
     @classmethod
     def batch_generate_thumbnails(
         cls,
-        clips: List[dict],
+        clips: list[dict],
         video_path_or_url: str,
         output_dir: str = "outputs/thumbnails",
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate thumbnail images for a list of clip dicts.
 
         For each clip in *clips*, extracts a frame at the clip's
@@ -240,19 +246,20 @@ class ThumbnailGenerator:
         """
         os.makedirs(output_dir, exist_ok=True)
         is_url = video_path_or_url.startswith("http")
-        generated: List[str] = []
+        generated: list[str] = []
 
         for clip in clips:
             rank = clip.get("rank", 0)
             c_id = clip.get("clip_id") or clip.get("id")
             if not c_id:
                 import uuid
+
                 c_id = str(uuid.uuid4())[:8]
-            
+
             start = float(clip.get("start_time", 0.0))
             end = float(clip.get("end_time", start + 30.0))
             peak = float(clip.get("peak_time", (start + end) / 2.0))
-            
+
             out_path = os.path.join(output_dir, f"clip_{c_id}_thumb.jpg")
 
             try:
@@ -293,9 +300,9 @@ class ThumbnailGenerator:
         clip: dict,
         video_path_or_url: str,
         output_dir: str = "outputs/thumbnails",
-    ) -> List[str]:
+    ) -> list[str]:
         """Extract multiple high-impact candidate frames for a single clip.
-        
+
         Extracts:
         - 1. Peak Shock (Zirve ses / aksiyon patlaması)
         - 2. Hook Frame (İlk 2 saniyedeki kanca anı)
@@ -307,7 +314,7 @@ class ThumbnailGenerator:
         start = float(clip.get("start_time", 0.0))
         end = float(clip.get("end_time", start + 30.0))
         dur = max(1.0, end - start)
-        
+
         # 3 Key candidate timestamps
         peak_t = float(clip.get("peak_time", start + dur * 0.5))
         hook_t = min(end - 0.5, start + 2.0)
@@ -342,11 +349,12 @@ class ThumbnailGenerator:
         video_url_or_id: str,
         output_path: str,
         aspect_ratio: str = "2:3",
-        api_key: Optional[str] = None,
-    ) -> Optional[str]:
+        api_key: str | None = None,
+    ) -> str | None:
         """Downloads original YouTube 16:9 cover and reframes it into 2:3 vertical Shorts thumbnail using Gemini."""
         try:
             from core.ai_thumbnail_engine import AIThumbnailEngine
+
             engine = AIThumbnailEngine(api_key=api_key)
             return engine.process_video_to_thumbnail(
                 video_url_or_id=video_url_or_id,

@@ -25,7 +25,7 @@ Kullanım::
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from scipy.signal import savgol_filter  # type: ignore[import-untyped]
@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-_MIN_HISTORY_VIDEOS = 2          # En az bu kadar geçmiş heatmap'li video gerekir
-_SEGMENT_DURATION_SEC = 5.0      # Heatmap segmentlerinin süresi (saniye)
+_MIN_HISTORY_VIDEOS = 2  # En az bu kadar geçmiş heatmap'li video gerekir
+_SEGMENT_DURATION_SEC = 5.0  # Heatmap segmentlerinin süresi (saniye)
 _HIDDEN_VIRAL_VIEW_THRESHOLD = 50_000  # Görüntü sayısı bu değerin altıysa "düşük görüntü"
 _HIDDEN_VIRAL_HEATMAP_THRESHOLD = 0.70  # Heatmap değeri bu eşiğin üstündeyse "gizli viral"
 
@@ -54,7 +54,7 @@ class HeatmapPredictor:
     ve heatmap olmayan videolara tahmini heatmap eğrisi üretir.
     """
 
-    def __init__(self, db: "DatabaseManager") -> None:
+    def __init__(self, db: DatabaseManager) -> None:
         self._db = db
 
     # ------------------------------------------------------------------
@@ -67,9 +67,9 @@ class HeatmapPredictor:
         audio_spikes: np.ndarray,
         silence_bursts: np.ndarray,
         total_duration: float,
-        video_id: Optional[str] = None,
+        video_id: str | None = None,
         view_count: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Ses sinyali kullanarak tahmini heatmap eğrisi üretir.
 
@@ -92,9 +92,7 @@ class HeatmapPredictor:
         correlation_weights = self._learn_correlation_weights()
 
         # Ses sinyalini birleştir → temel proxy
-        combined_audio = self._combine_audio_signals(
-            audio_spikes, silence_bursts, correlation_weights
-        )
+        combined_audio = self._combine_audio_signals(audio_spikes, silence_bursts, correlation_weights)
 
         # Düzleştir (gürültüyü azalt)
         smoothed = self._smooth_signal(combined_audio)
@@ -119,14 +117,14 @@ class HeatmapPredictor:
         confidence, source = self._compute_confidence(correlation_weights)
 
         # Gizli viral tespiti
-        hidden_peaks = self._detect_hidden_viral_peaks(
-            audio_times, normalized, view_count
-        )
+        hidden_peaks = self._detect_hidden_viral_peaks(audio_times, normalized, view_count)
 
         logger.info(
-            "HeatmapPredictor: tahmin üretildi — source={} confidence={:.2f} "
-            "hidden_viral={} segments={}",
-            source, confidence, len(hidden_peaks), len(heatmap)
+            "HeatmapPredictor: tahmin üretildi — source={} confidence={:.2f} hidden_viral={} segments={}",
+            source,
+            confidence,
+            len(hidden_peaks),
+            len(heatmap),
         )
 
         return {
@@ -138,9 +136,9 @@ class HeatmapPredictor:
 
     def detect_hidden_viral_from_real(
         self,
-        heatmap: List[Dict[str, float]],
+        heatmap: list[dict[str, float]],
         view_count: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         GERÇEK heatmap verisinde gizli viral anları tespit eder.
         (Heatmap varken de kullanılabilir.)
@@ -160,22 +158,24 @@ class HeatmapPredictor:
             val = seg.get("value", 0.0)
             if val >= _HIDDEN_VIRAL_HEATMAP_THRESHOLD:
                 mid = (seg["start_time"] + seg["end_time"]) / 2.0
-                peaks.append({
-                    "time": round(mid, 1),
-                    "score": round(val, 3),
-                    "reason": (
-                        f"Düşük görüntü ({view_count:,}) ama yüksek heatmap "
-                        f"zirvesi ({val:.0%}) — henüz keşfedilmemiş viral an"
-                    ),
-                })
-        peaks.sort(key=lambda x: x["score"], reverse=True)
+                peaks.append(
+                    {
+                        "time": round(mid, 1),
+                        "score": round(val, 3),
+                        "reason": (
+                            f"Düşük görüntü ({view_count:,}) ama yüksek heatmap "
+                            f"zirvesi ({val:.0%}) — henüz keşfedilmemiş viral an"
+                        ),
+                    }
+                )
+        peaks.sort(key=lambda x: float(str(x.get("score", 0.0))), reverse=True)
         return peaks
 
     # ------------------------------------------------------------------
     # Internal — Model Learning
     # ------------------------------------------------------------------
 
-    def _learn_correlation_weights(self) -> Dict[str, float]:
+    def _learn_correlation_weights(self) -> dict[str, float]:
         """
         DB'deki heatmap'li geçmiş videolardan ses→heatmap korelasyon ağırlıklarını öğrenir.
         Yeterli veri yoksa None döner → audio_proxy fallback kullanılır.
@@ -191,13 +191,14 @@ class HeatmapPredictor:
         if len(history) < _MIN_HISTORY_VIDEOS:
             logger.debug(
                 "HeatmapPredictor: yeterli geçmiş yok ({}/{}), audio_proxy kullanılıyor",
-                len(history), _MIN_HISTORY_VIDEOS
+                len(history),
+                _MIN_HISTORY_VIDEOS,
             )
             return {}
 
         # Her geçmiş video için saklanan korelasyonu topla
-        spike_corrs: List[float] = []
-        silence_corrs: List[float] = []
+        spike_corrs: list[float] = []
+        silence_corrs: list[float] = []
         for record in history:
             try:
                 sc = record.get("spike_heatmap_corr")
@@ -212,7 +213,6 @@ class HeatmapPredictor:
                     silence_corrs.append(float(slc))
             except (json.JSONDecodeError, ValueError, TypeError):
                 continue
-
 
         if not spike_corrs:
             return {}
@@ -242,7 +242,7 @@ class HeatmapPredictor:
         self,
         audio_spikes: np.ndarray,
         silence_bursts: np.ndarray,
-        weights: Dict[str, float],
+        weights: dict[str, float],
     ) -> np.ndarray:
         """İki ses sinyalini ağırlıklı olarak birleştirir."""
         sw = weights.get("spike_weight", 0.60)
@@ -274,7 +274,7 @@ class HeatmapPredictor:
         times: np.ndarray,
         normalized_signal: np.ndarray,
         total_duration: float,
-    ) -> List[Dict[str, float]]:
+    ) -> list[dict[str, float]]:
         """
         Normalize edilmiş sinyali YouTube heatmap formatına dönüştürür:
         [{start_time, end_time, value}]
@@ -295,17 +295,17 @@ class HeatmapPredictor:
             else:
                 value = 0.0
 
-            segments.append({
-                "start_time": round(start, 1),
-                "end_time": round(end, 1),
-                "value": round(value, 4),
-            })
+            segments.append(
+                {
+                    "start_time": round(start, 1),
+                    "end_time": round(end, 1),
+                    "value": round(value, 4),
+                }
+            )
 
         return segments
 
-    def _compute_confidence(
-        self, weights: Dict[str, float]
-    ) -> tuple[float, str]:
+    def _compute_confidence(self, weights: dict[str, float]) -> tuple[float, str]:
         """
         Tahminin güven skorunu ve kaynağını hesaplar.
 
@@ -324,7 +324,7 @@ class HeatmapPredictor:
         times: np.ndarray,
         normalized_signal: np.ndarray,
         view_count: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Tahmini sinyalde gizli viral anları tespit eder.
         Koşul: düşük görüntü + yüksek tahmin değeri
@@ -346,27 +346,28 @@ class HeatmapPredictor:
                 in_peak = False
                 peak_slice = normalized_signal[peak_start_idx:i]
                 peak_idx = peak_start_idx + int(np.argmax(peak_slice))
-                peaks.append({
-                    "time": round(float(times[peak_idx]), 1),
-                    "score": round(float(normalized_signal[peak_idx]), 3),
-                    "reason": (
-                        f"Tahmini yüksek tekrar izleme anı "
-                        f"(görüntü: {view_count:,}, tahmini değer: "
-                        f"{normalized_signal[peak_idx]:.0%})"
-                    ),
-                })
+                peaks.append(
+                    {
+                        "time": round(float(times[peak_idx]), 1),
+                        "score": round(float(normalized_signal[peak_idx]), 3),
+                        "reason": (
+                            f"Tahmini yüksek tekrar izleme anı "
+                            f"(görüntü: {view_count:,}, tahmini değer: "
+                            f"{normalized_signal[peak_idx]:.0%})"
+                        ),
+                    }
+                )
         # Son grup kapanmadıysa
         if in_peak:
             peak_slice = normalized_signal[peak_start_idx:]
             peak_idx = peak_start_idx + int(np.argmax(peak_slice))
-            peaks.append({
-                "time": round(float(times[peak_idx]), 1),
-                "score": round(float(normalized_signal[peak_idx]), 3),
-                "reason": (
-                    f"Tahmini yüksek tekrar izleme anı "
-                    f"(görüntü: {view_count:,})"
-                ),
-            })
+            peaks.append(
+                {
+                    "time": round(float(times[peak_idx]), 1),
+                    "score": round(float(normalized_signal[peak_idx]), 3),
+                    "reason": (f"Tahmini yüksek tekrar izleme anı (görüntü: {view_count:,})"),
+                }
+            )
 
-        peaks.sort(key=lambda x: x["score"], reverse=True)
+        peaks.sort(key=lambda x: float(str(x.get("score", 0.0))), reverse=True)
         return peaks[:5]  # En fazla 5 adet

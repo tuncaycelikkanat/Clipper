@@ -4,16 +4,18 @@ core/smart_layout.py — Akıllı Dikey Video Düzenleyici (Facecam Pro-Split & 
 
 from __future__ import annotations
 
-import os
 import json
+import os
 import subprocess
-from typing import Dict, Any, Optional, Tuple
-from loguru import logger
+from typing import Any
+
 from google import genai
 from google.genai import types
+from loguru import logger
 
 try:
     import cv2
+
     _CV2_AVAILABLE = True
 except ImportError:
     _CV2_AVAILABLE = False
@@ -22,16 +24,17 @@ except ImportError:
 class SmartLayoutEngine:
     """Yapay zeka tabanlı Facecam tespiti ve dikey video şablon motoru."""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         if not api_key:
             api_key = os.environ.get("GEMINI_API_KEY")
             if not api_key:
                 from dotenv import load_dotenv
+
                 load_dotenv(".env")
                 api_key = os.environ.get("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
 
-    def detect_facecam(self, video_path: str, sample_time_sec: float = 3.0) -> Dict[str, Any]:
+    def detect_facecam(self, video_path: str, sample_time_sec: float = 3.0) -> dict[str, Any]:
         """Video karesinden yayıncının canlı kamera kutusunu Gemini Model Havuzu ile tespit eder."""
         frame = None
         image_bytes = None
@@ -49,8 +52,19 @@ class SmartLayoutEngine:
         # FFmpeg fallback if frame is None
         if frame is None:
             cmd = [
-                "ffmpeg", "-y", "-ss", str(sample_time_sec),
-                "-i", video_path, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"
+                "ffmpeg",
+                "-y",
+                "-ss",
+                str(sample_time_sec),
+                "-i",
+                video_path,
+                "-frames:v",
+                "1",
+                "-f",
+                "image2pipe",
+                "-vcodec",
+                "mjpeg",
+                "pipe:1",
             ]
             try:
                 proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=10)
@@ -92,17 +106,27 @@ JSON formatında yanıt ver:
 
         for model_name in model_pool:
             try:
+                contents_payload: Any = [types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"), prompt]
                 response = self.client.models.generate_content(
                     model=model_name,
-                    contents=[types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"), prompt],
-                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                    contents=contents_payload,
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
                 )
-                res = json.loads(response.text)
-                logger.info("Facecam AI detection result using {}: found={}, corner={}", model_name, res.get("found"), res.get("corner"))
+                res = json.loads(response.text) if (response and response.text) else {}
+                logger.info(
+                    "Facecam AI detection result using {}: found={}, corner={}",
+                    model_name,
+                    res.get("found"),
+                    res.get("corner"),
+                )
                 return res
             except Exception as e:
                 err_str = str(e)
-                logger.debug("Model {} denemesi başarısız: {} -> Havuzdaki sıradaki modele geçiliyor...", model_name, err_str[:80])
+                logger.debug(
+                    "Model {} denemesi başarısız: {} -> Havuzdaki sıradaki modele geçiliyor...",
+                    model_name,
+                    err_str[:80],
+                )
                 continue
 
         return {"found": False, "corner": "none", "box_1000": {"ymin": 0, "xmin": 0, "ymax": 0, "xmax": 0}}
@@ -111,8 +135,8 @@ JSON formatında yanıt ver:
         self,
         src_w: int = 1920,
         src_h: int = 1080,
-        facecam_info: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[str, bool]:
+        facecam_info: dict[str, Any] | None = None,
+    ) -> tuple[str, bool]:
         """FFmpeg dikey layout filtre zincirini üretir (AR-GE altın standardı)."""
         facecam_info = facecam_info or {}
         has_cam = facecam_info.get("found", False)
@@ -131,7 +155,11 @@ JSON formatında yanıt ver:
 
             # Sanity checks: webcam box cannot be taller than 55% or wider than 50% of screen
             if bh > (src_h * 0.55) or bw > (src_w * 0.50) or bw < 40 or bh < 30:
-                logger.warning("Geçersiz / aşırı büyük webcam boyutu tespit edildi (bw={}, bh={}). Sinematik blur moduna geçiliyor.", bw, bh)
+                logger.warning(
+                    "Geçersiz / aşırı büyük webcam boyutu tespit edildi (bw={}, bh={}). Sinematik blur moduna geçiliyor.",
+                    bw,
+                    bh,
+                )
                 has_cam = False
 
         if has_cam:

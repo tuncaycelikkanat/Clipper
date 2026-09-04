@@ -2,9 +2,10 @@
 tests/test_multi_publisher.py — Unit tests for MultiPublisher orchestrator (100% coverage)
 """
 
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
 import pytest
+
 from core.multi_publisher import MultiPublisher
 
 
@@ -20,7 +21,7 @@ def test_get_auth_status(mock_uploaders):
     yt, ig, notif = mock_uploaders
     yt.is_authenticated.return_value = True
     ig.is_authenticated.return_value = False
-    
+
     pub = MultiPublisher(youtube_uploader=yt, instagram_uploader=ig, notifier=notif)
     status = pub.get_auth_status()
     assert status["youtube"] is True
@@ -31,7 +32,7 @@ def test_publish_clip_all_success(mock_uploaders, tmp_path):
     yt, ig, notif = mock_uploaders
     yt.is_authenticated.return_value = True
     ig.is_authenticated.return_value = True
-    
+
     yt.upload_short.return_value = {"video_id": "yt123", "url": "https://youtube.com/shorts/yt123"}
     ig.upload_reel.return_value = {"media_id": "ig123", "url": "https://instagram.com/reel/ig123"}
 
@@ -43,7 +44,7 @@ def test_publish_clip_all_success(mock_uploaders, tmp_path):
         clip={"title": "Awesome Highlight", "hook_caption": "Unbelievable!"},
         render_path=str(fake_video),
         video_title="Main Stream",
-        platforms=["youtube", "instagram"]
+        platforms=["youtube", "instagram"],
     )
 
     assert results["youtube"]["status"] == "success"
@@ -67,7 +68,7 @@ def test_publish_clip_with_description_override(mock_uploaders, tmp_path):
         description_override="Özel Açıklama Metni",
         source_video_id="vid_src_01",
         source_video_url="https://youtube.com/watch?v=vid_src_01",
-        platforms=["youtube", "instagram"]
+        platforms=["youtube", "instagram"],
     )
     assert results["youtube"]["status"] == "success"
     assert results["instagram"]["status"] == "success"
@@ -85,9 +86,7 @@ def test_publish_clip_exceptions_handled(mock_uploaders, tmp_path):
 
     pub = MultiPublisher(youtube_uploader=yt, instagram_uploader=ig, notifier=notif)
     results = pub.publish_clip(
-        clip={"title": "Error Clip"},
-        render_path=str(fake_video),
-        platforms=["youtube", "instagram"]
+        clip={"title": "Error Clip"}, render_path=str(fake_video), platforms=["youtube", "instagram"]
     )
     assert results["youtube"]["status"] == "failed"
     assert "YouTube Quota Error" in results["youtube"]["error"]
@@ -99,16 +98,12 @@ def test_publish_clip_skips_unauthenticated(mock_uploaders, tmp_path):
     yt, ig, notif = mock_uploaders
     yt.is_authenticated.return_value = False
     ig.is_authenticated.return_value = False
-    
+
     fake_video = tmp_path / "clip2.mp4"
     fake_video.write_bytes(b"data")
 
     pub = MultiPublisher(youtube_uploader=yt, instagram_uploader=ig, notifier=notif)
-    results = pub.publish_clip(
-        clip={"title": "Test"},
-        render_path=str(fake_video),
-        platforms=["youtube", "instagram"]
-    )
+    results = pub.publish_clip(clip={"title": "Test"}, render_path=str(fake_video), platforms=["youtube", "instagram"])
 
     assert results["youtube"]["status"] == "skipped"
     assert results["instagram"]["status"] == "skipped"

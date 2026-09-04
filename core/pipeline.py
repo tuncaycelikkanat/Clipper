@@ -6,20 +6,23 @@ Runs the full 6-layer pipeline:
 
 from __future__ import annotations
 
+import contextlib
 import os
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
 from core.aligner import AlignmentEngine
 from core.audio_dsp import AudioDSPAnalyzer
 from core.candidate_ranker import CandidateRanker
+from core.copywriter import CopywriterEngine
 from core.cutter import VideoCutter
 from core.database import DatabaseManager
 from core.extractor import YouTubeExtractor
 from core.llm_engine import GeminiHighlightEngine
 from core.logger import logger
 from core.transcript import TranscriptManager
-from core.copywriter import CopywriterEngine
 from core.visual_dsp import VisualDSPAnalyzer
 
 
@@ -28,16 +31,16 @@ class ClipperPipeline:
 
     def __init__(
         self,
-        db: Optional[DatabaseManager] = None,
+        db: DatabaseManager | None = None,
         output_dir: str = "outputs/clips",
-        extractor: Optional[YouTubeExtractor] = None,
-        audio_dsp: Optional[AudioDSPAnalyzer] = None,
-        ranker: Optional[CandidateRanker] = None,
-        llm: Optional[GeminiHighlightEngine] = None,
-        aligner: Optional[AlignmentEngine] = None,
-        cutter: Optional[VideoCutter] = None,
-        transcript_manager: Optional[TranscriptManager] = None,
-        copywriter: Optional[CopywriterEngine] = None,
+        extractor: YouTubeExtractor | None = None,
+        audio_dsp: AudioDSPAnalyzer | None = None,
+        ranker: CandidateRanker | None = None,
+        llm: GeminiHighlightEngine | None = None,
+        aligner: AlignmentEngine | None = None,
+        cutter: VideoCutter | None = None,
+        transcript_manager: TranscriptManager | None = None,
+        copywriter: CopywriterEngine | None = None,
     ) -> None:
         self.db = db or DatabaseManager()
         self.db.init_db()
@@ -61,10 +64,10 @@ class ClipperPipeline:
         add_subtitles: bool = False,
         add_hook_card: bool = False,
         enhance_colors: bool = True,
-        api_key: Optional[str] = None,
-        progress_callback: Optional[Callable[[str], None]] = None,
-        db: Optional[DatabaseManager] = None,
-    ) -> List[Dict[str, Any]]:
+        api_key: str | None = None,
+        progress_callback: Callable[[str], None] | None = None,
+        db: DatabaseManager | None = None,
+    ) -> list[dict[str, Any]]:
         """Convenience factory method to execute the pipeline."""
         pipeline = cls(db=db)
         return pipeline.execute(
@@ -89,20 +92,19 @@ class ClipperPipeline:
         add_subtitles: bool = True,
         add_hook_card: bool = True,
         enhance_colors: bool = True,
-        api_key: Optional[str] = None,
-        progress_callback: Optional[Callable[[str], None]] = None,
-    ) -> List[Dict[str, Any]]:
+        api_key: str | None = None,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> list[dict[str, Any]]:
         """Executes the pipeline layers sequentially."""
         import time
-        step_timings: Dict[str, float] = {}
+
+        step_timings: dict[str, float] = {}
         t_pipeline_start = time.perf_counter()
 
         def safe_cb(msg: str):
             if progress_callback:
-                try:
+                with contextlib.suppress(Exception):
                     progress_callback(msg)
-                except Exception:
-                    pass
 
         safe_cb("🚀 Pipeline başlatılıyor...")
 
@@ -168,7 +170,9 @@ class ClipperPipeline:
 
         times = audio_res.get("times", np.array([]))
         audio_energy = audio_res.get("rms", np.array([]))
-        signals = audio_res.get("signals", {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([])})
+        signals = audio_res.get(
+            "signals", {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([])}
+        )
         pitch_times = audio_res.get("pitch_times", np.array([]))
         pitch_var = audio_res.get("pitch_var", np.array([]))
 
@@ -245,10 +249,7 @@ class ClipperPipeline:
         from core.game_detector import GameDetector
         from core.metadata_engine import HumanMetadataEngine
 
-        detected_game = GameDetector.detect_game(
-            description=video_data.get("description", ""),
-            title=video_title
-        )
+        detected_game = GameDetector.detect_game(description=video_data.get("description", ""), title=video_title)
         streamer_name = video_data.get("uploader") or "Yayıncı"
 
         # 5.6. Video-level Thumbnail (Manuel kullanıcı yüklemesi için boş bırakılıyor)
@@ -265,7 +266,7 @@ class ClipperPipeline:
                     streamer_name=streamer_name,
                     video_title=video_title,
                     game_name=detected_game,
-                    duration_sec=clip.get("duration", 30.0)
+                    duration_sec=clip.get("duration", 30.0),
                 )
                 if meta.get("recommended_title"):
                     clip_copy["title"] = meta["recommended_title"]
@@ -318,6 +319,7 @@ class ClipperPipeline:
                     cand_thumb = os.path.join(thumb_dir, f"thumb_{cid}.jpg")
                     try:
                         from core.thumbnail import ThumbnailGenerator
+
                         ThumbnailGenerator.extract_best_frame(
                             video_path=render_path,
                             peak_time=1.0,

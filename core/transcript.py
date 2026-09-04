@@ -1,44 +1,100 @@
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
+
 from youtube_transcript_api import YouTubeTranscriptApi
+
 
 class TranscriptManager:
     """Fetches YouTube transcripts and performs advanced Turkish/Multilingual sentence completion snapping."""
 
     # Incomplete sentence connector words (sentence cannot end with these)
     INCOMPLETE_ENDINGS = {
-        've', 'veya', 'ile', 'ama', 'fakat', 'ancak', 'çünkü', 'oysa', 'oysaki',
-        'diye', 'için', 'ki', 'ise', 'de', 'da', 'gibi', 'kadar', 'bu', 'şu', 'o',
-        'bir', 'en', 'çok', 'daha', 'hem', 'ya', 'ne', 'yani', 'dolayısıyla',
-        'nasıl', 'neden', 'niçin', 'kim', 'nerede', 'neye', 'kime',
-        'mı', 'mi', 'mu', 'mü', 'yapmayı', 'etmeyi', 'olmayı', 'gitmeyi',
-        'and', 'or', 'but', 'because', 'so', 'if', 'that', 'with', 'to', 'for', 'at', 'in', 'on', 'the', 'a', 'an'
+        "ve",
+        "veya",
+        "ile",
+        "ama",
+        "fakat",
+        "ancak",
+        "çünkü",
+        "oysa",
+        "oysaki",
+        "diye",
+        "için",
+        "ki",
+        "ise",
+        "de",
+        "da",
+        "gibi",
+        "kadar",
+        "bu",
+        "şu",
+        "o",
+        "bir",
+        "en",
+        "çok",
+        "daha",
+        "hem",
+        "ya",
+        "ne",
+        "yani",
+        "dolayısıyla",
+        "nasıl",
+        "neden",
+        "niçin",
+        "kim",
+        "nerede",
+        "neye",
+        "kime",
+        "mı",
+        "mi",
+        "mu",
+        "mü",
+        "yapmayı",
+        "etmeyi",
+        "olmayı",
+        "gitmeyi",
+        "and",
+        "or",
+        "but",
+        "because",
+        "so",
+        "if",
+        "that",
+        "with",
+        "to",
+        "for",
+        "at",
+        "in",
+        "on",
+        "the",
+        "a",
+        "an",
     }
 
     # Turkish verb tense/person suffixes indicating a complete predicate
     VERB_SUFFIX_PATTERNS = [
-        r'(dı|di|du|dü|tı|ti|tu|tü)$',                    # görülen geçmiş zaman (gitti, oldu, yaptı)
-        r'(mış|miş|muş|müş)$',                            # duyulan geçmiş zaman (gelmiş, bitmiş)
-        r'(yor|ıyor|iyor|uyor|üyor)$',                    # şimdiki zaman (gidiyor, yapıyor)
-        r'(acak|ecek)$',                                  # gelecek zaman (olacak, bitecek)
-        r'(ır|ir|ur|ür|ar|er|maz|mez)$',                  # geniş zaman (yapar, olmaz, gider)
-        r'(malı|meli|sa|se|sın|sin|sun|sün|yız|yiz|yım|yim)$', # kipler & şahıs ekleri
-        r'(dır|dir|dur|dür|tır|tir|tur|tür)$',            # ek eylem (vardır, güzeldir)
-        r'(var|yok|değil|tamam|evet|hayır|bitti|oldu)$'   # isim cümleleri ve onaylar
+        r"(dı|di|du|dü|tı|ti|tu|tü)$",  # görülen geçmiş zaman (gitti, oldu, yaptı)
+        r"(mış|miş|muş|müş)$",  # duyulan geçmiş zaman (gelmiş, bitmiş)
+        r"(yor|ıyor|iyor|uyor|üyor)$",  # şimdiki zaman (gidiyor, yapıyor)
+        r"(acak|ecek)$",  # gelecek zaman (olacak, bitecek)
+        r"(ır|ir|ur|ür|ar|er|maz|mez)$",  # geniş zaman (yapar, olmaz, gider)
+        r"(malı|meli|sa|se|sın|sin|sun|sün|yız|yiz|yım|yim)$",  # kipler & şahıs ekleri
+        r"(dır|dir|dur|dür|tır|tir|tur|tür)$",  # ek eylem (vardır, güzeldir)
+        r"(var|yok|değil|tamam|evet|hayır|bitti|oldu)$",  # isim cümleleri ve onaylar
     ]
 
     @staticmethod
     def get_transcript(
         video_id: str,
-        preferred_languages: Optional[List[str]] = None,
-        audio_path_or_url: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        preferred_languages: list[str] | None = None,
+        audio_path_or_url: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Fetches transcript snippets from YouTube, falling back to Whisper if unavailable.
         Returns a list of standardized dicts: [{'text': str, 'start': float, 'end': float, 'duration': float}, ...]
         """
         if preferred_languages is None:
-            preferred_languages = ['tr', 'en']
+            preferred_languages = ["tr", "en"]
 
         clean_segments = []
 
@@ -63,17 +119,20 @@ class TranscriptManager:
             if selected_transcript:
                 raw_snippets = selected_transcript.fetch()
                 for s in raw_snippets:
-                    text = s.text.replace("\n", " ").strip() if hasattr(s, 'text') else str(s.get('text', '')).replace("\n", " ").strip()
-                    start = float(s.start if hasattr(s, 'start') else s.get('start', 0.0))
-                    dur = float(s.duration if hasattr(s, 'duration') else s.get('duration', 0.0))
+                    s_any: Any = s
+                    if isinstance(s_any, dict):
+                        text = str(s_any.get("text", "")).replace("\n", " ").strip()
+                        start = float(s_any.get("start", 0.0))
+                        dur = float(s_any.get("duration", 0.0))
+                    else:
+                        text = str(getattr(s_any, "text", "")).replace("\n", " ").strip()
+                        start = float(getattr(s_any, "start", 0.0))
+                        dur = float(getattr(s_any, "duration", 0.0))
                     end = round(start + dur, 2)
                     if text:
-                        clean_segments.append({
-                            "text": text,
-                            "start": round(start, 2),
-                            "end": end,
-                            "duration": round(dur, 2)
-                        })
+                        clean_segments.append(
+                            {"text": text, "start": round(start, 2), "end": end, "duration": round(dur, 2)}
+                        )
         except Exception:
             clean_segments = []
 
@@ -81,6 +140,7 @@ class TranscriptManager:
         if not clean_segments and audio_path_or_url:
             try:
                 from core.whisper_transcriber import WhisperTranscriber
+
                 transcriber = WhisperTranscriber()
                 clean_segments = transcriber.transcribe_to_sentence_segments(audio_path_or_url)
             except Exception:
@@ -96,11 +156,11 @@ class TranscriptManager:
             return False
 
         # 1. Check punctuation
-        if any(text.endswith(p) for p in ['.', '?', '!', '...', '."', '?"', '!"']):
+        if any(text.endswith(p) for p in [".", "?", "!", "...", '."', '?"', '!"']):
             return True
 
         # 2. Check last word
-        words = re.findall(r'\b\w+\b', text.lower())
+        words = re.findall(r"\b\w+\b", text.lower())
         if not words:
             return False
 
@@ -111,20 +171,16 @@ class TranscriptManager:
             return False
 
         # Check Turkish verb patterns
-        for pattern in cls.VERB_SUFFIX_PATTERNS:
-            if re.search(pattern, last_word):
-                return True
-
-        return False
+        return any(re.search(pattern, last_word) for pattern in cls.VERB_SUFFIX_PATTERNS)
 
     @classmethod
     def snap_boundaries(
         cls,
         candidate_start: float,
         candidate_end: float,
-        transcript_segments: List[Dict[str, Any]],
-        max_snap_sec: float = 6.0
-    ) -> Tuple[float, float, str]:
+        transcript_segments: list[dict[str, Any]],
+        max_snap_sec: float = 6.0,
+    ) -> tuple[float, float, str]:
         """
         Guarantees that:
         1. Start begins cleanly at the first word of a sentence / thought.
@@ -140,8 +196,8 @@ class TranscriptManager:
         for idx, seg in enumerate(transcript_segments):
             s_time = seg["start"]
             diff = abs(s_time - candidate_start)
-            
-            prev_end = transcript_segments[idx-1]["end"] if idx > 0 else 0
+
+            prev_end = transcript_segments[idx - 1]["end"] if idx > 0 else 0
             is_after_pause = (s_time - prev_end) >= 0.5
 
             if diff <= max_snap_sec:
@@ -157,26 +213,32 @@ class TranscriptManager:
             if seg["start"] <= candidate_end <= seg["end"] + 1.2:
                 target_idx = idx
                 break
-        
+
         if target_idx is None:
-            target_idx = min(range(len(transcript_segments)), key=lambda i: abs(transcript_segments[i]["end"] - candidate_end))
+            target_idx = min(
+                range(len(transcript_segments)), key=lambda i: abs(transcript_segments[i]["end"] - candidate_end)
+            )
 
         best_end = transcript_segments[target_idx]["end"]
-        
+
         # Look forward up to 4 segments to complete the thought/verb
         accumulated_text = ""
         for forward_offset in range(5):
             curr_idx = target_idx + forward_offset
             if curr_idx >= len(transcript_segments):
                 break
-            
+
             curr_seg = transcript_segments[curr_idx]
             accumulated_text += " " + curr_seg["text"].strip()
-            
+
             # Check pause after this segment
-            next_start = transcript_segments[curr_idx+1]["start"] if curr_idx + 1 < len(transcript_segments) else curr_seg["end"] + 5.0
+            next_start = (
+                transcript_segments[curr_idx + 1]["start"]
+                if curr_idx + 1 < len(transcript_segments)
+                else curr_seg["end"] + 5.0
+            )
             has_pause = (next_start - curr_seg["end"]) >= 0.6
-            
+
             is_complete = cls.is_sentence_complete(accumulated_text)
             best_end = curr_seg["end"]
 

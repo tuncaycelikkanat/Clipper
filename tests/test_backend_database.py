@@ -1,17 +1,18 @@
 import os
-import sqlite3
-import pytest
+
 from backend.db.database import DatabaseManager
 from backend.db.schema import SCHEMA_SQL
 
+
 def test_database_manager_init(tmp_path):
     db_file = tmp_path / "sub" / "test.db"
-    db = DatabaseManager(db_path=str(db_file))
+    DatabaseManager(db_path=str(db_file))
     assert os.path.exists(tmp_path / "sub")
-    
+
     # Test when dir already exists
     db2 = DatabaseManager(db_path=str(db_file))
     assert db2.db_path == str(db_file)
+
 
 def test_database_manager_connection(tmp_path):
     db_file = tmp_path / "test.db"
@@ -22,6 +23,7 @@ def test_database_manager_connection(tmp_path):
     row = cur.fetchone()
     assert row[0] == 1
     conn.close()
+
 
 def test_database_manager_init_db(tmp_path):
     db_file = tmp_path / "test_init.db"
@@ -36,6 +38,7 @@ def test_database_manager_init_db(tmp_path):
         assert "publish_queue" in tables
         assert "renders" in tables
         assert "pipeline_jobs" in tables
+
 
 def test_schema_sql_content():
     assert "CREATE TABLE IF NOT EXISTS videos" in SCHEMA_SQL

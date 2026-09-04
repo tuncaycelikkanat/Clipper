@@ -10,10 +10,10 @@ import pytest
 
 from core.heatmap_predictor import HeatmapPredictor
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_db():
@@ -37,6 +37,7 @@ def _make_audio_signals(n=200):
 # ---------------------------------------------------------------------------
 # predict() — temel çıktı yapısı
 # ---------------------------------------------------------------------------
+
 
 def test_predict_returns_correct_keys(predictor):
     times, spikes, silences = _make_audio_signals()
@@ -94,6 +95,7 @@ def test_predict_heatmap_segment_format(predictor):
 # confidence & source
 # ---------------------------------------------------------------------------
 
+
 def test_predict_source_audio_proxy_when_no_history(predictor):
     times, spikes, silences = _make_audio_signals()
     result = predictor.predict(times, spikes, silences, 100.0)
@@ -116,6 +118,7 @@ def test_predict_source_correlation_model_when_history_present(mock_db):
 # ---------------------------------------------------------------------------
 # Gizli Viral Tespiti
 # ---------------------------------------------------------------------------
+
 
 def test_hidden_viral_not_detected_high_view_count(predictor):
     times, spikes, silences = _make_audio_signals()
@@ -150,7 +153,6 @@ def test_hidden_viral_detected_low_view_count(predictor):
         assert "time" in peak
         assert "score" in peak
         assert "reason" in peak
-
 
 
 def test_hidden_viral_peaks_capped_at_5(predictor):
@@ -188,6 +190,7 @@ def test_detect_hidden_viral_from_real_heatmap_high_views(predictor):
 # ---------------------------------------------------------------------------
 # Boş sinyal edge cases
 # ---------------------------------------------------------------------------
+
 
 def test_predict_empty_signal_returns_uniform_heatmap(predictor):
     times = np.array([])

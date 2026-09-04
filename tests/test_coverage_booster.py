@@ -2,16 +2,14 @@
 tests/test_coverage_booster.py — Final edge case coverage booster
 """
 
-import sys
 import json
 from unittest.mock import MagicMock, patch
-import pytest
 
+import core.smart_layout
 from core.autopilot import AutoPilotManager
 from core.database import DatabaseManager
 from core.deepseek_engine import DeepSeekEngine
 from core.multi_publisher import MultiPublisher
-import core.smart_layout
 from core.smart_layout import SmartLayoutEngine
 
 
@@ -21,31 +19,45 @@ def test_deepseek_batch_judge_candidates_and_quality():
         mock_openai_class.return_value = mock_client
 
         mock_choice = MagicMock()
-        mock_choice.message.content = json.dumps({
-            "selected_clips": [{"candidate_id": 1, "verdict": "KEEP", "viral_confidence": 95}],
-            "grade": "A+", "composite_score": 95, "hook_power": 90, "action_density": 85,
-            "punchline_power": 90, "retention_prediction": "high", "summary": "Great clip"
-        })
+        mock_choice.message.content = json.dumps(
+            {
+                "selected_clips": [{"candidate_id": 1, "verdict": "KEEP", "viral_confidence": 95}],
+                "grade": "A+",
+                "composite_score": 95,
+                "hook_power": 90,
+                "action_density": 85,
+                "punchline_power": 90,
+                "retention_prediction": "high",
+                "summary": "Great clip",
+            }
+        )
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
         mock_client.chat.completions.create.return_value = mock_response
 
         res1 = DeepSeekEngine.batch_judge_candidates(
-            candidates_summary=[{"candidate_id": 1, "start_formatted": "00:00", "end_formatted": "00:10",
-                                 "peak_formatted": "00:05", "start_time": 0, "end_time": 10,
-                                 "signals": {}, "fusion_score": 90, "transcript_snippet": "hi"}],
+            candidates_summary=[
+                {
+                    "candidate_id": 1,
+                    "start_formatted": "00:00",
+                    "end_formatted": "00:10",
+                    "peak_formatted": "00:05",
+                    "start_time": 0,
+                    "end_time": 10,
+                    "signals": {},
+                    "fusion_score": 90,
+                    "transcript_snippet": "hi",
+                }
+            ],
             video_title="Game",
             total_duration=100,
             target_clips=1,
-            api_key="sk-test"
+            api_key="sk-test",
         )
         assert "selected_clips" in res1
 
         res2 = DeepSeekEngine.evaluate_quality(
-            clip={"title": "Clutch"},
-            video_title="Game",
-            dur=15.0,
-            api_key="sk-test"
+            clip={"title": "Clutch"}, video_title="Game", dur=15.0, api_key="sk-test"
         )
         assert res2["grade"] == "A+"
 
@@ -62,17 +74,13 @@ def test_multi_publisher_original_tags_from_db(tmp_path):
     fake_video.write_bytes(b"data")
 
     with patch("core.deepseek_engine.DeepSeekEngine.generate_shorts_copy") as mock_copy:
-        mock_copy.return_value = {
-            "title": "Title #Shorts",
-            "description": "Desc",
-            "tags": ["valorant", "clutch"]
-        }
+        mock_copy.return_value = {"title": "Title #Shorts", "description": "Desc", "tags": ["valorant", "clutch"]}
         pub = MultiPublisher(youtube_uploader=mock_yt, db=mock_db)
         res = pub.publish_clip(
             clip={"title": "Title", "video_id": "v_tag_1"},
             render_path=str(fake_video),
             video_title="Valorant Live",
-            platforms=["youtube"]
+            platforms=["youtube"],
         )
         assert res["youtube"]["status"] == "success"
 
@@ -90,8 +98,10 @@ def test_smart_layout_cv2_frame_capture():
     mock_cv2.VideoCapture.return_value = cap_inst
     mock_cv2.imencode.return_value = (True, MagicMock(tobytes=lambda: b"fake_bytes_1000"))
 
-    with patch.object(core.smart_layout, "_CV2_AVAILABLE", True), \
-         patch.object(core.smart_layout, "cv2", mock_cv2, create=True):
+    with (
+        patch.object(core.smart_layout, "_CV2_AVAILABLE", True),
+        patch.object(core.smart_layout, "cv2", mock_cv2, create=True),
+    ):
         res = engine.detect_facecam("/fake/video.mp4")
         assert res["found"] is False
 
@@ -104,7 +114,7 @@ def test_autopilot_diversified_shuffle_and_refill(tmp_path):
 
     db.save_video({"id": "vb1", "title": "B1"})
     qid1 = db.add_to_autopilot_queue("vb1", "cb1", "https://yt.com/@ch", "K1", "", "", 95, "2026-09-02T12:00:00Z")
-    qid2 = db.add_to_autopilot_queue("vb1", "cb2", "https://yt.com/@ch", "K2", "", "", 95, "2026-09-02T15:00:00Z")
+    db.add_to_autopilot_queue("vb1", "cb2", "https://yt.com/@ch", "K2", "", "", 95, "2026-09-02T15:00:00Z")
 
     res_shuffle = mgr.diversified_shuffle(selected_dates=["2026-09-02"])
     assert "shuffled_count" in res_shuffle
@@ -146,7 +156,7 @@ def test_multi_publisher_deepseek_fallback_and_link(tmp_path):
             video_title="Main Stream",
             source_video_id="v_fb_1",
             source_video_url="https://youtube.com/watch?v=v_fb_1",
-            platforms=["youtube"]
+            platforms=["youtube"],
         )
         assert res["youtube"]["status"] == "success"
 
@@ -158,10 +168,12 @@ def test_autopilot_cycle_with_new_videos(tmp_path):
     mgr = AutoPilotManager(db=db)
 
     mgr.add_channel("https://yt.com/@newgamer", "New Gamer")
-    mgr.feed.get_channel_videos = MagicMock(return_value=[
-        {"id": "nv1", "url": "https://yt.com/watch?v=nv1", "title": "New Vid 1"},
-        {"id": "nv2", "url": "https://yt.com/watch?v=nv2", "title": "New Vid 2"}
-    ])
+    mgr.feed.get_channel_videos = MagicMock(
+        return_value=[
+            {"id": "nv1", "url": "https://yt.com/watch?v=nv1", "title": "New Vid 1"},
+            {"id": "nv2", "url": "https://yt.com/watch?v=nv2", "title": "New Vid 2"},
+        ]
+    )
 
     res = mgr.run_cycle()
     assert res["channels_checked"] == 1

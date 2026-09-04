@@ -20,7 +20,7 @@ Kullanım::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class PlatformScorer:
@@ -30,7 +30,7 @@ class PlatformScorer:
     # Public API
     # ------------------------------------------------------------------
 
-    def score_clip(self, clip: Dict[str, Any]) -> Dict[str, Any]:
+    def score_clip(self, clip: dict[str, Any]) -> dict[str, Any]:
         """
         Bir klip sözlüğünü (ClipData) 4 platform için puanlar.
 
@@ -95,11 +95,13 @@ class PlatformScorer:
             else:
                 status = "UYGUN DEĞİL"
 
-            badges.append({
-                "platform": name,
-                "score": score,
-                "status": status,
-            })
+            badges.append(
+                {
+                    "platform": name,
+                    "score": score,
+                    "status": status,
+                }
+            )
 
         rec = (
             f"Bu klip {int(duration)} saniyelik süresi ve [{category}] yapısıyla en çok "
@@ -126,7 +128,7 @@ class PlatformScorer:
         category: str,
         hook: str,
         quality_score: float,
-        signals: Dict[str, Any],
+        signals: dict[str, Any],
     ) -> int:
         score = 0.0
 
@@ -169,7 +171,7 @@ class PlatformScorer:
         category: str,
         hook: str,
         quality_score: float,
-        signals: Dict[str, Any],
+        signals: dict[str, Any],
     ) -> int:
         score = 0.0
 
@@ -214,7 +216,7 @@ class PlatformScorer:
         category: str,
         hook: str,
         quality_score: float,
-        signals: Dict[str, Any],
+        signals: dict[str, Any],
     ) -> int:
         score = 0.0
 
@@ -253,7 +255,7 @@ class PlatformScorer:
         category: str,
         hook: str,
         quality_score: float,
-        signals: Dict[str, Any],
+        signals: dict[str, Any],
     ) -> int:
         score = 0.0
 

@@ -1,10 +1,16 @@
 """backend/api/routes/auth.py — YouTube OAuth2 flow."""
+
 from __future__ import annotations
-import os, sys
+
+import os
+import sys
+
 _R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _R not in sys.path: sys.path.insert(0, _R)
+if _R not in sys.path:
+    sys.path.insert(0, _R)
 
 from fastapi import APIRouter, HTTPException
+
 from core.uploader import YouTubeUploader
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -25,7 +31,7 @@ async def youtube_auth_url():
     """Returns instructions for OAuth2 — desktop app flow opens browser."""
     return {
         "message": "Desktop OAuth2 flow. Run authenticate() from the server.",
-        "action": "call POST /api/auth/youtube/authenticate"
+        "action": "call POST /api/auth/youtube/authenticate",
     }
 
 

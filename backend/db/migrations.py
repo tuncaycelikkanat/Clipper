@@ -2,16 +2,18 @@
 backend/db/migrations.py — Otomatik schema migration.
 Mevcut clipper.db'yi yeni şemaya geçirir.
 """
+
 from __future__ import annotations
+
+import contextlib
 import sqlite3
+
 from loguru import logger
 
 
 def _safe_alter(conn: sqlite3.Connection, sql: str) -> None:
-    try:
+    with contextlib.suppress(sqlite3.OperationalError):
         conn.execute(sql)
-    except sqlite3.OperationalError:
-        pass  # column already exists
 
 
 def run_migrations(db) -> None:
@@ -39,9 +41,7 @@ def run_migrations(db) -> None:
 
         # ── 3. tracked_channels → channels tablosuna köprüle ─────────
         # channels tablosu (DNA) varsa, tracked_channels verilerini ona merge et
-        tables = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()}
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
 
         if "tracked_channels" in tables:
             _safe_alter(conn, "ALTER TABLE tracked_channels ADD COLUMN check_interval_h REAL DEFAULT 2.0")

@@ -2,20 +2,15 @@
 tests/test_smart_layout.py — Comprehensive tests for SmartLayoutEngine (100% target)
 """
 
-import os
-import tempfile
-import numpy as np
 from unittest.mock import MagicMock, patch
-import pytest
+
 from core.smart_layout import SmartLayoutEngine
 
 
 def test_smart_layout_filter_no_facecam():
     engine = SmartLayoutEngine()
     filter_str, has_cam = engine.build_ffmpeg_filter(
-        src_w=1920,
-        src_h=1080,
-        facecam_info={"found": False, "corner": "none"}
+        src_w=1920, src_h=1080, facecam_info={"found": False, "corner": "none"}
     )
     assert has_cam is False
     assert "boxblur" in filter_str
@@ -31,8 +26,8 @@ def test_smart_layout_filter_with_facecam():
         facecam_info={
             "found": True,
             "corner": "left_center",
-            "box_1000": {"ymin": 300, "xmin": 0, "ymax": 600, "xmax": 300}
-        }
+            "box_1000": {"ymin": 300, "xmin": 0, "ymax": 600, "xmax": 300},
+        },
     )
     assert has_cam is True
     assert "vstack=inputs=2" in filter_str
@@ -51,7 +46,9 @@ def test_smart_layout_detect_facecam_fallback_no_client():
 def test_smart_layout_detect_facecam_gemini_success(mock_subproc):
     mock_client = MagicMock()
     mock_response = MagicMock()
-    mock_response.text = '{"found": true, "corner": "bottom_left", "box_1000": {"ymin": 500, "xmin": 0, "ymax": 900, "xmax": 400}}'
+    mock_response.text = (
+        '{"found": true, "corner": "bottom_left", "box_1000": {"ymin": 500, "xmin": 0, "ymax": 900, "xmax": 400}}'
+    )
     mock_client.models.generate_content.return_value = mock_response
 
     engine = SmartLayoutEngine()

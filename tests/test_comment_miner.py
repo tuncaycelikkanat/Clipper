@@ -17,6 +17,7 @@ def miner():
 # Timestamp extraction tests
 # ---------------------------------------------------------------------------
 
+
 def test_extract_timestamps_empty_text(miner):
     assert miner.extract_timestamps_from_text("") == []
     assert miner.extract_timestamps_from_text(None) == []
@@ -65,6 +66,7 @@ def test_extract_timestamps_deduplication(miner):
 # Sentiment / Reaction detection tests
 # ---------------------------------------------------------------------------
 
+
 def test_detect_comment_reaction_empty(miner):
     assert miner.detect_comment_reaction("") == "GENERAL"
 
@@ -107,6 +109,7 @@ def test_detect_comment_reaction_default_highlight(miner):
 # ---------------------------------------------------------------------------
 # process_comments tests
 # ---------------------------------------------------------------------------
+
 
 def test_process_comments_empty(miner):
     res = miner.process_comments([], total_duration=100.0)

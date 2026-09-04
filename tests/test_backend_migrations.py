@@ -1,23 +1,25 @@
 import sqlite3
-import pytest
+
 from backend.db.database import DatabaseManager
 from backend.db.migrations import _safe_alter, run_migrations
+
 
 def test_safe_alter(tmp_path):
     db_file = tmp_path / "test_alter.db"
     conn = sqlite3.connect(str(db_file))
     conn.execute("CREATE TABLE sample (id TEXT PRIMARY KEY);")
-    
+
     # Successful alter
     _safe_alter(conn, "ALTER TABLE sample ADD COLUMN age INTEGER;")
     # Duplicate alter should be caught safely
     _safe_alter(conn, "ALTER TABLE sample ADD COLUMN age INTEGER;")
     conn.close()
 
+
 def test_run_migrations_with_legacy_tables(tmp_path):
     db_file = tmp_path / "test_mig.db"
     db = DatabaseManager(db_path=str(db_file))
-    
+
     # Setup legacy schema before migration
     with db.get_connection() as conn:
         conn.execute("CREATE TABLE clips (id TEXT PRIMARY KEY, video_id TEXT);")
@@ -33,10 +35,12 @@ def test_run_migrations_with_legacy_tables(tmp_path):
             );
         """)
         conn.execute("CREATE TABLE autopilot_queue (id TEXT PRIMARY KEY, clip_id TEXT);")
-        
+
         # Seed some data to verify migration
         conn.execute("INSERT INTO tracked_channels (id, url, name) VALUES ('ch1', 'http://yt.com/ch1', 'Chan1');")
-        conn.execute("INSERT INTO channel_processed_videos (channel_url, video_id, title, processed_at) VALUES ('http://yt.com/ch1', 'v1', 'Video 1', '2026-01-01');")
+        conn.execute(
+            "INSERT INTO channel_processed_videos (channel_url, video_id, title, processed_at) VALUES ('http://yt.com/ch1', 'v1', 'Video 1', '2026-01-01');"
+        )
         conn.commit()
 
     run_migrations(db)
