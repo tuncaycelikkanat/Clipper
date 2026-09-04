@@ -114,3 +114,16 @@ def test_detect_signals_normal():
     # Window lookback = 6, lookahead = 4
     # i=10 looks back to 4:10 (mean=0.1), looks ahead 10:14 (mean=5.0)
     assert res["silence_bursts"][10] > 0.0
+
+
+def test_detect_signals_with_vocal_energy():
+    n = 20
+    times = np.arange(n, dtype=float)
+    rms = np.ones(n)
+    vocal = np.zeros(n)
+    vocal[10] = 5.0  # vocal spike at index 10
+
+    res = AudioDSPAnalyzer.detect_signals(times, rms, vocal_energy=vocal)
+    assert "vocal_spikes" in res
+    assert res["vocal_spikes"][10] > 0.0
+

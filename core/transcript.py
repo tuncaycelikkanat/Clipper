@@ -28,55 +28,63 @@ class TranscriptManager:
     ]
 
     @staticmethod
-    def get_transcript(video_id: str, preferred_languages: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def get_transcript(
+        video_id: str,
+        preferred_languages: Optional[List[str]] = None,
+        audio_path_or_url: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Fetches transcript snippets from YouTube.
+        Fetches transcript snippets from YouTube, falling back to Whisper if unavailable.
         Returns a list of standardized dicts: [{'text': str, 'start': float, 'end': float, 'duration': float}, ...]
         """
         if preferred_languages is None:
             preferred_languages = ['tr', 'en']
 
-        ytt = YouTubeTranscriptApi()
-        try:
-            transcript_list = ytt.list(video_id)
-        except Exception:
-            return []
+        clean_segments = []
 
-        selected_transcript = None
-        for lang in preferred_languages:
-            for t in transcript_list:
-                if t.language_code.lower().startswith(lang.lower()):
+        try:
+            ytt = YouTubeTranscriptApi()
+            transcript_list = ytt.list(video_id)
+
+            selected_transcript = None
+            for lang in preferred_languages:
+                for t in transcript_list:
+                    if t.language_code.lower().startswith(lang.lower()):
+                        selected_transcript = t
+                        break
+                if selected_transcript:
+                    break
+
+            if not selected_transcript:
+                for t in transcript_list:
                     selected_transcript = t
                     break
+
             if selected_transcript:
-                break
-
-        if not selected_transcript:
-            for t in transcript_list:
-                selected_transcript = t
-                break
-
-        if not selected_transcript:
-            return []
-
-        try:
-            raw_snippets = selected_transcript.fetch()
+                raw_snippets = selected_transcript.fetch()
+                for s in raw_snippets:
+                    text = s.text.replace("\n", " ").strip() if hasattr(s, 'text') else str(s.get('text', '')).replace("\n", " ").strip()
+                    start = float(s.start if hasattr(s, 'start') else s.get('start', 0.0))
+                    dur = float(s.duration if hasattr(s, 'duration') else s.get('duration', 0.0))
+                    end = round(start + dur, 2)
+                    if text:
+                        clean_segments.append({
+                            "text": text,
+                            "start": round(start, 2),
+                            "end": end,
+                            "duration": round(dur, 2)
+                        })
         except Exception:
-            return []
+            clean_segments = []
 
-        clean_segments = []
-        for s in raw_snippets:
-            text = s.text.replace("\n", " ").strip() if hasattr(s, 'text') else str(s.get('text', '')).replace("\n", " ").strip()
-            start = float(s.start if hasattr(s, 'start') else s.get('start', 0.0))
-            dur = float(s.duration if hasattr(s, 'duration') else s.get('duration', 0.0))
-            end = round(start + dur, 2)
-            if text:
-                clean_segments.append({
-                    "text": text,
-                    "start": round(start, 2),
-                    "end": end,
-                    "duration": round(dur, 2)
-                })
+        # Whisper Fallback: YouTube altyazısı yoksa ses üzerinden yerel transkripsiyon yap
+        if not clean_segments and audio_path_or_url:
+            try:
+                from core.whisper_transcriber import WhisperTranscriber
+                transcriber = WhisperTranscriber()
+                clean_segments = transcriber.transcribe_to_sentence_segments(audio_path_or_url)
+            except Exception:
+                pass
 
         return clean_segments
 

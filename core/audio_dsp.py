@@ -246,12 +246,29 @@ class AudioDSPAnalyzer:
             if mx_pv > 1e-9:
                 pitch_var = pitch_var / mx_pv
 
-        # 4. Spikes & Silence Shock Detection
-        signals = AudioDSPAnalyzer.detect_signals(times, rms_norm)
+        # 4. Vectorized Vocal / Speech Band Isolation (300Hz - 3400Hz)
+        # İnsan sesi / konuşma / kahkaha frekans bandındaki enerjiyi oyun müziklerinden izole et
+        rfft_matrix = np.fft.rfft(audio_matrix, axis=1)
+        freq_bins = np.fft.rfftfreq(hop_samples, d=1.0 / sample_rate)
+        vocal_mask = (freq_bins >= 300) & (freq_bins <= 3400)
+
+        total_spectral_energy = np.sum(np.abs(rfft_matrix) ** 2, axis=1) + 1e-9
+        vocal_spectral_energy = np.sum(np.abs(rfft_matrix[:, vocal_mask]) ** 2, axis=1)
+        vocal_ratio = np.clip(vocal_spectral_energy / total_spectral_energy, 0.0, 1.0).astype(np.float32)
+
+        # Vokal Enerji Sinyali: Hem ses yüksekliği hem de vokal bant baskınlığı
+        vocal_energy = (rms_norm * vocal_ratio).astype(np.float32)
+
+        # 5. Spikes & Silence Shock Detection (Vokal ağırlıklı)
+        signals = AudioDSPAnalyzer.detect_signals(times, rms_norm, vocal_energy=vocal_energy)
+        signals["vocal_ratio"] = vocal_ratio
+        signals["vocal_energy"] = vocal_energy
 
         return {
             "times": times,
             "rms": rms_norm,
+            "vocal_ratio": vocal_ratio,
+            "vocal_energy": vocal_energy,
             "signals": signals,
             "pitch_times": times,
             "pitch_var": pitch_var,
@@ -264,14 +281,21 @@ class AudioDSPAnalyzer:
         return res["times"], res["rms"]
 
     @staticmethod
-    def detect_signals(times: np.ndarray, rms: np.ndarray, z_thresh: float = 2.0, silence_thresh: float = 0.15) -> Dict[str, np.ndarray]:
+    def detect_signals(
+        times: np.ndarray,
+        rms: np.ndarray,
+        z_thresh: float = 2.0,
+        silence_thresh: float = 0.15,
+        vocal_energy: Optional[np.ndarray] = None,
+    ) -> Dict[str, np.ndarray]:
         """
         Detects highlight signal markers from RMS energy:
         1. audio_spikes: High-energy shouting / reactions (z-score >= threshold).
         2. silence_bursts: High dynamic jump from silence to explosion (tension release).
+        3. vocal_spikes: High-energy speech/reaction (vocal band isolation).
         """
         if len(rms) == 0:
-            return {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([])}
+            return {"times": times, "audio_spikes": np.array([]), "silence_bursts": np.array([]), "vocal_spikes": np.array([])}
 
         mean = np.mean(rms)
         std = np.std(rms) + 1e-6
@@ -288,11 +312,20 @@ class AudioDSPAnalyzer:
             if pre_min < silence_thresh and cur > 0.6:
                 silence_bursts[i] = min(1.0, (cur - pre_min) / 0.8)
 
+        # 3. Vocal Spikes (Speech isolation)
+        vocal_spikes = np.zeros_like(rms)
+        if vocal_energy is not None and len(vocal_energy) == len(rms):
+            v_mean = np.mean(vocal_energy)
+            v_std = np.std(vocal_energy) + 1e-6
+            v_z = (vocal_energy - v_mean) / v_std
+            vocal_spikes = np.clip((v_z - 1.5) / (np.max(v_z) - 1.5 + 1e-6), 0.0, 1.0)
+
         return {
             "times": times,
             "rms": rms,
             "audio_spikes": audio_spikes,
-            "silence_bursts": silence_bursts
+            "silence_bursts": silence_bursts,
+            "vocal_spikes": vocal_spikes,
         }
 
     @staticmethod

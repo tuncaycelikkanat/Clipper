@@ -198,3 +198,20 @@ def test_snap_boundaries_target_not_found():
     assert s == 0.0 # closest to 0.0
     assert e == 25.35 # it will find target_idx = 1
     assert "Start. End." in t
+
+
+def test_get_transcript_whisper_fallback():
+    with patch('core.transcript.YouTubeTranscriptApi') as mock_api:
+        mock_instance = MagicMock()
+        mock_api.return_value = mock_instance
+        mock_instance.list.side_effect = Exception("No captions available")
+
+        with patch('core.whisper_transcriber.WhisperTranscriber.transcribe_to_sentence_segments') as mock_whisper:
+            mock_whisper.return_value = [
+                {"text": "Whisper ile çıkarılan cümle", "start": 5.0, "end": 10.0, "duration": 5.0}
+            ]
+
+            res = TranscriptManager.get_transcript("id", audio_path_or_url="/fake/audio.wav")
+            assert len(res) == 1
+            assert res[0]["text"] == "Whisper ile çıkarılan cümle"
+

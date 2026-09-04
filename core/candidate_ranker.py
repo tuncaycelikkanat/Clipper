@@ -61,6 +61,7 @@ class CandidateRanker:
         comments: Optional[List[Any]] = None,
         pitch_variance: Optional[np.ndarray] = None,
         frame_diff: Optional[np.ndarray] = None,
+        vocal_spikes: Optional[np.ndarray] = None,
     ) -> List[Dict[str, Any]]:
         """
         Tüm sinyalleri tek bir bileşik skora kaynaştırır ve Top-N aday klip üretir.
@@ -182,6 +183,7 @@ class CandidateRanker:
 
         has_pitch = bool(np.any(pitch_curve > 0.05))
         has_frame_diff = bool(np.any(frame_diff_curve > 0.05))
+        has_vocal = bool(vocal_spikes is not None and len(vocal_spikes) > 0 and np.any(vocal_spikes > 0.05))
 
         # ----------------------------------------------------------------
         # 5. Video-bazında Z-score normalizasyon (her sinyal kendi dağılımına göre)
@@ -193,19 +195,22 @@ class CandidateRanker:
         speech_norm = _zscore_normalize(speech_rate_curve) if np.any(speech_rate_curve > 0) else speech_rate_curve
         pitch_norm = _zscore_normalize(pitch_curve) if has_pitch else pitch_curve
         fdiff_norm = _zscore_normalize(frame_diff_curve) if has_frame_diff else frame_diff_curve
+        vocal_norm = _zscore_normalize(vocal_spikes) if has_vocal else np.zeros(n_points)
 
         # ----------------------------------------------------------------
-        # 6. Adaptif Ağırlık Füzyonu (Yorum & Sinyal Entegrasyonu)
+        # 6. Adaptif Ağırlık Füzyonu (Yorum & Vokal & Sinyal Entegrasyonu)
         # ----------------------------------------------------------------
         # Sinyal varlığına göre ağırlıklar dinamik olarak ayarlanır.
-        # Temel ağırlık: audio %30, silence %25
-        # Yorumlar varsa organik kullanıcı verisi olarak %25'e kadar yüksek ağırlık alır.
+        # Temel ağırlık: audio %25, silence %20
+        # Vokal/konuşma sinyali varsa %20 ağırlık alarak oyun içi gürültüleri filtreler.
 
-        base_audio_w = 0.30
-        base_silence_w = 0.25
+        base_audio_w = 0.25
+        base_silence_w = 0.20
         optional_signals = []
         if has_comments:
             optional_signals.append(("comment", comment_norm, 0.25))
+        if has_vocal:
+            optional_signals.append(("vocal", vocal_norm, 0.20))
         if has_transcript_density:
             optional_signals.append(("transcript", transcript_norm, 0.12))
         if np.any(speech_rate_curve > 0):
@@ -347,6 +352,22 @@ class CandidateRanker:
                 start_t = max(0.0, start_t - extra)
                 end_t = min(float(total_duration), end_t + extra)
 
+            # --- Semantik Setup & Punchline Genişletmesi ---
+            # Eğer diyalog/espri başlamışsa cümlenin başını ve vurucu sonunu içine al
+            if transcript:
+                matching_segs = [
+                    seg for seg in transcript
+                    if float(seg.get("end", seg.get("start", 0) + seg.get("duration", 0))) >= start_t
+                    and float(seg.get("start", 0)) <= end_t
+                ]
+                if matching_segs:
+                    first_seg_start = float(matching_segs[0].get("start", start_t))
+                    last_seg_end = float(matching_segs[-1].get("end", matching_segs[-1].get("start", 0) + matching_segs[-1].get("duration", 0)))
+                    if 0 < (start_t - first_seg_start) <= 8.0:
+                        start_t = max(0.0, first_seg_start)
+                    if 0 < (last_seg_end - end_t) <= 6.0:
+                        end_t = min(float(total_duration), last_seg_end)
+
             # Transkript metni
             matching_text = []
             if transcript:
@@ -384,6 +405,7 @@ class CandidateRanker:
                 "signals": {
                     "audio_spike": round(float(audio_spikes[idx_near]), 2),
                     "silence_burst": round(float(silence_bursts[idx_near]), 2),
+                    "vocal_spike": round(float(vocal_spikes[idx_near]), 2) if has_vocal else 0.0,
                     "has_heatmap": bool(heatmap_source == "real"),
                     "heatmap_val": 0.0,
                     "heatmap_source": heatmap_source,

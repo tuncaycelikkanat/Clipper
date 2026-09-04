@@ -136,7 +136,7 @@ class ClipperPipeline:
 
         def _task_transcript():
             try:
-                return TranscriptManager.get_transcript(video_id)
+                return TranscriptManager.get_transcript(video_id, audio_path_or_url=url)
             except Exception as exc:
                 logger.warning("Transcript retrieval failed: {}", exc)
                 return []
@@ -188,7 +188,7 @@ class ClipperPipeline:
 
         # 3. Candidate Ranking
         t0 = time.perf_counter()
-        safe_cb("📊 Potansiyel klip adayları sıralanıyor (İzleyici yorumları & sinyal füzyonu)...")
+        safe_cb("📊 Potansiyel klip adayları sıralanıyor (İzleyici yorumları, vokal & sinyal füzyonu)...")
         ranker = CandidateRanker(top_n=target_clips * 2)
         candidates = ranker.fuse_signals_and_generate_candidates(
             times=signals.get("times", np.array([])),
@@ -202,6 +202,7 @@ class ClipperPipeline:
             comments=comments_res,
             pitch_variance=pitch_on_audio if len(pitch_on_audio) > 0 else None,
             frame_diff=fd_on_audio if len(fd_on_audio) > 0 else None,
+            vocal_spikes=signals.get("vocal_spikes") if len(signals.get("vocal_spikes", [])) > 0 else None,
         )
         step_timings["3. Candidate Ranking & Fusion"] = time.perf_counter() - t0
 

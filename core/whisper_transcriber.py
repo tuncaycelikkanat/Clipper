@@ -223,5 +223,70 @@ class WhisperTranscriber:
             if tmp_audio and os.path.exists(tmp_audio):
                 try:
                     os.unlink(tmp_audio)
-                except Exception:
+                except OSError:
+                    pass
+
+    def transcribe_to_sentence_segments(
+        self,
+        media_path: str,
+        language: str = "tr",
+    ) -> List[Dict]:
+        """
+        Transcribe an audio/video file or stream into sentence-level segments.
+
+        Args:
+            media_path: Path or URL to audio/video file.
+            language:   BCP-47 language code (default 'tr').
+
+        Returns:
+            List of dicts: [{'text': str, 'start': float, 'end': float, 'duration': float}, ...]
+        """
+        if not self._load_model():
+            return []
+
+        tmp_audio = ""
+        target_path = media_path
+        try:
+            if not os.path.exists(media_path) and media_path.startswith(("http://", "https://")):
+                tmp_audio = self._extract_audio_to_tempfile(media_path)
+                target_path = tmp_audio
+            elif os.path.exists(media_path) and not media_path.endswith((".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus")):
+                tmp_audio = self._extract_audio_to_tempfile(media_path)
+                target_path = tmp_audio
+
+            segments, _ = self._model.transcribe(  # type: ignore[union-attr]
+                target_path,
+                language=language,
+                beam_size=5,
+            )
+
+            result: List[Dict] = []
+            for seg in segments:
+                text = seg.text.strip()
+                if text:
+                    st = round(float(seg.start), 2)
+                    en = round(float(seg.end), 2)
+                    dur = round(en - st, 2)
+                    result.append({
+                        "text": text,
+                        "start": st,
+                        "end": en,
+                        "duration": dur,
+                    })
+
+            logger.info(
+                "faster-whisper transcribed {} sentence segments from '{}'.",
+                len(result),
+                media_path,
+            )
+            return result
+
+        except Exception as exc:
+            logger.warning("faster-whisper sentence transcription failed: {}", exc)
+            return []
+        finally:
+            if tmp_audio and os.path.exists(tmp_audio):
+                try:
+                    os.unlink(tmp_audio)
+                except OSError:
                     pass

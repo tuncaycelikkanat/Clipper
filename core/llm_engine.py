@@ -97,6 +97,8 @@ def _build_signal_validation_section(signals: Dict[str, Any]) -> str:
         parts.append(f"ses dalgalanması={signals['audio_spike']:.2f}")
     if signals.get("silence_burst", 0) > 0.2:
         parts.append(f"sessizlik-patlama={signals['silence_burst']:.2f}")
+    if signals.get("vocal_spike", 0) > 0.2:
+        parts.append(f"vokal_baskınlığı={signals['vocal_spike']:.2f} (insan sesi/konuşma)")
     if signals.get("pitch_variance", 0) > 0.2:
         parts.append(f"pitch_varyans={signals['pitch_variance']:.2f} (kahkaha/coşku tespiti)")
     if signals.get("frame_diff", 0) > 0.2:
@@ -212,7 +214,9 @@ class GeminiHighlightEngine:
             "7. rationale alanına: tam olarak hangi sesi/hareketi/sinyali görerek bu puanı verdiğini "
             "1-2 cümleyle yaz. 'İyi bir an' gibi genel cümleler kullanma.\n"
             "8. İZLEYİCİ YORUMU İLE VURGULANAN (VIP) ADAYLAR: Eğer bir adayda 'viewer_comments' veya 'is_vip' varsa, "
-            "bu an izleyicilerin bizzat videoda gülüp öne çıkardığı organik andır. Bu anları KEEP olarak seçmeye ve yüksek viral puanı vermeye özen göster."
+            "bu an izleyicilerin bizzat videoda gülüp öne çıkardığı organik andır. Bu anları KEEP olarak seçmeye ve yüksek viral puanı vermeye özen göster.\n"
+            "9. HİKAYE VE DİYALOG BÜTÜNLÜĞÜ (SETUP & PUNCHLINE): Bir esprinin veya olayın anlaşılması için giriş cümlesini (setup) "
+            "ve vurucu sonucunu (punchline/kahkaha) klipte mutlaka koru. Eksik, yarım kalan veya cümlenin ortasından başlayan kesitleri 'suggested_start' ve 'suggested_end' değerleriyle tam hikayeyi kapsayacak şekilde genişlet."
         )
 
         dna_section = ""
