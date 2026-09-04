@@ -174,10 +174,12 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
                     temperature=0.7,
                     max_tokens=800
                 )
-                raw_text = response.choices[0].message.content
-                clean_json = re.search(r'\{.*\}', raw_text, re.DOTALL)
-                if clean_json:
-                    result_json = json.loads(clean_json.group(0))
+                if response and getattr(response, "choices", None) and len(response.choices) > 0:
+                    msg = response.choices[0].message
+                    raw_text = getattr(msg, "content", "") or ""
+                    clean_json = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                    if clean_json:
+                        result_json = json.loads(clean_json.group(0))
         except Exception as exc:
             logger.debug("DeepSeek metadata generation failed: {}", exc)
 
@@ -196,14 +198,29 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
                         pass
                 if api_key:
                     client = genai.Client(api_key=api_key)
-                    resp = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"{cls.SYSTEM_PROMPT}\n\n{user_prompt}",
-                        config=types.GenerateContentConfig(response_mime_type="application/json")
-                    )
-                    clean_json = re.search(r'\{.*\}', resp.text, re.DOTALL)
-                    if clean_json:
-                        result_json = json.loads(clean_json.group(0))
+                    gemini_models = [
+                        "gemini-3.5-flash-lite",
+                        "gemini-flash-lite-latest",
+                        "gemini-3.6-flash",
+                        "gemini-3.7-flash",
+                        "gemini-3.5-flash",
+                        "gemini-flash-latest",
+                    ]
+                    for m in gemini_models:
+                        try:
+                            resp = client.models.generate_content(
+                                model=m,
+                                contents=f"{cls.SYSTEM_PROMPT}\n\n{user_prompt}",
+                                config=types.GenerateContentConfig(response_mime_type="application/json")
+                            )
+                            if resp and resp.text:
+                                clean_json = re.search(r'\{.*\}', resp.text, re.DOTALL)
+                                if clean_json:
+                                    result_json = json.loads(clean_json.group(0))
+                                    break
+                        except Exception as m_err:
+                            logger.debug("Gemini model {} failed for metadata: {}", m, m_err)
+                            continue
             except Exception as exc:
                 logger.debug("Gemini fallback metadata generation failed: {}", exc)
 
