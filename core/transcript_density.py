@@ -222,6 +222,73 @@ class TranscriptDensityAnalyzer:
         scored.sort(key=lambda x: x["energy_score"], reverse=True)
         return scored[:top_k]
 
+    def compute_speech_rate_acceleration(
+        self,
+        transcript_segments: List[Dict[str, Any]],
+        timeline_times: np.ndarray,
+        total_duration: float,
+        accel_window_sec: float = 10.0,
+    ) -> np.ndarray:
+        """
+        Mevcut transkriptten konuşma hızı ivmesi sinyali çıkarır.
+        Ek API çağrısı gerekmez — compute_density_curve ile aynı transkript kullanılır.
+
+        Algoritma:
+        1. Her segment için kelime/saniye (WPS) hesapla.
+        2. Zaman ekseninde kayan pencerede WPS'in türevini (değişim hızını) hesapla.
+        3. Pozitif ivme (hızlanma) → heyecan sinyali. 0-1 normalize et.
+
+        Args:
+            transcript_segments: [{'text': str, 'start': float, 'duration': float}]
+            timeline_times:      Hedef zaman ekseni (audio_spikes ile aynı grid).
+            total_duration:      Video süresi (saniye).
+            accel_window_sec:    WPS değişimi hesaplanacak pencere genişliği.
+
+        Returns:
+            np.ndarray: 0-1 normalize konuşma hızı ivmesi eğrisi.
+        """
+        n_pts = len(timeline_times)
+        if n_pts == 0 or not transcript_segments or total_duration <= 0:
+            return np.zeros(n_pts)
+
+        # 1. Her segment için WPS hesapla
+        wps_events: List[Dict[str, float]] = []
+        for seg in transcript_segments:
+            text = seg.get("text", "") or ""
+            start = float(seg.get("start", 0.0))
+            dur = float(seg.get("duration", 2.0))
+            if dur < 0.1:
+                continue
+            words = [w for w in _WORD_SPLIT_REGEX.split(text) if w.strip()]
+            wps = len(words) / max(dur, 0.5)
+            mid = start + dur / 2.0
+            if 0 <= mid <= total_duration:
+                wps_events.append({"mid": mid, "wps": wps})
+
+        if len(wps_events) < 2:
+            return np.zeros(n_pts)
+
+        # 2. Timeline üzerinde WPS interpolasyonu
+        ev_times = np.array([e["mid"] for e in wps_events], dtype=np.float64)
+        ev_wps = np.array([e["wps"] for e in wps_events], dtype=np.float64)
+        wps_timeline = np.interp(timeline_times, ev_times, ev_wps, left=ev_wps[0], right=ev_wps[-1])
+
+        # 3. Kayan pencerede WPS türevi (ivme) — pozitif ivme heyecan = ani konuşma hızlanması
+        hop = float(timeline_times[1] - timeline_times[0]) if len(timeline_times) > 1 else 0.5
+        win_pts = max(2, int(accel_window_sec / hop))
+        accel = np.zeros(n_pts, dtype=np.float64)
+        for i in range(win_pts, n_pts):
+            prev = np.mean(wps_timeline[i - win_pts: i - win_pts // 2])
+            curr = np.mean(wps_timeline[i - win_pts // 2: i])
+            accel[i] = max(0.0, curr - prev)  # Sadece pozitif ivme
+
+        # 4. 0-1 normalize
+        mx = accel.max()
+        if mx > 1e-9:
+            accel = accel / mx
+
+        return accel.astype(np.float32)
+
     # ------------------------------------------------------------------
     # Internal Helpers
     # ------------------------------------------------------------------

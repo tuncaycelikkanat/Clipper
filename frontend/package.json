@@ -1,0 +1,47 @@
+{
+  "name": "clipper-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.0.2",
+    "@tanstack/react-query": "^5.x",
+    "@tanstack/react-router": "^1.x",
+    "@vidstack/react": "^1.x",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.x",
+    "date-fns": "^3.x",
+    "lucide-react": "^0.x",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.x",
+    "tailwind-merge": "^2.x"
+  },
+  "devDependencies": {
+    "@tanstack/router-vite-plugin": "^1.x",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.x",
+    "@types/react-dom": "^18.x",
+    "@vitejs/plugin-react": "^4.x",
+    "@vitest/coverage-v8": "^1.4.0",
+    "autoprefixer": "^10.x",
+    "jsdom": "^24.0.0",
+    "postcss": "^8.x",
+    "tailwindcss": "^3.x",
+    "typescript": "^5.x",
+    "vite": "^5.x",
+    "vitest": "^1.4.0"
+  }
+}

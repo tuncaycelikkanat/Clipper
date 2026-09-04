@@ -81,7 +81,12 @@ CREATE TABLE IF NOT EXISTS clips (
     score            INTEGER,
     viral_confidence INTEGER,
     render_path      TEXT,
-    created_at       TEXT
+    created_at       TEXT,
+    description      TEXT,
+    tags             TEXT,
+    thumbnail_path   TEXT,
+    render_mode      TEXT,
+    has_facecam      INTEGER DEFAULT 0
 );
 """
 
@@ -209,6 +214,13 @@ class DatabaseManager:
             # Mevcut veritabanları için yeni sütunları güvenle ekle
             for col_sql in (
                 "ALTER TABLE autopilot_queue ADD COLUMN description TEXT;",
+                "ALTER TABLE clips ADD COLUMN description TEXT;",
+                "ALTER TABLE clips ADD COLUMN tags TEXT;",
+                "ALTER TABLE clips ADD COLUMN thumbnail_path TEXT;",
+                "ALTER TABLE clips ADD COLUMN render_mode TEXT;",
+                "ALTER TABLE clips ADD COLUMN has_facecam INTEGER DEFAULT 0;",
+                "ALTER TABLE clips ADD COLUMN score_band TEXT;",
+                "ALTER TABLE clips ADD COLUMN rationale TEXT;",
             ):
                 try:
                     conn.execute(col_sql)
@@ -331,11 +343,12 @@ class DatabaseManager:
             INSERT OR REPLACE INTO clips
                 (id, video_id, rank, title, category, start_time, end_time,
                  duration, hook_caption, score, viral_confidence, render_path,
-                 created_at)
+                 created_at, description, tags, thumbnail_path, score_band, rationale)
             VALUES
                 (:id, :video_id, :rank, :title, :category, :start_time,
                  :end_time, :duration, :hook_caption, :score,
-                 :viral_confidence, :render_path, :created_at);
+                 :viral_confidence, :render_path, :created_at,
+                 :description, :tags, :thumbnail_path, :score_band, :rationale);
         """
         inserted_ids: List[str] = []
         with self._connect() as conn:
@@ -358,6 +371,11 @@ class DatabaseManager:
                     "viral_confidence": clip.get("viral_confidence", clip.get("score", 0)),
                     "render_path": clip.get("render_path", None),
                     "created_at": _utcnow(),
+                    "description": clip.get("description", ""),
+                    "tags": clip.get("tags", ""),
+                    "thumbnail_path": clip.get("thumbnail_path", None),
+                    "score_band": clip.get("score_band", ""),
+                    "rationale": clip.get("rationale", ""),
                 }
                 conn.execute(sql, params)
                 inserted_ids.append(clip_id)
@@ -412,6 +430,10 @@ class DatabaseManager:
             conn.execute(
                 sql,
                 (render_id, clip_id, render_mode, file_path, file_size, _utcnow()),
+            )
+            conn.execute(
+                "UPDATE clips SET render_path = ?, render_mode = ? WHERE id = ?;",
+                (file_path, render_mode, clip_id),
             )
             conn.commit()
         logger.debug(

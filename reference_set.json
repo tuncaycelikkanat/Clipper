@@ -1,0 +1,24 @@
+{
+  "_description": "Kalibrasyon referans seti — pipeline'ın bu bilinen klipleri yüksek puanlamasını bekliyoruz.",
+  "_usage": "scripts/calibrate_scoring.py --ref reference_set.json",
+  "clips": [
+    {
+      "id": "ref_001",
+      "label": "Clutch 1v4 örneği",
+      "video_url": "https://www.youtube.com/watch?v=REPLACE_ME",
+      "known_start_sec": 120,
+      "known_end_sec": 155,
+      "expected_category": "CLUTCH",
+      "expected_score_min": 70
+    },
+    {
+      "id": "ref_002",
+      "label": "Komik fail anı",
+      "video_url": "https://www.youtube.com/watch?v=REPLACE_ME_2",
+      "known_start_sec": 45,
+      "known_end_sec": 78,
+      "expected_category": "FAIL/FUNNY",
+      "expected_score_min": 65
+    }
+  ]
+}

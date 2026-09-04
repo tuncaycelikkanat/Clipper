@@ -2,7 +2,8 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.42+-FF4B4B.svg)](https://streamlit.io/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB.svg)](https://vitejs.dev/)
 [![DeepSeek V3](https://img.shields.io/badge/Copywriting-DeepSeek_V3-blueviolet.svg)](https://openrouter.ai/)
 [![Gemini 3.5 Flash](https://img.shields.io/badge/Judgment-Gemini_3.5_Flash-4285F4.svg)](https://ai.google.dev/)
 [![Coverage](https://img.shields.io/badge/Coverage-97%25-brightgreen.svg)]()
@@ -26,11 +27,13 @@
   - Renk canlandırma ve kontrast filtreleri (*Vibrancy boost*).
   - Shorts ve TikTok standardına uygun ses normalizasyonu (`-14 LUFS`).
 
-- **🖥️ Modern Streamlit Multipage Arayüzü:**
-  - 🎬 **Analiz:** Canlı sinyal grafikleri, anlık aday listesi ve video oynatıcı.
-  - 📁 **Klip Kütüphanesi:** SQLite veritabanındaki tüm klipleri filtreleme, indirme ve yeniden renderlama.
-  - 📤 **Dışa Aktarma & YouTube Upload:** Tek tıkla YouTube Shorts yükleme, Discord/Telegram webhook bildirimleri.
-  - ⚙️ **Ayarlar:** API anahtarları, otomatik kanal izleyici (Scheduler) ve disk önbellek yönetimi.
+- **🖥️ Modern React + Vite & FastAPI Mimarisi:**
+  - 🎬 **Dashboard & Analiz:** Canlı SSE (Server-Sent Events) pipeline takibi, anlık sinyal adımları ve klip üretimi.
+  - 📁 **Klip Kütüphanesi:** SQLite veritabanındaki tüm klipleri filtreleme, detay görüntüleme, indirme ve doğrudan yayınlama.
+  - 📅 **Slot Planlayıcı:** 14 günlük takvim slotları (11:30, 15:30, 19:00, 22:30), havuz yönetimi ve akıllı shuffle.
+  - 🤖 **AutoPilot:** Otomatik kanal tarama, çift katmanlı anchor video tespit sistemi ve otonom stok yönetimi.
+  - 📤 **Platform Yayınlama & OAuth2:** Tek tıkla YouTube Shorts, Instagram Reels ve TikTok desteği.
+  - ⚙️ **Ayarlar:** Dinamik API anahtarları, YouTube OAuth2 bağlantısı, disk ve önbellek yönetimi.
 
 ---
 
@@ -111,12 +114,19 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 ```
 
 ### 4. Başlatma
+ 
+Tek bir komutla hem FastAPI backend'i (`http://localhost:8000`) hem de Vite frontend'i (`http://localhost:5173`) başlatabilirsiniz:
 
-#### Web Arayüzünü Başlatma (Streamlit)
 ```bash
-streamlit run ui/app.py
+# Backend + Frontend geliştirici modu
+./run.sh
+
+# Sadece FastAPI Backend (Docs: http://localhost:8000/docs)
+./run.sh backend
+
+# Sadece Vite Frontend
+./run.sh frontend
 ```
-Tarayıcınızda `http://localhost:8501` adresine gidin.
 
 #### Komut Satırından Toplu Çalıştırma (CLI)
 ```bash

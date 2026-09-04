@@ -20,6 +20,7 @@ from core.llm_engine import GeminiHighlightEngine
 from core.logger import logger
 from core.transcript import TranscriptManager
 from core.copywriter import CopywriterEngine
+from core.visual_dsp import VisualDSPAnalyzer
 
 
 class ClipperPipeline:
@@ -125,6 +126,34 @@ class ClipperPipeline:
         except Exception as e:
             logger.warning("Transcript retrieval failed: {}", e)
 
+        # 2b. Pitch Variance (ZCR tabanlı — kahkaha tespiti)
+        safe_cb("🎙️ Pitch/F0 varyans analizi yapılıyor...")
+        pitch_times, pitch_var = np.array([]), np.array([])
+        try:
+            pitch_times, pitch_var = AudioDSPAnalyzer.extract_pitch_variance(url, duration_sec=duration)
+        except Exception as e:
+            logger.warning("Pitch variance extraction skipped: {}", e)
+
+        # Pitch varyansını audio timeline'ına hizala
+        pitch_on_audio = np.array([])
+        if len(pitch_times) > 0 and len(signals.get("times", np.array([]))) > 0:
+            audio_times = signals.get("times", np.array([]))
+            pitch_on_audio = np.interp(audio_times, pitch_times, pitch_var, left=0.0, right=0.0)
+
+        # 2c. Frame-Diff — görsel sahne değişimi tespiti
+        safe_cb("🖼️ Görsel sahne değişimi analiz ediliyor...")
+        fd_times, fd_scores = np.array([]), np.array([])
+        try:
+            fd_times, fd_scores = VisualDSPAnalyzer.extract_frame_diff(url, duration_sec=duration, fps=1.0)
+        except Exception as e:
+            logger.warning("Frame-diff extraction skipped: {}", e)
+
+        # Frame-diff sinyalini audio timeline'ına hizala
+        fd_on_audio = np.array([])
+        if len(fd_times) > 0 and len(signals.get("times", np.array([]))) > 0:
+            audio_times = signals.get("times", np.array([]))
+            fd_on_audio = VisualDSPAnalyzer.interpolate_to_timeline(fd_times, fd_scores, audio_times)
+
         # 3. Candidate Ranking
         safe_cb("📊 Potansiyel klip adayları sıralanıyor...")
         ranker = CandidateRanker(top_n=target_clips * 2)
@@ -136,6 +165,8 @@ class ClipperPipeline:
             transcript=transcripts,
             total_duration=duration,
             video_id=video_id,
+            pitch_variance=pitch_on_audio if len(pitch_on_audio) > 0 else None,
+            frame_diff=fd_on_audio if len(fd_on_audio) > 0 else None,
         )
 
         # 4. LLM Judgement
@@ -148,7 +179,7 @@ class ClipperPipeline:
             api_key=api_key,
         )
 
-        # 5. Boundary Alignment
+        # 5. Boundary Alignment (Frame-diff dahil)
         safe_cb("⏱️ Klip başlangıç ve bitiş sınırları hassas hizalanıyor...")
         aligner = AlignmentEngine()
         aligned_clips = []
@@ -160,6 +191,8 @@ class ClipperPipeline:
                 times=signals.get("times", np.array([])),
                 rms=audio_energy,
                 transcript=transcripts,
+                frame_diff_times=fd_times if len(fd_times) > 0 else None,
+                frame_diff_scores=fd_scores if len(fd_scores) > 0 else None,
             )
             clip_copy["start_time"] = ref_start
             clip_copy["end_time"] = ref_end
@@ -175,6 +208,25 @@ class ClipperPipeline:
             title=video_title
         )
         streamer_name = video_data.get("uploader") or "Yayıncı"
+
+        # 5.6. Video-level AI Vertical Thumbnail (Shared across all clips of this video)
+        safe_cb("🖼️ Orijinal kapak görseli dikey formata dönüştürülüyor (AI Thumbnail)...")
+        thumb_dir = os.path.join("outputs", "thumbnails")
+        os.makedirs(thumb_dir, exist_ok=True)
+        video_thumb_path = os.path.join(thumb_dir, f"thumb_{video_id}.jpg")
+        try:
+            from core.thumbnail import ThumbnailGenerator
+            gen_thumb = ThumbnailGenerator.generate_ai_vertical_thumbnail(
+                video_url_or_id=url,
+                output_path=video_thumb_path,
+                aspect_ratio="2:3",
+                api_key=api_key,
+            )
+            if not gen_thumb or not os.path.exists(video_thumb_path):
+                video_thumb_path = None
+        except Exception as te:
+            logger.warning("AI Thumbnail generation skipped for video {}: {}", video_id, te)
+            video_thumb_path = None
 
         enriched_clips = []
         for clip in aligned_clips:
@@ -196,6 +248,9 @@ class ClipperPipeline:
                 clip_copy["all_titles"] = meta.get("titles", {})
             except Exception as e:
                 logger.warning("Human metadata enrichment skipped: {}", e)
+
+            if video_thumb_path:
+                clip_copy["thumbnail_path"] = video_thumb_path
             enriched_clips.append(clip_copy)
 
         saved_ids = self.db.save_clips(video_id, enriched_clips)
@@ -225,6 +280,27 @@ class ClipperPipeline:
                 clip_res["clip_id"] = cid
                 clip_res["clip_db_id"] = cid
                 clip_res["render_path"] = render_path
+
+                # Thumbnail fallback if video_thumb_path wasn't generated
+                thumb_path = clip_res.get("thumbnail_path")
+                if (not thumb_path or not os.path.exists(thumb_path)) and render_path and os.path.exists(render_path):
+                    cand_thumb = os.path.join(thumb_dir, f"thumb_{cid}.jpg")
+                    try:
+                        from core.thumbnail import ThumbnailGenerator
+                        ThumbnailGenerator.extract_best_frame(
+                            video_path=render_path,
+                            peak_time=1.0,
+                            output_path=cand_thumb,
+                        )
+                        if os.path.exists(cand_thumb):
+                            thumb_path = cand_thumb
+                            clip_res["thumbnail_path"] = thumb_path
+                            with self.db._connect() as conn:
+                                conn.execute("UPDATE clips SET thumbnail_path = ? WHERE id = ?", (thumb_path, cid))
+                                conn.commit()
+                    except Exception as te:
+                        logger.warning("Thumbnail fallback extraction skipped for #{}: {}", cid, te)
+
                 self.db.save_render(
                     clip_id=cid,
                     render_mode=render_mode,

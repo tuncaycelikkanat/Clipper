@@ -1,32 +1,41 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "gaming-ai-clipper"
 version = "1.0.0"
 description = "Autonomous AI-powered studio for detecting, cutting, subtitling, and titling viral short-form clips from gaming videos"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "yt-dlp>=2024.1.0",
-    "streamlit>=1.42.0",
+    # Backend
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "sse-starlette>=2.1.0",
+    "python-multipart>=0.0.9",
+    "aiofiles>=23.2.0",
+    # AI & ML
     "google-genai>=1.0.0",
     "openai>=1.12.0",
     "faster-whisper>=1.0.0",
+    # Data
     "scipy>=1.11.0",
     "numpy>=1.26.0",
     "pandas>=2.0.0",
     "plotly>=5.18.0",
+    # YouTube
     "youtube-transcript-api>=0.6.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth-oauthlib>=1.1.0",
+    "google-auth-httplib2>=0.2.0",
+    # Utils
     "loguru>=0.7.0",
     "apscheduler>=3.10.0",
     "pydantic>=2.5.0",
     "requests>=2.31.0",
-    "google-api-python-client>=2.100.0",
-    "google-auth-oauthlib>=1.1.0",
-    "google-auth-httplib2>=0.2.0",
     "python-dotenv>=1.0.0",
     "typing_extensions>=4.0.0",
 ]
@@ -35,6 +44,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
 ]
 
 [project.scripts]
@@ -45,6 +55,7 @@ testpaths = ["tests"]
 addopts = "-v --tb=short"
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 120
@@ -53,3 +64,8 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "backend*"]
+exclude = ["frontend*", "outputs*", "scratch*", "tests*"]

@@ -1,0 +1,106 @@
+"""backend/api/routes/channels.py — Channel CRUD."""
+from __future__ import annotations
+import os, sys
+_R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _R not in sys.path: sys.path.insert(0, _R)
+
+from typing import Optional
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from core.database import DatabaseManager
+
+router = APIRouter(prefix="/channels", tags=["channels"])
+
+def _db():
+    db = DatabaseManager(); db.init_db(); return db
+
+
+class ChannelCreateRequest(BaseModel):
+    url: str
+    name: str
+    min_score: int = 90
+    auto_upload: bool = True
+    check_interval_h: float = 2.0
+    target_playlist: Optional[str] = None
+
+
+class ChannelUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    min_score: Optional[int] = None
+    auto_upload: Optional[bool] = None
+    active: Optional[bool] = None
+    check_interval_h: Optional[float] = None
+
+
+@router.get("")
+async def list_channels(is_tracked: Optional[bool] = None, active_only: bool = False):
+    db = _db()
+    with db._connect() as conn:
+        sql = "SELECT * FROM tracked_channels"
+        conds = []
+        if is_tracked is not None:
+            conds.append("active = 1" if is_tracked else "active = 0")
+        if active_only:
+            conds.append("active = 1")
+        if conds:
+            sql += " WHERE " + " AND ".join(conds)
+        sql += " ORDER BY created_at DESC"
+        rows = conn.execute(sql).fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.post("", status_code=201)
+async def create_channel(body: ChannelCreateRequest):
+    db = _db()
+    channel_id = db.add_tracked_channel(
+        url=body.url,
+        name=body.name,
+        min_score=body.min_score,
+        target_playlist=body.target_playlist,
+        auto_upload=1 if body.auto_upload else 0,
+    )
+    with db._connect() as conn:
+        row = conn.execute("SELECT * FROM tracked_channels WHERE id = ?", (channel_id,)).fetchone()
+    return dict(row) if row else {"id": channel_id}
+
+
+@router.get("/{channel_id}")
+async def get_channel(channel_id: str):
+    db = _db()
+    with db._connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM tracked_channels WHERE id = ? OR url = ?",
+            (channel_id, channel_id)
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    return dict(row)
+
+
+@router.patch("/{channel_id}")
+async def update_channel(channel_id: str, body: ChannelUpdateRequest):
+    db = _db()
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    # Map bool fields
+    if "auto_upload" in updates:
+        updates["auto_upload"] = 1 if updates["auto_upload"] else 0
+    if "active" in updates:
+        updates["active"] = 1 if updates["active"] else 0
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [channel_id]
+    with db._connect() as conn:
+        cur = conn.execute(f"UPDATE tracked_channels SET {set_clause} WHERE id = ?", values)
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Channel not found")
+        row = conn.execute("SELECT * FROM tracked_channels WHERE id = ?", (channel_id,)).fetchone()
+    return dict(row)
+
+
+@router.delete("/{channel_id}")
+async def delete_channel(channel_id: str):
+    db = _db()
+    db.remove_tracked_channel(channel_id)
+    return {"deleted": True}

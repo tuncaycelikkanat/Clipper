@@ -88,11 +88,24 @@ class AutoPilotManager:
                 inst.run_cycle()
                 inst.publish_due_socials()
 
+            def publish_tick():
+                try:
+                    inst.publish_due_socials()
+                except Exception as e:
+                    logger.debug("Publish tick error: {}", e)
+
             cls._worker_scheduler.add_job(
                 job,
                 "interval",
                 hours=interval_hours,
                 id="autopilot_cycle_job",
+                replace_existing=True,
+            )
+            cls._worker_scheduler.add_job(
+                publish_tick,
+                "interval",
+                minutes=1,
+                id="autopilot_publish_tick",
                 replace_existing=True,
             )
             cls._worker_scheduler.start()

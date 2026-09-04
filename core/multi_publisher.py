@@ -166,6 +166,7 @@ class MultiPublisher:
                     ig_res = self.instagram.upload_reel(
                         video_path=render_path,
                         caption=ig_caption,
+                        thumbnail_path=thumbnail_path,
                         share_to_feed=True,
                     )
                     results["instagram"] = {

@@ -322,3 +322,221 @@ def test_generate_shorts_metadata_deepseek_delegation(mock_ds_call):
             category="CLUTCH"
         )
         assert meta["title"] == "DEEPSEEK TITLE #Shorts"
+
+
+# ---------------------------------------------------------------------------
+# V2: Yeni özellikler
+# ---------------------------------------------------------------------------
+
+def test_score_to_band():
+    """score_to_band() yardımcı fonksiyonu doğru bant etiketlerini döndürmeli."""
+    from core.llm_engine import score_to_band
+    import core.scoring_config as SC
+
+    if not SC.BAND_LABELS_ENABLED:
+        pytest.skip("Bant etiketleme kapalı (BAND_LABELS_ENABLED=False)")
+
+    assert score_to_band(90) == "Yüksek"
+    assert score_to_band(75) == "Yüksek"
+    assert score_to_band(60) == "Orta-Yüksek"
+    assert score_to_band(55) == "Orta-Yüksek"
+    assert score_to_band(40) == "Orta"
+    assert score_to_band(35) == "Orta"
+    assert score_to_band(20) == "Düşük"
+    assert score_to_band(0) == "Düşük"
+
+
+@patch("core.llm_engine.genai.Client")
+def test_mundane_category_drops_verdict(mock_client_class, mock_candidates):
+    """MUNDANE kategorili adayların verdict DROP'a çevrilmeli ve skor ≤ MUNDANE_SCORE_CAP olmalı."""
+    import core.scoring_config as SC
+
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    mock_response = MagicMock()
+    mock_response.text = json.dumps({
+        "selected_clips": [
+            {
+                "candidate_id": 1,
+                "verdict": "KEEP",
+                "category": "MUNDANE",
+                "title": "Sıradan Anı",
+                "hook_caption": "Hook",
+                "rationale": "Sıradan bir an, özel bir şey yok.",
+                "why_viral": "Neden viral olsun?",
+                "viral_confidence": 80,   # Yüksek skor ama MUNDANE
+                "suggested_start": 0.0,
+                "suggested_end": 15.0,
+            },
+            {
+                "candidate_id": 2,
+                "verdict": "KEEP",
+                "category": "CLUTCH",
+                "title": "Harika An",
+                "hook_caption": "Bunu izle!",
+                "rationale": "Ses spike'ı + silence burst birlikte.",
+                "why_viral": "1v4 clutch",
+                "viral_confidence": 75,
+                "suggested_start": 20.0,
+                "suggested_end": 30.0,
+            },
+        ]
+    })
+    mock_client.models.generate_content.return_value = mock_response
+
+    result = GeminiHighlightEngine.batch_judge_gaming_candidates(
+        candidates=mock_candidates,
+        video_title="Test Video",
+        total_duration=100,
+        target_clips=2,
+        api_key="TEST_KEY",
+    )
+
+    # MUNDANE olan candidate_id=1 DROP'a çevrilmeli, bu yüzden sonuç listesinde olmamalı
+    # (veya varsa skoru kırpılmış olmalı)
+    candidate_ids = [r["candidate_id"] for r in result]
+    # CLUTCH olan cand 2 KEEP olarak kalmalı
+    assert 2 in candidate_ids
+
+    # Eğer MUNDANE aday sonuçta varsa, skoru MUNDANE_SCORE_CAP'ı aşmamalı
+    for r in result:
+        if r["candidate_id"] == 1:
+            assert r["score"] <= SC.MUNDANE_SCORE_CAP, (
+                f"MUNDANE aday skoru cap'ı ({SC.MUNDANE_SCORE_CAP}) aşmamalı, got {r['score']}"
+            )
+
+
+@patch("core.llm_engine.genai.Client")
+def test_rationale_field_in_output(mock_client_class, mock_candidates):
+    """Çıktı kliplerinde rationale alanı mevcut olmalı."""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    mock_response = MagicMock()
+    mock_response.text = json.dumps({
+        "selected_clips": [
+            {
+                "candidate_id": 1,
+                "verdict": "KEEP",
+                "category": "EPIC_MOMENT",
+                "title": "Epic",
+                "hook_caption": "Hook",
+                "rationale": "Ses spike'ı 0.85 ile doruk noktasında.",
+                "why_viral": "Epic moment",
+                "viral_confidence": 88,
+                "suggested_start": 0.0,
+                "suggested_end": 15.0,
+            }
+        ]
+    })
+    mock_client.models.generate_content.return_value = mock_response
+
+    result = GeminiHighlightEngine.batch_judge_gaming_candidates(
+        candidates=mock_candidates,
+        video_title="Test Video",
+        total_duration=100,
+        api_key="TEST_KEY",
+    )
+
+    assert len(result) == 1
+    assert "rationale" in result[0], "Çıktı klibinde 'rationale' alanı eksik"
+    assert result[0]["rationale"] == "Ses spike'ı 0.85 ile doruk noktasında."
+    assert "score_band" in result[0], "Çıktı klibinde 'score_band' alanı eksik"
+
+
+@patch("core.llm_engine.genai.Client")
+def test_ensemble_mode_median(mock_client_class, mock_candidates):
+    """ensemble_runs=2 ile iki çalışmanın medyanı alınmalı."""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    # İlk çalışma: skor 80, ikinci çalışma: skor 60 → medyan 70
+    def make_response(score: int):
+        r = MagicMock()
+        r.text = json.dumps({
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "KEEP",
+                    "category": "CLUTCH",
+                    "title": "Title",
+                    "hook_caption": "Hook",
+                    "rationale": "Gerekçe",
+                    "why_viral": "Why",
+                    "viral_confidence": score,
+                    "suggested_start": 0.0,
+                    "suggested_end": 15.0,
+                }
+            ]
+        })
+        return r
+
+    mock_client.models.generate_content.side_effect = [
+        make_response(80),
+        make_response(60),
+    ]
+
+    result = GeminiHighlightEngine.batch_judge_gaming_candidates(
+        candidates=mock_candidates,
+        video_title="Test Video",
+        total_duration=100,
+        target_clips=1,
+        api_key="TEST_KEY",
+        ensemble_runs=2,
+    )
+
+    assert len(result) == 1
+    # Medyan(80, 60) = 70
+    assert result[0]["score"] == 70
+
+
+@patch("core.llm_engine.genai.Client")
+def test_score_consistency_test_returns_stats(mock_client_class, mock_candidates):
+    """score_consistency_test() istatistik döndürmeli."""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    def make_response(score: int):
+        r = MagicMock()
+        r.text = json.dumps({
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "KEEP",
+                    "category": "CLUTCH",
+                    "title": "T",
+                    "hook_caption": "H",
+                    "rationale": "R",
+                    "why_viral": "W",
+                    "viral_confidence": score,
+                    "suggested_start": 0.0,
+                    "suggested_end": 15.0,
+                }
+            ]
+        })
+        return r
+
+    mock_client.models.generate_content.side_effect = [
+        make_response(90),
+        make_response(80),
+        make_response(85),
+    ]
+
+    report = GeminiHighlightEngine.score_consistency_test(
+        candidates=mock_candidates[:1],
+        video_title="Test Video",
+        total_duration=100,
+        api_key="TEST_KEY",
+        runs=3,
+    )
+
+    assert "per_candidate" in report
+    assert "summary" in report
+    assert 1 in report["per_candidate"]
+
+    stats = report["per_candidate"][1]
+    assert stats["range"] == 10  # 90 - 80
+    assert stats["mean"] == 85.0
+    assert stats["verdict"] == "STABLE"  # range=10 ≤ 15
+    assert "recommendation" in report["summary"]

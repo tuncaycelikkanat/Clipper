@@ -54,12 +54,47 @@ class InstagramUploader:
         return bool(self.access_token and self.account_id)
 
 
+    def upload_temp_cover_image(self, thumbnail_path: str) -> Optional[str]:
+        """Uploads local thumbnail to a temporary public host so Meta Graph API can download it via cover_url."""
+        if not thumbnail_path or not os.path.exists(thumbnail_path):
+            return None
+        try:
+            boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+            with open(thumbnail_path, "rb") as f:
+                img_bytes = f.read()
+
+            body = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="reqtype"\r\n\r\nfileupload\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="time"\r\n\r\n72h\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="fileToUpload"; filename="cover.jpg"\r\n'
+                f"Content-Type: image/jpeg\r\n\r\n"
+            ).encode("utf-8") + img_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+            import urllib.request
+            req = urllib.request.Request(
+                "https://litterbox.catbox.moe/resources/internals/api.php",
+                data=body,
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "User-Agent": "Mozilla/5.0"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                url = resp.read().decode("utf-8").strip()
+                if url.startswith("http"):
+                    logger.info("Generated public cover_url for Instagram: {}", url)
+                    return url
+        except Exception as e:
+            logger.warning("Could not create public cover_url for Instagram: {}", e)
+        return None
+
     def create_resumable_container(
         self,
         file_size: int,
         caption: str = "",
         share_to_feed: bool = True,
         thumb_offset: int = 1000,
+        cover_url: Optional[str] = None,
         scheduled_publish_time: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
@@ -74,9 +109,13 @@ class InstagramUploader:
             "upload_type": "resumable",
             "caption": caption,
             "share_to_feed": str(share_to_feed).lower(),
-            "thumb_offset": str(thumb_offset),
             "access_token": self.access_token,
         }
+        if cover_url:
+            params["cover_url"] = cover_url
+        else:
+            params["thumb_offset"] = str(thumb_offset)
+
         if scheduled_publish_time:
             params["scheduled_publish_time"] = str(scheduled_publish_time)
 
@@ -186,6 +225,8 @@ class InstagramUploader:
         caption: str = "",
         share_to_feed: bool = True,
         thumb_offset: int = 1000,
+        thumbnail_path: Optional[str] = None,
+        cover_url: Optional[str] = None,
         scheduled_publish_time: Optional[int] = None,
         timeout: int = 180,
     ) -> Dict[str, Any]:
@@ -199,12 +240,18 @@ class InstagramUploader:
         file_size = path.stat().st_size
         logger.info(f"Uploading Reel to Instagram ({file_size / (1024*1024):.1f} MB)…")
 
+        # Resolve cover_url if local thumbnail_path is provided
+        resolved_cover_url = cover_url
+        if not resolved_cover_url and thumbnail_path and os.path.exists(thumbnail_path):
+            resolved_cover_url = self.upload_temp_cover_image(thumbnail_path)
+
         # 1. Container oluştur
         init_res = self.create_resumable_container(
             file_size=file_size,
             caption=caption,
             share_to_feed=share_to_feed,
             thumb_offset=thumb_offset,
+            cover_url=resolved_cover_url,
             scheduled_publish_time=scheduled_publish_time,
         )
         container_id = init_res["container_id"]
