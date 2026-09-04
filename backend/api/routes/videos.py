@@ -5,12 +5,42 @@ _R = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abs
 if _R not in sys.path: sys.path.insert(0, _R)
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
+from pydantic import BaseModel
 from core.database import DatabaseManager
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
 def _db():
     db = DatabaseManager(); db.init_db(); return db
+
+
+class VideoPreviewRequest(BaseModel):
+    url: str
+
+
+@router.post("/preview")
+async def preview_video(req: VideoPreviewRequest):
+    if not req.url or not req.url.strip():
+        raise HTTPException(status_code=400, detail="Geçerli bir video URL'si belirtilmelidir.")
+    try:
+        from core.extractor import YouTubeExtractor
+        data = YouTubeExtractor.get_video_data(req.url.strip())
+        duration = data.get("duration", 0)
+        rec = YouTubeExtractor.calculate_recommended_clips(duration)
+        return {
+            "id": data.get("id"),
+            "url": data.get("url"),
+            "title": data.get("title"),
+            "uploader": data.get("uploader"),
+            "duration": duration,
+            "duration_formatted": data.get("duration_formatted"),
+            "thumbnail": data.get("thumbnail"),
+            "view_count": data.get("view_count", 0),
+            **rec
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 
 @router.get("")

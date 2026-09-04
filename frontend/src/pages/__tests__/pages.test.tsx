@@ -190,6 +190,56 @@ describe('Pages', () => {
         expect(screen.getByText('API Hatası')).toBeInTheDocument()
       })
     })
+
+    it('fetches video preview and applies recommended clip count and presets', async () => {
+      vi.spyOn(api.videos, 'preview').mockResolvedValue({
+        id: 'vid123',
+        title: 'Örnek 37 Dakikalık Video',
+        duration: 2220,
+        duration_minutes: 37,
+        duration_formatted: '37:00',
+        uploader: 'Test Kanalı',
+        thumbnail: 'https://img.youtube.com/vi/vid123/hqdefault.jpg',
+        recommended_clips: 10,
+        tier_label: 'Orta-Uzun Video',
+        explanation: '37 dakikalık video için 8 - 14 arası bol klip önerilir.',
+        ranges: [3, 5, 8, 10, 12, 15, 20],
+      })
+
+      renderWithClient(<Analyze />)
+
+      const input = screen.getByPlaceholderText('https://www.youtube.com/watch?v=...')
+      fireEvent.change(input, { target: { value: 'https://www.youtube.com/watch?v=vid123' } })
+
+      await waitFor(() => {
+        expect(screen.getByText('Örnek 37 Dakikalık Video')).toBeInTheDocument()
+        expect(screen.getByText('37:00')).toBeInTheDocument()
+        expect(screen.getByText(/37 dakikalık video için 8 - 14 arası bol klip önerilir/i)).toBeInTheDocument()
+      })
+
+      const applyRecommendedBtn = screen.getByRole('button', { name: /Önerilen 10 Klibi Seç/i })
+      fireEvent.click(applyRecommendedBtn)
+
+      const numInput = screen.getByRole('spinbutton') as HTMLInputElement
+      expect(numInput.value).toBe('10')
+
+      const presetBtn = screen.getByRole('button', { name: '15' })
+      fireEvent.click(presetBtn)
+      expect(numInput.value).toBe('15')
+    })
+
+    it('handles video preview fetch error silently', async () => {
+      vi.spyOn(api.videos, 'preview').mockRejectedValue(new Error('Preview error'))
+
+      renderWithClient(<Analyze />)
+
+      const input = screen.getByPlaceholderText('https://www.youtube.com/watch?v=...')
+      fireEvent.change(input, { target: { value: 'https://www.youtube.com/watch?v=errorvid' } })
+
+      await waitFor(() => {
+        expect(screen.queryByText('Örnek 37 Dakikalık Video')).not.toBeInTheDocument()
+      })
+    })
   })
 
   describe('Clips', () => {

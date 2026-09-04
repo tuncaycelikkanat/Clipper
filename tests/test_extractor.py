@@ -104,3 +104,28 @@ def test_get_video_comments_exception(mock_ytdl):
     comments = YouTubeExtractor.get_video_comments("dQw4w9WgXcQ")
     assert comments == []
 
+
+def test_calculate_recommended_clips():
+    # 2 min video
+    res_short = YouTubeExtractor.calculate_recommended_clips(120)
+    assert res_short["recommended_clips"] == 2
+    assert res_short["tier_label"] == "Çok Kısa Video"
+
+    # 10 min video
+    res_med = YouTubeExtractor.calculate_recommended_clips(600)
+    assert res_med["recommended_clips"] == 5
+
+    # 37 min video
+    res_37 = YouTubeExtractor.calculate_recommended_clips(2220)
+    assert res_37["recommended_clips"] == 10
+    assert "8 - 14" in res_37["clip_range"]
+
+    # 75 min video
+    res_long = YouTubeExtractor.calculate_recommended_clips(4500)
+    assert res_long["recommended_clips"] == 15
+
+    # 180 min marathon
+    res_marathon = YouTubeExtractor.calculate_recommended_clips(10800)
+    assert res_marathon["recommended_clips"] >= 20
+
+

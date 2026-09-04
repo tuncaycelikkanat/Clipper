@@ -68,6 +68,7 @@ export const api = {
   videos: {
     list: () => get<Video[]>('/api/videos'),
     get: (id: string) => get<Video>(`/api/videos/${id}`),
+    preview: (url: string) => post<import('../types').VideoPreview>('/api/videos/preview', { url }),
     uploadThumbnail: (videoId: string, file: File) => {
       const fd = new FormData();
       fd.append('file', file);

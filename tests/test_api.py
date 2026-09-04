@@ -117,3 +117,35 @@ def test_scheduler_status():
     status_res = client.get("/api/scheduler/status")
     assert status_res.status_code == 200
     assert "running" in status_res.json()
+
+
+def test_preview_video(monkeypatch):
+    from core.extractor import YouTubeExtractor
+    monkeypatch.setattr(YouTubeExtractor, "get_video_data", lambda u: {
+        "id": "mock_vid",
+        "url": u,
+        "title": "Mock Video",
+        "uploader": "Mock Uploader",
+        "duration": 2220,
+        "duration_formatted": "37:00",
+        "thumbnail": "https://example.com/thumb.jpg",
+        "view_count": 1000
+    })
+
+    res = client.post("/api/videos/preview", json={"url": "https://youtu.be/mock_vid"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["id"] == "mock_vid"
+    assert data["duration_minutes"] == 37
+    assert data["recommended_clips"] == 10
+    assert "10 klip" in data["explanation"]
+
+    # Test validation error on empty url
+    res_err = client.post("/api/videos/preview", json={"url": ""})
+    assert res_err.status_code == 400
+
+    # Test error handling
+    monkeypatch.setattr(YouTubeExtractor, "get_video_data", lambda u: (_ for _ in ()).throw(RuntimeError("Invalid URL")))
+    res_fail = client.post("/api/videos/preview", json={"url": "https://youtu.be/bad_vid"})
+    assert res_fail.status_code == 400
+

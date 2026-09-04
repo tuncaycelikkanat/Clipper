@@ -54,7 +54,42 @@ export default function Analyze() {
   const [completedClips, setCompletedClips] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [previewData, setPreviewData] = useState<import('@/types').VideoPreview | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
   const logContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch video preview and duration-based clip recommendations
+  useEffect(() => {
+    const trimmed = url.trim();
+    if (!trimmed || (!trimmed.includes('youtube.com') && !trimmed.includes('youtu.be') && trimmed.length !== 11)) {
+      setPreviewData(null);
+      return;
+    }
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        setLoadingPreview(true);
+        const data = await api.videos.preview(trimmed);
+        if (isMounted && data) {
+          setPreviewData(data);
+          if (data.recommended_clips) {
+            setTargetClips(data.recommended_clips);
+          }
+        }
+      } catch {
+        if (isMounted) setPreviewData(null);
+      } finally {
+        if (isMounted) setLoadingPreview(false);
+      }
+    }, 600);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [url]);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -235,27 +270,96 @@ export default function Analyze() {
           <form onSubmit={handleStart} className="space-y-6">
             <div>
               <label className="text-xs text-zinc-400 font-medium block mb-1.5">YouTube Video URL</label>
-              <Input
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={running}
-                className="h-11 font-mono text-sm"
-                required
-              />
+              <div className="relative">
+                <Input
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={running}
+                  className="h-11 font-mono text-sm pr-10"
+                  required
+                />
+                {loadingPreview && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Video Önizleme & Süreye Göre Akıllı Klip Önerisi Kartı */}
+            {previewData && (
+              <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-950/20 space-y-3 animate-in fade-in duration-300">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {previewData.thumbnail && (
+                      <img
+                        src={previewData.thumbnail}
+                        alt={previewData.title}
+                        className="w-16 h-10 object-cover rounded-md border border-zinc-700 shadow-sm shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold text-zinc-200 truncate">{previewData.title}</h4>
+                      <p className="text-xs text-zinc-400 truncate">
+                        {previewData.uploader} • <span className="text-violet-300 font-medium font-mono">{previewData.duration_formatted}</span> ({previewData.duration_minutes} dakika)
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-violet-500/40 text-violet-300 bg-violet-500/10 shrink-0">
+                    <Sparkles className="w-3 h-3 mr-1 text-violet-400" /> {previewData.tier_label}
+                  </Badge>
+                </div>
+
+                <div className="pt-2 border-t border-violet-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <span className="text-zinc-300">
+                    🎯 <strong>Öneri:</strong> {previewData.explanation}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTargetClips(previewData.recommended_clips)}
+                    className="h-7 text-xs border-violet-500/40 text-violet-300 hover:bg-violet-600/20 shrink-0"
+                  >
+                    ✨ Önerilen {previewData.recommended_clips} Klibi Seç
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-zinc-400 font-medium block mb-1.5">Hedef Klip Sayısı</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs text-zinc-400 font-medium">Hedef Klip Sayısı</label>
+                  <span className="text-xs font-mono text-violet-400 font-bold">{targetClips} Adet Klip</span>
+                </div>
                 <Input
                   type="number"
                   min="1"
-                  max="10"
+                  max="25"
                   value={targetClips}
-                  onChange={(e) => setTargetClips(Number(e.target.value))}
+                  onChange={(e) => setTargetClips(Math.max(1, Math.min(25, Number(e.target.value))))}
                   disabled={running}
+                  className="font-mono text-sm"
                 />
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[3, 5, 8, 10, 12, 15, 20].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      disabled={running}
+                      onClick={() => setTargetClips(count)}
+                      className={`px-2 py-0.5 rounded text-xs transition-colors font-mono ${
+                        targetClips === count
+                          ? 'bg-violet-600 text-white font-bold shadow-sm'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

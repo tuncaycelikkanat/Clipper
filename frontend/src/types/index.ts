@@ -45,6 +45,22 @@ export interface Video {
   clip_count?: number
 }
 
+export interface VideoPreview {
+  id: string
+  url: string
+  title: string
+  uploader: string
+  duration: number
+  duration_formatted: string
+  thumbnail: string | null
+  view_count: number
+  duration_minutes: number
+  recommended_clips: number
+  clip_range: string
+  tier_label: string
+  explanation: string
+}
+
 export interface Channel {
   id: string
   url: string

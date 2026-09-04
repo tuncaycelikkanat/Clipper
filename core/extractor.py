@@ -105,3 +105,49 @@ class YouTubeExtractor:
             return f"{h:02d}:{m:02d}:{s:02d}"
         return f"{m:02d}:{s:02d}"
 
+    @staticmethod
+    def calculate_recommended_clips(duration_sec: int) -> Dict[str, Any]:
+        """Calculates generous, duration-based recommended clip count for gaming videos."""
+        minutes = max(1, round(duration_sec / 60))
+        if minutes <= 3:
+            recommended = 2
+            clip_range = "1 - 3"
+            tier_label = "Çok Kısa Video"
+        elif minutes <= 8:
+            recommended = 3
+            clip_range = "2 - 4"
+            tier_label = "Kısa Video"
+        elif minutes <= 15:
+            recommended = 5
+            clip_range = "4 - 7"
+            tier_label = "Orta Süreli Video"
+        elif minutes <= 30:
+            recommended = 7
+            clip_range = "5 - 10"
+            tier_label = "Standart Gaming Videosu"
+        elif minutes <= 45:  # e.g. 37 min
+            recommended = 10
+            clip_range = "8 - 14"
+            tier_label = "Uzun Gaming / Maç Videosu"
+        elif minutes <= 60:
+            recommended = 12
+            clip_range = "10 - 16"
+            tier_label = "1 Saatlik Kayıt"
+        elif minutes <= 90:
+            recommended = 15
+            clip_range = "12 - 20"
+            tier_label = "Uzun Canlı Yayın Tekrarı"
+        else:
+            recommended = min(25, max(15, round(minutes / 4.5)))
+            clip_range = f"{max(10, recommended - 4)} - {min(25, recommended + 5)}"
+            tier_label = "Maraton Canlı Yayın"
+
+        return {
+            "duration_minutes": minutes,
+            "recommended_clips": recommended,
+            "clip_range": clip_range,
+            "tier_label": tier_label,
+            "explanation": f"{minutes} dakikalık {tier_label.lower()} için önerilen bol klip havuzu: {recommended} klip ({clip_range} adet)."
+        }
+
+
