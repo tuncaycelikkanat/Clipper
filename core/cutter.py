@@ -88,13 +88,22 @@ class VideoCutter:
             # Local file direct seek
             if not url.startswith(("http://", "https://")) and os.path.exists(url):
                 subprocess.run(
-                    ['ffmpeg', '-y', '-ss', str(start_time), '-t', str(dur), '-i', url, '-c', 'copy', temp_raw_cut],
+                    [
+                        'ffmpeg', '-y',
+                        '-ss', str(start_time), '-t', str(dur),
+                        '-i', url,
+                        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18',
+                        '-c:a', 'aac', '-b:a', '192k',
+                        '-avoid_negative_ts', 'make_zero',
+                        '-shortest',
+                        temp_raw_cut
+                    ],
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
                 if is_valid_cut_file(temp_raw_cut):
                     actual_raw_cut = temp_raw_cut
             else:
-                # Fast Direct Stream Seeking (FFmpeg direct HTTP range request — 2-5 sec)
+                # Fast Direct Stream Seeking (FFmpeg direct HTTP range request with ultrafast frame & audio sync)
                 try:
                     if url not in VideoCutter._STREAM_CACHE:
                         ydl_opts_fast = {
@@ -119,8 +128,10 @@ class VideoCutter:
                                     "-ss", str(start_time), "-t", str(dur),
                                     "-reconnect", "1", "-reconnect_at_eof", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
                                     "-i", a_url,
-                                    "-c:v", "copy", "-c:a", "aac",
+                                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+                                    "-c:a", "aac", "-b:a", "192k",
                                     "-avoid_negative_ts", "make_zero",
+                                    "-shortest",
                                     temp_raw_cut
                                 ]
                                 subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -133,8 +144,10 @@ class VideoCutter:
                                 "-ss", str(start_time), "-t", str(dur),
                                 "-reconnect", "1", "-reconnect_at_eof", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
                                 "-i", s_url,
-                                "-c", "copy",
+                                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+                                "-c:a", "aac", "-b:a", "192k",
                                 "-avoid_negative_ts", "make_zero",
+                                "-shortest",
                                 temp_raw_cut
                             ]
                             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -303,7 +316,7 @@ class VideoCutter:
                     "-r", "60",
                     "-c:a", "aac",
                     "-b:a", "192k",
-                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                    "-af", "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
                     output_path,
                 ]
             else:
@@ -320,7 +333,7 @@ class VideoCutter:
                     "-r", "60",
                     "-c:a", "aac",
                     "-b:a", "192k",
-                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                    "-af", "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
                     output_path,
                 ]
         else:
@@ -361,7 +374,7 @@ class VideoCutter:
                 "-r", "60",
                 "-c:a", "aac",
                 "-b:a", "128k",
-                "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                "-af", "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
                 output_path,
             ]
 
@@ -385,7 +398,7 @@ class VideoCutter:
                         "-r", "60",
                         "-c:a", "aac",
                         "-b:a", "128k",
-                        "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                        "-af", "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
                         output_path,
                     ]
                 else:
@@ -401,7 +414,7 @@ class VideoCutter:
                         "-r", "60",
                         "-c:a", "aac",
                         "-b:a", "128k",
-                        "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                        "-af", "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
                         output_path,
                     ]
             else:
@@ -416,7 +429,7 @@ class VideoCutter:
                     "-r", "60",
                     "-c:a", "aac",
                     "-b:a", "128k",
-                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                    "-af", "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
                     output_path,
                 ]
             subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
