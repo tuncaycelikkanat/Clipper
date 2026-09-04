@@ -26,6 +26,14 @@ STORY_COMPLETENESS_WEIGHT: int = 20  # Hikaye bütünlüğü (bağlam, giriş-ge
 SIGNAL_VALIDATION_WEIGHT: int = 15  # Sinyal doğrulama (ses, pitch, frame-diff uyumu)
 
 # ---------------------------------------------------------------------------
+# İZLEYİCİ YORUMU (COMMENT MINING) AĞIRLIK VE BONUSLARI
+# ---------------------------------------------------------------------------
+# İzleyicilerin yorumlarda bizzat güldüğü / saniye verdiği anlara verilecek puan bonusu
+COMMENT_BOOST_POINTS: int = 15
+# İzleyici yorumuyla teyit edilmiş VIP adayların asgari taban viral puanı (İlk 3-4'e girmesini garantiler)
+VIP_COMMENT_MIN_SCORE: int = 88
+
+# ---------------------------------------------------------------------------
 # KATEGORİ TAKSONOMİSİ
 # ---------------------------------------------------------------------------
 # MUNDANE/NONE: LLM zorla kategori atamasını önlemek için fallback kategori.

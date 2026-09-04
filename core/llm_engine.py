@@ -222,7 +222,8 @@ class GeminiHighlightEngine:
             "7. rationale alanına: tam olarak hangi sesi/hareketi/sinyali görerek bu puanı verdiğini "
             "1-2 cümleyle yaz. 'İyi bir an' gibi genel cümleler kullanma.\n"
             "8. İZLEYİCİ YORUMU İLE VURGULANAN (VIP) ADAYLAR: Eğer bir adayda 'viewer_comments' veya 'is_vip' varsa, "
-            "bu an izleyicilerin bizzat videoda gülüp öne çıkardığı organik andır. Bu anları KEEP olarak seçmeye ve yüksek viral puanı vermeye özen göster.\n"
+            "bu an izleyicilerin bizzat saniye verip güldüğü/reaksiyon verdiği organik andır. Bu anlar insan doğrulamalı en güçlü "
+            "viral adaylarıdır! Bu anları KESİNLİKLE 'KEEP' olarak seç ve yüksek viral puanı (88-98 bandı) vererek ilk sıralara yerleştir.\n"
             "9. HİKAYE VE DİYALOG BÜTÜNLÜĞÜ (SETUP & PUNCHLINE): Bir esprinin veya olayın anlaşılması için giriş cümlesini (setup) "
             "ve vurucu sonucunu (punchline/kahkaha) klipte mutlaka koru. Eksik, yarım kalan veya cümlenin ortasından başlayan kesitleri 'suggested_start' ve 'suggested_end' değerleriyle tam hikayeyi kapsayacak şekilde genişlet."
         )
@@ -343,6 +344,31 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
                         v.get("candidate_id"),
                         orig,
                         v["viral_confidence"],
+                    )
+
+        # VIP İzleyici Yorumu Puan Takviyesi: İzleyici yorumu olan anları ilk sıralara yükselt
+        for v in verdicts:
+            cid = v.get("candidate_id")
+            cand_match = next((c for c in candidates if c["candidate_id"] == cid), None)
+            if cand_match and (
+                cand_match.get("is_vip")
+                or cand_match.get("from_comment")
+                or cand_match.get("signals", {}).get("comment_count", 0) > 0
+            ):
+                orig_score = int(v.get("viral_confidence", 80))
+                # İzleyici teyitli anlara taban puan (min 88) ve bonus puan ekle (+15)
+                boosted_score = max(SC.VIP_COMMENT_MIN_SCORE, min(98, orig_score + SC.COMMENT_BOOST_POINTS))
+                v["viral_confidence"] = boosted_score
+                if str(v.get("category", "")).upper() != "MUNDANE":
+                    v["verdict"] = "KEEP"
+
+                # Rationale'a izleyici teyidini açıkça ekle
+                c_count = cand_match.get("signals", {}).get("comment_count", 1)
+                c_react = cand_match.get("signals", {}).get("comment_reaction") or "HIGHLIGHT"
+                curr_rationale = str(v.get("rationale", "")).strip()
+                if "İzleyici Yorumu" not in curr_rationale:
+                    v["rationale"] = (
+                        f"⭐ [İzleyici Yorumu VIP Teyidi ({c_count} yorum, {c_react})] {curr_rationale}".strip()
                     )
 
         keep_clips = [v for v in verdicts if v.get("verdict", "").upper() == "KEEP"]

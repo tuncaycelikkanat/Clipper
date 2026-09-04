@@ -203,14 +203,15 @@ class CandidateRanker:
         # 6. Adaptif Ağırlık Füzyonu (Yorum & Vokal & Sinyal Entegrasyonu)
         # ----------------------------------------------------------------
         # Sinyal varlığına göre ağırlıklar dinamik olarak ayarlanır.
-        # Temel ağırlık: audio %25, silence %20
-        # Vokal/konuşma sinyali varsa %20 ağırlık alarak oyun içi gürültüleri filtreler.
+        # Temel ağırlık: audio %20, silence %15
+        # Yorum sinyali: izleyici ilgisinin doğrudan kanıtı (%35 ağırlık)
+        # Vokal/konuşma sinyali: %20 ağırlık alarak oyun içi gürültüleri filtreler.
 
-        base_audio_w = 0.25
-        base_silence_w = 0.20
+        base_audio_w = 0.20
+        base_silence_w = 0.15
         optional_signals = []
         if has_comments:
-            optional_signals.append(("comment", comment_norm, 0.25))
+            optional_signals.append(("comment", comment_norm, 0.35))
         if has_vocal:
             optional_signals.append(("vocal", vocal_norm, 0.20))
         if has_transcript_density:
@@ -267,7 +268,7 @@ class CandidateRanker:
                 comm_t = float(comm_cl["time"])
                 idx_comm = int(np.argmin(np.abs(times - comm_t)))
                 base_c_score = float(composite_score[idx_comm]) if idx_comm < len(composite_score) else 0.5
-                vip_score = max(0.92, base_c_score + 0.45)
+                vip_score = max(0.96, min(1.0, base_c_score + 0.50))
 
                 found = False
                 for c in clusters:
