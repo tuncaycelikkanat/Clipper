@@ -44,6 +44,8 @@ export interface Video {
   view_count: number
   status: 'pending' | 'processing' | 'done' | 'failed'
   clip_count?: number
+  process_after?: string | null
+  delay_hours?: number
 }
 
 export interface VideoPreview {

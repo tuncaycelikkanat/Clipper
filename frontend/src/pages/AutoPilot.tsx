@@ -106,6 +106,52 @@ export default function AutoPilot() {
     },
   });
 
+  const toggleDelayMutation = useMutation({
+    mutationFn: ({ id, delayHours }: { id: string; delayHours: number }) =>
+      api.videos.setDelay(id, delayHours),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-videos'] });
+    },
+    onError: (err: any) => {
+      setStatusMsg(`Hata: ${err.message || 'Bekletme süresi güncellenemedi'}`);
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
+  const batchDelayMutation = useMutation({
+    mutationFn: (delayHours: number) =>
+      api.videos.setBatchDelay(selectedVideoIds, delayHours),
+    onSuccess: (_, delayHours) => {
+      queryClient.invalidateQueries({ queryKey: ['pending-videos'] });
+      setStatusMsg(
+        delayHours > 0
+          ? `Seçilen ${selectedVideoIds.length} video için 1 gün (24s) yorum bekleme süresi ayarlandı.`
+          : `Seçilen ${selectedVideoIds.length} video için bekleme süresi kaldırıldı.`
+      );
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+    onError: (err: any) => {
+      setStatusMsg(`Hata: ${err.message || 'Toplu işlem başarısız'}`);
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
+  const getDelayInfo = (processAfter?: string | null) => {
+    if (!processAfter) return null;
+    const target = new Date(processAfter).getTime();
+    const now = Date.now();
+    const diffMs = target - now;
+    if (diffMs <= 0) return null;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return {
+      hours: diffHours,
+      mins: diffMins,
+      text: `${diffHours > 0 ? `${diffHours}s ` : ''}${diffMins}dk kaldı`,
+      isWaiting: true,
+    };
+  };
+
   const deleteVideoMutation = useMutation({
     mutationFn: (id: string) => api.videos.delete(id),
     onSuccess: () => {
@@ -249,6 +295,30 @@ export default function AutoPilot() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {selectedVideoIds.length > 0 && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={batchDelayMutation.isPending}
+                  onClick={() => batchDelayMutation.mutate(24)}
+                  className="text-xs border-amber-600/40 text-amber-300 hover:bg-amber-600/10"
+                >
+                  <Clock className="w-3.5 h-3.5 mr-1" />
+                  1 Gün Beklet ({selectedVideoIds.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={batchDelayMutation.isPending}
+                  onClick={() => batchDelayMutation.mutate(0)}
+                  className="text-xs border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                >
+                  Bekletmeyi Kaldır
+                </Button>
+              </>
+            )}
+
             <Button
               size="sm"
               variant="outline"
@@ -319,7 +389,7 @@ export default function AutoPilot() {
             </label>
           </div>
           <span className="text-[11px] text-zinc-500">
-            * Altyazı ve Hook kartı varsayılan olarak kapalı tutulur.
+            * ⏳ 1 Gün Beklet seçilen videolar yorumların dolması için 24 saat sonra işlenir.
           </span>
         </div>
 
@@ -343,6 +413,9 @@ export default function AutoPilot() {
             <div className="divide-y divide-zinc-800/80 border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/40 max-h-96 overflow-y-auto">
               {pendingVideos.map((video: Video) => {
                 const isSelected = selectedVideoIds.includes(video.id);
+                const delayInfo = getDelayInfo(video.process_after);
+                const isDelayed = Boolean(delayInfo?.isWaiting);
+
                 return (
                   <div
                     key={video.id}
@@ -357,7 +430,7 @@ export default function AutoPilot() {
                         onChange={() => toggleSelectVideo(video.id)}
                         className="rounded border-zinc-700 bg-zinc-900 text-indigo-600 w-4 h-4 cursor-pointer"
                       />
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm text-zinc-100 line-clamp-1">{video.title}</span>
                           <a
@@ -369,18 +442,48 @@ export default function AutoPilot() {
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-zinc-400">
+                        <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-400">
                           <span className="text-zinc-300 font-medium">{video.uploader || 'Kanal'}</span>
                           <span>•</span>
                           <span className="font-mono text-[11px] text-zinc-500">{video.id}</span>
-                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-amber-500/10 text-amber-300 border-amber-500/20">
-                            Bekliyor
-                          </Badge>
+                          <span>•</span>
+                          {isDelayed ? (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-amber-500/10 text-amber-300 border-amber-500/30 flex items-center gap-1 font-normal">
+                              <Clock className="w-2.5 h-2.5" /> 1 Gün Beklemede ({delayInfo?.text})
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] py-0 px-1.5 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 font-normal">
+                              Hemen İşlenebilir
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto">
+                      {/* 1 Gün Beklet Kutucuğu */}
+                      <label className={`flex items-center gap-1.5 cursor-pointer border rounded-md px-2.5 py-1 text-xs transition-colors select-none ${
+                        isDelayed
+                          ? 'bg-amber-950/30 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/10'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={isDelayed}
+                          disabled={toggleDelayMutation.isPending}
+                          onChange={(e) =>
+                            toggleDelayMutation.mutate({
+                              id: video.id,
+                              delayHours: e.target.checked ? 24 : 0,
+                            })
+                          }
+                          className="rounded border-zinc-600 bg-zinc-950 text-amber-500 w-3.5 h-3.5 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="font-medium">
+                          {isDelayed ? '⏳ 1 Gün Bekliyor' : '⏳ 1 Gün Beklet (Yorumlar Dolsun)'}
+                        </span>
+                      </label>
+
                       <Button
                         size="sm"
                         variant="outline"

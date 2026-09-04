@@ -412,26 +412,21 @@ class AutoPilotManager:
                     vid_url = vid["url"]
                     vid_title = vid.get("title", "Video")
                     uploader = ch_name or vid.get("uploader", "")
+                    upload_date = vid.get("upload_date", "")
 
-                    self.db.save_video(
-                        {
-                            "id": vid_id,
-                            "url": vid_url,
-                            "title": vid_title,
-                            "uploader": uploader,
-                            "status": "pending",
-                        }
-                    )
+                    v_data = {
+                        "id": vid_id,
+                        "url": vid_url,
+                        "title": vid_title,
+                        "uploader": uploader,
+                        "upload_date": upload_date,
+                        "duration": vid.get("duration", 0),
+                        "view_count": vid.get("view_count", 0),
+                        "status": "pending",
+                    }
+                    self.db.save_video(v_data)
                     self.db.record_processed_video(ch_url, vid_id, vid_title)
-                    new_videos.append(
-                        {
-                            "id": vid_id,
-                            "url": vid_url,
-                            "title": vid_title,
-                            "uploader": uploader,
-                            "status": "pending",
-                        }
-                    )
+                    new_videos.append(v_data)
                     cb(f"   📥 [Sıraya Alındı] {vid_title}")
 
                 self.db.update_tracked_channel_checked(ch_url)

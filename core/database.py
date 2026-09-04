@@ -60,8 +60,11 @@ CREATE TABLE IF NOT EXISTS videos (
     uploader     TEXT,
     duration     INTEGER,
     view_count   INTEGER,
+    upload_date  TEXT,
     has_heatmap  INTEGER DEFAULT 0,
     processed_at TEXT,
+    process_after TEXT,
+    delay_hours  INTEGER DEFAULT 0,
     status       TEXT DEFAULT 'pending',
     tags         TEXT,
     description  TEXT
@@ -222,6 +225,9 @@ class DatabaseManager:
                 "ALTER TABLE clips ADD COLUMN has_facecam INTEGER DEFAULT 0;",
                 "ALTER TABLE clips ADD COLUMN score_band TEXT;",
                 "ALTER TABLE clips ADD COLUMN rationale TEXT;",
+                "ALTER TABLE videos ADD COLUMN process_after TEXT;",
+                "ALTER TABLE videos ADD COLUMN delay_hours INTEGER DEFAULT 0;",
+                "ALTER TABLE videos ADD COLUMN upload_date TEXT;",
             ):
                 with contextlib.suppress(Exception):
                     conn.execute(col_sql)
@@ -259,20 +265,23 @@ class DatabaseManager:
         vid_id: str = video_data["id"]
         sql = """
             INSERT INTO videos (id, url, title, uploader, duration,
-                                view_count, has_heatmap, processed_at, status, tags, description)
+                                view_count, upload_date, has_heatmap, processed_at, process_after, delay_hours, status, tags, description)
             VALUES (:id, :url, :title, :uploader, :duration,
-                    :view_count, :has_heatmap, :processed_at, :status, :tags, :description)
+                    :view_count, :upload_date, :has_heatmap, :processed_at, :process_after, :delay_hours, :status, :tags, :description)
             ON CONFLICT(id) DO UPDATE SET
-                url          = excluded.url,
-                title        = excluded.title,
-                uploader     = excluded.uploader,
-                duration     = excluded.duration,
-                view_count   = excluded.view_count,
-                has_heatmap  = excluded.has_heatmap,
-                processed_at = excluded.processed_at,
-                status       = excluded.status,
-                tags         = excluded.tags,
-                description  = excluded.description;
+                url           = excluded.url,
+                title         = excluded.title,
+                uploader      = excluded.uploader,
+                duration      = excluded.duration,
+                view_count    = excluded.view_count,
+                upload_date   = COALESCE(excluded.upload_date, videos.upload_date),
+                has_heatmap   = excluded.has_heatmap,
+                processed_at  = excluded.processed_at,
+                process_after = COALESCE(excluded.process_after, videos.process_after),
+                delay_hours   = COALESCE(excluded.delay_hours, videos.delay_hours),
+                status        = excluded.status,
+                tags          = excluded.tags,
+                description   = excluded.description;
         """
         params: dict[str, Any] = {
             "id": vid_id,
@@ -281,8 +290,11 @@ class DatabaseManager:
             "uploader": video_data.get("uploader", ""),
             "duration": video_data.get("duration", 0),
             "view_count": video_data.get("view_count", 0),
+            "upload_date": video_data.get("upload_date", ""),
             "has_heatmap": 1 if video_data.get("has_heatmap") else 0,
             "processed_at": video_data.get("processed_at", _utcnow()),
+            "process_after": video_data.get("process_after"),
+            "delay_hours": video_data.get("delay_hours", 0),
             "status": video_data.get("status", "pending"),
             "tags": _json_dump(video_data.get("tags")),
             "description": video_data.get("description"),
@@ -292,6 +304,24 @@ class DatabaseManager:
             conn.commit()
         logger.debug("Upserted video id={}", vid_id)
         return vid_id
+
+    def update_video_delay(self, video_id: str, delay_hours: int = 24) -> None:
+        """Set or clear process_after delay for a video."""
+        import datetime
+        if delay_hours > 0:
+            process_after = (
+                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=delay_hours)
+            ).isoformat()
+        else:
+            process_after = None
+            delay_hours = 0
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE videos SET delay_hours = ?, process_after = ? WHERE id = ?;",
+                (delay_hours, process_after, video_id),
+            )
+            conn.commit()
+        logger.info("Updated video id={} delay_hours={} process_after={}", video_id, delay_hours, process_after)
 
     def get_unprocessed_videos(self) -> list[dict[str, Any]]:
         """Return all video rows whose status is ``'pending'``."""

@@ -661,6 +661,16 @@ def test_channel_scan_latest_and_batch_process(test_data):
     assert res_batch.json()["count"] == 1
     assert len(res_batch.json()["jobs"]) == 1
 
+    # Test video delay endpoints
+    res_delay = client.post("/api/videos/vid_pending_test/delay", json={"delay_hours": 24})
+    assert res_delay.status_code == 200
+    assert res_delay.json()["video"]["delay_hours"] == 24
+    assert res_delay.json()["video"]["process_after"] is not None
+
+    res_batch_delay = client.post("/api/videos/batch-delay", json={"video_ids": ["vid_pending_test"], "delay_hours": 0})
+    assert res_batch_delay.status_code == 200
+    assert res_batch_delay.json()["count"] == 1
+
     # Test delete video endpoint
     del_res = client.delete("/api/videos/vid_pending_test")
     assert del_res.status_code == 200

@@ -89,6 +89,33 @@ async def get_video(video_id: str):
     return {**video, "clips": clips}
 
 
+class VideoDelayRequest(BaseModel):
+    delay_hours: int = 24  # 0 to remove delay, 24 for 1 day delay
+
+
+class BatchVideoDelayRequest(BaseModel):
+    video_ids: list[str]
+    delay_hours: int = 24
+
+
+@router.post("/batch-delay")
+async def batch_toggle_video_delay(body: BatchVideoDelayRequest):
+    """Set or remove processing delay (e.g. 24 hours for comment accumulation) for multiple videos."""
+    db = _db()
+    for vid in body.video_ids:
+        db.update_video_delay(vid, delay_hours=body.delay_hours)
+    return {"success": True, "count": len(body.video_ids), "delay_hours": body.delay_hours}
+
+
+@router.post("/{video_id}/delay")
+async def toggle_video_delay(video_id: str, body: VideoDelayRequest):
+    """Set or remove processing delay (e.g. 24 hours for comment accumulation) for a video."""
+    db = _db()
+    db.update_video_delay(video_id, delay_hours=body.delay_hours)
+    video = db.get_video(video_id)
+    return {"success": True, "video": video}
+
+
 @router.delete("/{video_id}")
 async def delete_video(video_id: str):
     db = _db()

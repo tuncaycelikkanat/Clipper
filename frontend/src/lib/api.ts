@@ -79,6 +79,10 @@ export const api = {
     get: (id: string) => get<Video>(`/api/videos/${id}`),
     delete: (id: string) => del<{ deleted: boolean }>(`/api/videos/${id}`),
     preview: (url: string) => post<import('../types').VideoPreview>('/api/videos/preview', { url }),
+    setDelay: (id: string, delay_hours: number) =>
+      post<{ success: boolean; video: Video }>(`/api/videos/${id}/delay`, { delay_hours }),
+    setBatchDelay: (video_ids: string[], delay_hours: number) =>
+      post<{ success: boolean; count: number; delay_hours: number }>('/api/videos/batch-delay', { video_ids, delay_hours }),
     uploadThumbnail: (videoId: string, file: File) => {
       const fd = new FormData();
       fd.append('file', file);
