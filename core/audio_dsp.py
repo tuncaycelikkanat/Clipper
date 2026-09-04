@@ -228,7 +228,7 @@ class AudioDSPAnalyzer:
         times = np.linspace(0, n_hops * hop_sec, n_hops, endpoint=False, dtype=np.float32)
 
         # 1. Vectorized RMS Profile
-        rms = np.sqrt(np.mean(audio_matrix ** 2, axis=1) + 1e-12)
+        rms = np.sqrt(np.mean(audio_matrix ** 2, axis=1)).astype(np.float32)
         mx_rms = np.max(rms)
         rms_norm = rms / (mx_rms + 1e-6) if mx_rms > 0 else rms
 
@@ -275,10 +275,40 @@ class AudioDSPAnalyzer:
         }
 
     @staticmethod
+    def _extract_chunk(stream_url: str, start_sec: float, dur_sec: float, sample_rate: int, hop_sec: float) -> Tuple[np.ndarray, np.ndarray]:
+        s_sec, raw_samples = AudioDSPAnalyzer._extract_chunk_raw(stream_url, start_sec, dur_sec, sample_rate)
+        hop_samples = int(sample_rate * hop_sec)
+        n_hops = int(len(raw_samples) / hop_samples)
+        if n_hops <= 0:
+            return np.array([], dtype=np.float32), np.array([], dtype=np.float32)
+        mat = raw_samples[: n_hops * hop_samples].reshape((n_hops, hop_samples))
+        power = np.mean(mat ** 2, axis=1)
+        rms = np.sqrt(power).astype(np.float32)
+        times = np.linspace(start_sec, start_sec + n_hops * hop_sec, n_hops, endpoint=False, dtype=np.float32)
+        return times, rms
+
+    @staticmethod
     def extract_audio_energy(url: str, duration_sec: int, sample_rate: int = 8000, hop_sec: float = 0.5, num_chunks: int = 8) -> Tuple[np.ndarray, np.ndarray]:
-        """Fast fallback wrapper for backward compatibility."""
-        res = AudioDSPAnalyzer.extract_all_signals_fast(url, duration_sec, sample_rate=sample_rate, hop_sec=hop_sec, num_workers=num_chunks)
-        return res["times"], res["rms"]
+        """Extract audio energy in chunks via yt-dlp."""
+        stream_url = AudioDSPAnalyzer._get_stream_url(url)
+        chunk_dur = duration_sec / num_chunks
+        times_all = []
+        rms_all = []
+        for i in range(num_chunks):
+            s = i * chunk_dur
+            d = chunk_dur if i < num_chunks - 1 else duration_sec - s
+            t, r = AudioDSPAnalyzer._extract_chunk(stream_url, s, d, sample_rate, hop_sec)
+            if len(t) > 0:
+                times_all.append(t)
+                rms_all.append(r)
+        if not times_all:
+            return np.array([], dtype=np.float32), np.array([], dtype=np.float32)
+        times = np.concatenate(times_all)
+        rms = np.concatenate(rms_all)
+        mx = np.max(rms) if len(rms) > 0 else 0
+        if mx > 0:
+            rms = rms / mx
+        return times, rms
 
     @staticmethod
     def detect_signals(

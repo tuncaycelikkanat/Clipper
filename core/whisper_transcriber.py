@@ -223,7 +223,7 @@ class WhisperTranscriber:
             if tmp_audio and os.path.exists(tmp_audio):
                 try:
                     os.unlink(tmp_audio)
-                except OSError:
+                except Exception:
                     pass
 
     def transcribe_to_sentence_segments(

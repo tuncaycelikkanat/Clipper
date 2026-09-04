@@ -25,3 +25,30 @@ def temp_db():
             wal_path = db_path + suffix
             if os.path.exists(wal_path):
                 os.unlink(wal_path)
+
+
+@pytest.fixture(autouse=True)
+def reset_test_state():
+    """Reset global in-memory states between tests."""
+    import core.scoring_config as SC
+    from backend.workers.job_store import job_store
+
+    orig_runs = SC.ENSEMBLE_RUNS
+    orig_band = SC.BAND_LABELS_ENABLED
+    orig_cap = SC.MUNDANE_SCORE_CAP
+    orig_hook = SC.HOOK_STRENGTH_WEIGHT
+    orig_emo = SC.EMOTION_WEIGHT
+    orig_story = SC.STORY_COMPLETENESS_WEIGHT
+    orig_sig = SC.SIGNAL_VALIDATION_WEIGHT
+
+    yield
+
+    SC.ENSEMBLE_RUNS = orig_runs
+    SC.BAND_LABELS_ENABLED = orig_band
+    SC.MUNDANE_SCORE_CAP = orig_cap
+    SC.HOOK_STRENGTH_WEIGHT = orig_hook
+    SC.EMOTION_WEIGHT = orig_emo
+    SC.STORY_COMPLETENESS_WEIGHT = orig_story
+    SC.SIGNAL_VALIDATION_WEIGHT = orig_sig
+    job_store._jobs.clear()
+

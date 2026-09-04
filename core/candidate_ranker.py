@@ -33,7 +33,7 @@ class CandidateRanker:
         top_n: int = 15,
         db: Optional["DatabaseManager"] = None,
         min_diversity_ratio: float = 0.02,
-        dynamic_window: bool = True,
+        dynamic_window: bool = False,
         min_window_sec: float = 8.0,
         max_window_sec: float = 60.0,
     ):
@@ -237,9 +237,9 @@ class CandidateRanker:
         # 7. Peak Bulma & Cluster Birleştirme
         # ----------------------------------------------------------------
         candidate_indices = np.where(composite_score > 0.18)[0]
-        if len(candidate_indices) == 0:
-            # Fallback: en iyi N noktayı al
-            candidate_indices = np.argsort(composite_score)[::-1][:self.top_n]
+        if len(candidate_indices) < self.top_n:
+            fallback_indices = np.argsort(composite_score)[::-1][:self.top_n]
+            candidate_indices = np.unique(np.concatenate([candidate_indices, fallback_indices]))
 
         clusters = []
         for idx in candidate_indices:
@@ -289,7 +289,7 @@ class CandidateRanker:
         # ----------------------------------------------------------------
         # VIP yorum adayları önceliklidir
         clusters.sort(key=lambda x: (1 if x.get("is_vip") else 0, x["score"]), reverse=True)
-        min_gap_sec = max(20.0, min(40.0, float(total_duration) * self.min_diversity_ratio))
+        min_gap_sec = max(float(self.merge_threshold_sec), min(30.0, float(total_duration) * self.min_diversity_ratio))
 
         diverse_clusters = []
         for clu in clusters:
@@ -315,7 +315,7 @@ class CandidateRanker:
             peak_t = clus["peak_time"]
 
             # --- Dinamik Pencere: sinyal baseline'a dönüş noktasını bul ---
-            if self.dynamic_window and len(times) > 1:
+            if self.dynamic_window and len(times) >= 10 and (times[-1] - times[0]) >= 30.0:
                 idx_peak = int(np.argmin(np.abs(times - peak_t)))
                 baseline = float(np.median(composite_score))
 
@@ -357,15 +357,15 @@ class CandidateRanker:
             if transcript:
                 matching_segs = [
                     seg for seg in transcript
-                    if float(seg.get("end", seg.get("start", 0) + seg.get("duration", 0))) >= start_t
+                    if float(seg.get("end", float(seg.get("start", 0)) + float(seg.get("duration", 0)))) >= start_t
                     and float(seg.get("start", 0)) <= end_t
                 ]
                 if matching_segs:
                     first_seg_start = float(matching_segs[0].get("start", start_t))
-                    last_seg_end = float(matching_segs[-1].get("end", matching_segs[-1].get("start", 0) + matching_segs[-1].get("duration", 0)))
-                    if 0 < (start_t - first_seg_start) <= 8.0:
+                    last_seg_end = float(matching_segs[-1].get("end", float(matching_segs[-1].get("start", 0)) + float(matching_segs[-1].get("duration", 0))))
+                    if 0 < (start_t - first_seg_start) <= 3.0:
                         start_t = max(0.0, first_seg_start)
-                    if 0 < (last_seg_end - end_t) <= 6.0:
+                    if 0 < (last_seg_end - end_t) <= 3.0:
                         end_t = min(float(total_duration), last_seg_end)
 
             # Transkript metni
@@ -390,6 +390,14 @@ class CandidateRanker:
 
             is_vip_candidate = bool(clus.get("is_vip") or (matched_comment_cl and matched_comment_cl.get("count", 0) >= 1))
 
+            # Heatmap kontrolü
+            matching_hm = [
+                float(h.get("value", 0.0)) for h in (heatmap or [])
+                if float(h.get("start_time", 0.0)) <= peak_t <= float(h.get("end_time", 0.0))
+            ]
+            hm_val = float(max(matching_hm)) if matching_hm else (float(heatmap[0].get("value", 0.0)) if (heatmap and len(heatmap) > 0) else 0.0)
+            has_hm = bool(heatmap_source == "real" or (heatmap and len(heatmap) > 0 and (hm_val > 0.0 or heatmap[0].get("value", 0) > 0)))
+
             candidates.append({
                 "candidate_id": cand_id,
                 "peak_time": round(float(peak_t), 1),
@@ -406,9 +414,9 @@ class CandidateRanker:
                     "audio_spike": round(float(audio_spikes[idx_near]), 2),
                     "silence_burst": round(float(silence_bursts[idx_near]), 2),
                     "vocal_spike": round(float(vocal_spikes[idx_near]), 2) if has_vocal else 0.0,
-                    "has_heatmap": bool(heatmap_source == "real"),
-                    "heatmap_val": 0.0,
-                    "heatmap_source": heatmap_source,
+                    "has_heatmap": has_hm,
+                    "heatmap_val": round(hm_val, 2),
+                    "heatmap_source": heatmap_source if heatmap_source != "disabled" else ("real" if has_hm else "disabled"),
                     "predicted_confidence": predicted_confidence,
                     "comment_density": round(float(comment_curve[idx_near]), 2) if has_comments else 0.0,
                     "comment_reaction": matched_comment_cl.get("dominant_reaction") if matched_comment_cl else None,
