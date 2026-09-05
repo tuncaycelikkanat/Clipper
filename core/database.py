@@ -767,16 +767,20 @@ class DatabaseManager:
         queue_id: str,
         status: str,
         youtube_url: str | None = None,
+        instagram_url: str | None = None,
         error_msg: str | None = None,
     ) -> None:
         """Kuyruk öğesinin durumunu günceller."""
         sql = """
             UPDATE autopilot_queue
-            SET status = ?, youtube_url = COALESCE(?, youtube_url), error_msg = ?
+            SET status = ?,
+                youtube_url = COALESCE(?, youtube_url),
+                instagram_url = COALESCE(?, instagram_url),
+                error_msg = ?
             WHERE id = ?;
         """
         with self._connect() as conn:
-            conn.execute(sql, (status, youtube_url, error_msg, queue_id))
+            conn.execute(sql, (status, youtube_url, instagram_url, error_msg, queue_id))
             conn.commit()
         logger.debug("Updated autopilot queue {} status={}", queue_id, status)
 

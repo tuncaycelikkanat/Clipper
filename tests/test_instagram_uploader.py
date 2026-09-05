@@ -72,6 +72,24 @@ def test_upload_binary_to_container(mock_post, ig_uploader, tmp_path):
     assert success is True
 
 
+@patch("requests.post")
+def test_upload_binary_to_container_retry_failure(mock_post, ig_uploader, tmp_path):
+    video_file = tmp_path / "reel.mp4"
+    video_file.write_bytes(b"dummy_video_bytes")
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 500
+    mock_resp.text = "Internal Server Error"
+    mock_post.return_value = mock_resp
+
+    with pytest.raises(RuntimeError, match="Meta rupload binary aktarımı başarısız oldu"):
+        ig_uploader.upload_binary_to_container(
+            upload_url="https://rupload.facebook.com/upload",
+            video_path=str(video_file),
+            max_retries=2,
+        )
+
+
 @patch("requests.get")
 def test_check_container_status_finished(mock_get, ig_uploader):
     mock_resp = MagicMock()

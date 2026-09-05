@@ -549,19 +549,19 @@ class AutoPilotManager:
         return {"processed": processed_count, "errors": proc_errors}
 
     def publish_due_socials(self) -> int:
-        """Zamanı gelmiş videoları yayınlar."""
+        """Zamanı gelmiş videoları YouTube Shorts ve Instagram Reels platformlarında yayınlar."""
         from core.multi_publisher import MultiPublisher
 
         multi_pub = MultiPublisher(
-            youtube_uploader=self.uploader, instagram_uploader=self.instagram, notifier=self.notifier
+            youtube_uploader=self.uploader, instagram_uploader=self.instagram, notifier=self.notifier, db=self.db
         )
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self.db._connect() as conn:
             due_items = conn.execute(
                 """
-                SELECT id, video_id, clip_id, title, render_path, thumbnail_path, scheduled_at, description
+                SELECT id, video_id, clip_id, title, render_path, thumbnail_path, scheduled_at, description, youtube_url, instagram_url
                 FROM autopilot_queue
-                WHERE scheduled_at <= ? AND status = 'QUEUED'
+                WHERE scheduled_at <= ? AND status IN ('QUEUED', 'PARTIAL_FAILED')
                 ORDER BY scheduled_at ASC;
             """,
                 (now_iso,),
@@ -572,25 +572,83 @@ class AutoPilotManager:
 
         published_count = 0
         for row in due_items:
-            q_id, video_id, clip_id, title, render_path, thumb_path, sched_at, desc = row
+            q_id = row["id"]
+            video_id = row["video_id"]
+            clip_id = row["clip_id"]
+            title = row["title"]
+            render_path = row["render_path"]
+            thumb_path = row["thumbnail_path"]
+            desc = row["description"]
+            cur_yt_url = row["youtube_url"]
+            cur_ig_url = row["instagram_url"]
+
+            target_platforms: list[str] = []
+            if not cur_yt_url:
+                target_platforms.append("youtube")
+            if not cur_ig_url:
+                target_platforms.append("instagram")
+
+            if not target_platforms:
+                self.db.update_autopilot_queue_status(q_id, "PUBLISHED")
+                continue
+
             if render_path and os.path.exists(render_path):
                 try:
+                    logger.info("Publishing queue item {} ({}) to platforms: {}", q_id, title, target_platforms)
                     res = multi_pub.publish_clip(
-                        clip={"id": clip_id, "title": title, "score": 95},
+                        clip={"id": clip_id, "video_id": video_id, "title": title, "score": 95},
                         render_path=render_path,
                         thumbnail_path=thumb_path,
-                        platforms=["youtube", "instagram"],
+                        platforms=target_platforms,
                         video_title=title,
+                        description_override=desc,
                     )
-                    yt_url = res.get("youtube", {}).get("url") if res.get("youtube") else None
-                    ig_url = res.get("instagram", {}).get("url") if res.get("instagram") else None
-                    self.db.update_autopilot_queue_status(q_id, "PUBLISHED", youtube_url=yt_url)
-                    if ig_url:
-                        with self.db._connect() as conn:
-                            conn.execute("UPDATE autopilot_queue SET instagram_url = ? WHERE id = ?;", (ig_url, q_id))
-                            conn.commit()
-                    published_count += 1
+
+                    new_yt_url = res.get("youtube", {}).get("url") if res.get("youtube", {}).get("status") == "success" else None
+                    new_ig_url = res.get("instagram", {}).get("url") if res.get("instagram", {}).get("status") == "success" else None
+
+                    effective_yt = new_yt_url or cur_yt_url
+                    effective_ig = new_ig_url or cur_ig_url
+
+                    errors: list[str] = []
+                    if "youtube" in target_platforms and not new_yt_url:
+                        yt_err = res.get("youtube", {}).get("error", "YouTube upload failed")
+                        errors.append(f"YouTube: {yt_err}")
+                    if "instagram" in target_platforms and not new_ig_url:
+                        ig_err = res.get("instagram", {}).get("error", "Instagram upload failed")
+                        errors.append(f"Instagram: {ig_err}")
+
+                    if not errors:
+                        self.db.update_autopilot_queue_status(
+                            q_id,
+                            "PUBLISHED",
+                            youtube_url=effective_yt,
+                            instagram_url=effective_ig,
+                            error_msg=None,
+                        )
+                        published_count += 1
+                        logger.success("Queue item {} successfully published to all platforms!", q_id)
+                    elif effective_yt or effective_ig:
+                        err_str = " | ".join(errors)
+                        self.db.update_autopilot_queue_status(
+                            q_id,
+                            "PARTIAL_FAILED",
+                            youtube_url=effective_yt,
+                            instagram_url=effective_ig,
+                            error_msg=err_str,
+                        )
+                        logger.warning("Queue item {} partially published: {}", q_id, err_str)
+                    else:
+                        err_str = " | ".join(errors)
+                        self.db.update_autopilot_queue_status(
+                            q_id,
+                            "PARTIAL_FAILED",
+                            error_msg=err_str,
+                        )
+                        logger.error("Queue item {} failed on all platforms: {}", q_id, err_str)
+
                 except Exception as e:
-                    logger.error("Publish error: {}", e)
+                    logger.error("Publish execution error for {}: {}", q_id, e)
+                    self.db.update_autopilot_queue_status(q_id, "PARTIAL_FAILED", error_msg=str(e))
 
         return published_count

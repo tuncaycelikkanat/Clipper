@@ -127,6 +127,14 @@ class InstagramUploader:
         resp = requests.post(url, params=params, timeout=30)
         data = resp.json()
 
+        # Meta Graph API: If cover_url fails or is rejected, fallback to thumb_offset
+        if (resp.status_code != 200 or "id" not in data) and cover_url:
+            logger.warning("Container creation with cover_url failed. Retrying with thumb_offset…")
+            params.pop("cover_url", None)
+            params["thumb_offset"] = str(thumb_offset)
+            resp = requests.post(url, params=params, timeout=30)
+            data = resp.json()
+
         # Meta Graph API: If scheduled_publish_time fails due to whitelist restrictions, fall back to instant publish
         if (resp.status_code != 200 or "id" not in data) and scheduled_publish_time:
             logger.warning(
@@ -149,9 +157,10 @@ class InstagramUploader:
         self,
         upload_url: str,
         video_path: str,
+        max_retries: int = 3,
     ) -> bool:
         """
-        Step 2: Upload the local .mp4 binary chunks to Meta's upload URI.
+        Step 2: Upload the local .mp4 binary chunks to Meta's upload URI with retries.
         """
         path = Path(video_path).resolve()
         if not path.exists():
@@ -166,38 +175,64 @@ class InstagramUploader:
             "Content-Type": "application/octet-stream",
         }
 
-        with open(path, "rb") as f:
-            resp = requests.post(upload_url, headers=headers, data=f, timeout=180)
+        last_err = ""
+        for attempt in range(1, max_retries + 1):
+            try:
+                with open(path, "rb") as f:
+                    resp = requests.post(upload_url, headers=headers, data=f, timeout=240)
 
-        logger.debug(f"Meta rupload status: {resp.status_code}, response: {resp.text[:120]}")
-        return True
+                logger.debug(f"Meta rupload (attempt {attempt}/{max_retries}) status: {resp.status_code}")
+                if resp.status_code in (200, 201):
+                    logger.info(f"Meta binary upload successful ({file_size / (1024 * 1024):.1f} MB).")
+                    return True
 
-    def check_container_status(self, container_id: str, timeout: int = 180, interval: int = 5) -> str:
+                last_err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+                logger.warning(f"Meta rupload attempt {attempt} failed: {last_err}")
+            except Exception as e:
+                last_err = str(e)
+                logger.warning(f"Meta rupload attempt {attempt} error: {e}")
+
+            if attempt < max_retries:
+                time.sleep(attempt * 2)
+
+        raise RuntimeError(f"Meta rupload binary aktarımı başarısız oldu: {last_err}")
+
+    def check_container_status(self, container_id: str, timeout: int = 360, interval: int = 5) -> str:
         """
-        Step 3: Poll the container until processing is FINISHED or ERROR.
+        Step 3: Poll the container until processing is FINISHED, PUBLISHED, or ERROR.
         """
         url = f"{self.BASE_URL}/{container_id}"
         params = {
-            "fields": "status_code,status",
+            "fields": "status_code,status,error_message",
             "access_token": self.access_token,
         }
 
         start_time = time.time()
+        poll_count = 0
         while time.time() - start_time < timeout:
-            resp = requests.get(url, params=params, timeout=30)
-            if resp.status_code == 200:
-                data = resp.json()
-                status_code = data.get("status_code", "").upper()
-                logger.debug(f"Instagram container {container_id} status: {status_code}")
+            poll_count += 1
+            try:
+                resp = requests.get(url, params=params, timeout=30)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    status_code = data.get("status_code", "").upper()
+                    elapsed = int(time.time() - start_time)
+                    logger.debug(f"Instagram container {container_id} status: {status_code} ({elapsed}s)")
 
-                if status_code == "FINISHED":
-                    return "FINISHED"
-                if status_code in ("ERROR", "EXPIRED"):
-                    raise RuntimeError(f"Instagram video işleme hatası ({status_code}): {data.get('status')}")
+                    if status_code in ("FINISHED", "PUBLISHED"):
+                        logger.info(f"Instagram container {container_id} is ready ({status_code}) after {elapsed}s.")
+                        return status_code
+                    if status_code in ("ERROR", "EXPIRED"):
+                        err_detail = data.get("error_message") or data.get("status") or status_code
+                        raise RuntimeError(f"Instagram video işleme hatası ({status_code}): {err_detail}")
+            except requests.RequestException as req_err:
+                logger.debug(f"Status poll connection issue: {req_err}")
 
-            time.sleep(interval)
+            # Adaptive polling interval (5s -> 8s -> 10s)
+            current_interval = interval if poll_count < 6 else (interval + 3 if poll_count < 15 else 10)
+            time.sleep(current_interval)
 
-        raise TimeoutError(f"Instagram video işleme zaman aşımına uğradı ({timeout} sn).")
+        raise TimeoutError(f"Instagram video işleme zaman aşımına uğradı ({timeout} sn). Video Meta sunucularında henüz işlenemedi.")
 
     def publish_container(self, container_id: str) -> dict[str, Any]:
         """
@@ -233,7 +268,7 @@ class InstagramUploader:
         thumbnail_path: str | None = None,
         cover_url: str | None = None,
         scheduled_publish_time: int | None = None,
-        timeout: int = 180,
+        timeout: int = 360,
     ) -> dict[str, Any]:
         """
         End-to-end workflow: Create Container -> Upload Binary -> Wait Processing -> Publish Reel.
