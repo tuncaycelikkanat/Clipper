@@ -235,7 +235,7 @@ Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.75,
-                max_tokens=1000,
+                max_tokens=300,
             )
             raw_text = response.choices[0].message.content or "{}"
             data = json.loads(raw_text)
