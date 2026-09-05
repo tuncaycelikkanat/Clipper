@@ -203,7 +203,7 @@ class InstagramUploader:
         """
         url = f"{self.BASE_URL}/{container_id}"
         params = {
-            "fields": "status_code,status,error_message",
+            "fields": "status_code,status,id",
             "access_token": self.access_token,
         }
 
@@ -223,8 +223,10 @@ class InstagramUploader:
                         logger.info(f"Instagram container {container_id} is ready ({status_code}) after {elapsed}s.")
                         return status_code
                     if status_code in ("ERROR", "EXPIRED"):
-                        err_detail = data.get("error_message") or data.get("status") or status_code
+                        err_detail = data.get("status") or status_code
                         raise RuntimeError(f"Instagram video işleme hatası ({status_code}): {err_detail}")
+                else:
+                    logger.warning(f"Meta status query failed (HTTP {resp.status_code}): {resp.text[:200]}")
             except requests.RequestException as req_err:
                 logger.debug(f"Status poll connection issue: {req_err}")
 
