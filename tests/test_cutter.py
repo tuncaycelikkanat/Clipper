@@ -152,6 +152,7 @@ def test_cut_clip_with_whisper_success(
         end_time=20.0,
         clip_id="abc",
         use_whisper=True,
+        add_subtitles=True,
         render_mode="shorts_9x16_black",
     )
 
@@ -188,6 +189,7 @@ def test_cut_clip_whisper_fallback_to_asr(
         end_time=20.0,
         clip_id="abc",
         use_whisper=True,
+        add_subtitles=True,
         transcript_segments=[{"text": "Fallback"}],
         progress_callback=lambda x: progress_calls.append(x),
     )
@@ -223,6 +225,7 @@ def test_cut_clip_whisper_exception_fallback(
         end_time=20.0,
         clip_id="abc",
         use_whisper=True,
+        add_subtitles=True,
         transcript_segments=[{"text": "Fallback"}],
         progress_callback=lambda x: progress_calls.append(x),
     )
