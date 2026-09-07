@@ -75,56 +75,50 @@ class MultiPublisher:
         if not os.path.exists(render_path):
             raise FileNotFoundError(f"Render dosyası bulunamadı: {render_path}")
 
+        # Metadata (Başlık, Açıklama, Etiketler) çözümü
+        if description_override and description_override.strip():
+            desc = description_override
+            title = clip.get("title", "Gaming Highlight #Shorts")
+            if "#Shorts" not in title:
+                title = f"{title} #Shorts"
+            tags = ["shorts", "gaming", "oyun", "highlights"]
+        else:
+            try:
+                # Orijinal etiketleri DB'den çek
+                orig_tags_list = []
+                vid_id_for_tags = clip.get("video_id")
+                if vid_id_for_tags:
+                    try:
+                        v_data = self.db.get_video(vid_id_for_tags)
+                        if v_data and v_data.get("tags"):
+                            import json
+
+                            orig_tags_list = json.loads(v_data["tags"])
+                    except Exception as e:
+                        logger.debug("Could not fetch original tags for {}: {}", vid_id_for_tags, e)
+
+                seo_data = DeepSeekEngine.generate_shorts_copy(
+                    clip_title=clip.get("title", ""),
+                    hook_caption=clip.get("hook_caption", ""),
+                    category=clip.get("category", "GAMING"),
+                    video_title=video_title,
+                    original_tags=orig_tags_list,
+                )
+                title = seo_data.get("title", f"{clip.get('title')} #Shorts")
+                desc = seo_data.get("description", YouTubeUploader.generate_description(clip, video_title))
+                tags = seo_data.get("tags", ["shorts", "gaming", "oyun", "highlights"])
+            except Exception as e:
+                logger.warning(f"DeepSeek SEO üretimi başarısız (Fallback kullanılıyor): {e}")
+                title = clip.get("title", "Gaming Highlight #Shorts")
+                if "#Shorts" not in title:
+                    title = f"{title} #Shorts"
+                desc = clip.get("description") or YouTubeUploader.generate_description(clip, video_title)
+                tags = ["shorts", "gaming", "oyun", "highlights"]
+
         # 1. YouTube Shorts
         if "youtube" in target_platforms:
             if self.youtube.is_authenticated():
                 try:
-                    # --- DEEPSEEK SEO METADATA ENTEGRASYONU ---
-                    # Kuyrukta daha önce üretilmiş başlık/açıklama varsa
-                    # (run_cycle içinde DeepSeek ile üretilip orijinal link eklenmiş)
-                    # tekrar API çağrısı yapmadan onları kullan.
-                    if description_override and description_override.strip():
-                        desc = description_override
-                        title = clip.get("title", "Gaming Highlight #Shorts")
-                        if "#Shorts" not in title:
-                            title = f"{title} #Shorts"
-                        tags = ["shorts", "gaming", "oyun", "highlights"]
-                        logger.info("Kuyruktaki açıklama doğrudan kullanılıyor (ek DeepSeek çağrısı yok).")
-                    else:
-                        try:
-                            logger.info("DeepSeek ile SEO uyumlu baslik, aciklama ve etiketler uretiliyor...")
-                            # Orijinal etiketleri DB'den cek
-                            orig_tags_list = []
-                            vid_id_for_tags = clip.get("video_id")
-                            if vid_id_for_tags:
-                                try:
-                                    v_data = self.db.get_video(vid_id_for_tags)
-                                    if v_data and v_data.get("tags"):
-                                        import json
-
-                                        orig_tags_list = json.loads(v_data["tags"])
-                                except Exception as e:
-                                    logger.debug("Could not fetch original tags for {}: {}", vid_id_for_tags, e)
-
-                            seo_data = DeepSeekEngine.generate_shorts_copy(
-                                clip_title=clip.get("title", ""),
-                                hook_caption=clip.get("hook_caption", ""),
-                                category=clip.get("category", "GAMING"),
-                                video_title=video_title,
-                                original_tags=orig_tags_list,
-                            )
-                            title = seo_data.get("title", f"{clip.get('title')} #Shorts")
-                            desc = seo_data.get("description", YouTubeUploader.generate_description(clip, video_title))
-                            tags = seo_data.get("tags", ["shorts", "gaming", "oyun", "highlights"])
-                            logger.success("DeepSeek SEO metadatasi basariyla alindi!")
-                        except Exception as e:
-                            logger.warning(f"DeepSeek SEO uretimi basarisiz (Fallback kullaniliyor): {e}")
-                            title = clip.get("title", "Gaming Highlight #Shorts")
-                            if "#Shorts" not in title:
-                                title = f"{title} #Shorts"
-                            desc = YouTubeUploader.generate_description(clip, video_title)
-                            tags = ["shorts", "gaming", "oyun", "highlights"]
-
                     yt_res = self.youtube.upload_short(
                         video_path=render_path,
                         title=title,
@@ -151,7 +145,7 @@ class MultiPublisher:
             if self.instagram.is_authenticated():
                 try:
                     # Shorts ile birebir aynı açıklamayı ve etiketleri kullan
-                    ig_caption = desc or clip.get("description") or InstagramUploader.generate_caption(clip, video_title)
+                    ig_caption = desc
                     ig_res = self.instagram.upload_reel(
                         video_path=render_path,
                         caption=ig_caption,
