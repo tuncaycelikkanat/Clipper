@@ -19,6 +19,9 @@ from core.uploader import YouTubeUploader, _SCOPES
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+_PENDING_VERIFIERS: dict[str, str] = {}
+
+
 def _get_redirect_uri(request: Request | None = None) -> str:
     if request:
         base_url = str(request.base_url).rstrip("/")
@@ -38,7 +41,7 @@ async def youtube_auth_status():
 
 @router.get("/youtube/url")
 async def youtube_auth_url(request: Request):
-    """Generates and returns Google OAuth2 consent screen URL."""
+    """Generates and returns Google OAuth2 consent screen URL with PKCE tracking."""
     uploader = YouTubeUploader()
     if not os.path.exists(uploader.credentials_path):
         raise HTTPException(
@@ -53,7 +56,13 @@ async def youtube_auth_url(request: Request):
             _SCOPES,
             redirect_uri=redirect_uri,
         )
-        auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline")
+        auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
+        if flow.code_verifier:
+            _PENDING_VERIFIERS[state] = flow.code_verifier
+            # Clean up old verifiers if too many accumulated
+            if len(_PENDING_VERIFIERS) > 20:
+                for k in list(_PENDING_VERIFIERS.keys())[:-10]:
+                    _PENDING_VERIFIERS.pop(k, None)
         return {"url": auth_url}
     except Exception as e:
         logger.error("OAuth URL generation error: {}", e)
@@ -61,8 +70,8 @@ async def youtube_auth_url(request: Request):
 
 
 @router.get("/youtube/callback", response_class=HTMLResponse)
-async def youtube_auth_callback(code: str, request: Request):
-    """Handles OAuth2 code exchange redirect from Google."""
+async def youtube_auth_callback(code: str, request: Request, state: str | None = None):
+    """Handles OAuth2 code exchange redirect from Google with PKCE code_verifier."""
     uploader = YouTubeUploader()
     if not os.path.exists(uploader.credentials_path):
         raise HTTPException(status_code=400, detail="credentials.json not found")
@@ -74,7 +83,15 @@ async def youtube_auth_callback(code: str, request: Request):
             _SCOPES,
             redirect_uri=redirect_uri,
         )
-        flow.fetch_token(code=code)
+        code_verifier = _PENDING_VERIFIERS.pop(state, None) if state else None
+        if not code_verifier and _PENDING_VERIFIERS:
+            code_verifier = list(_PENDING_VERIFIERS.values())[-1]
+
+        fetch_kwargs: dict[str, str] = {"code": code}
+        if code_verifier:
+            fetch_kwargs["code_verifier"] = code_verifier
+
+        flow.fetch_token(**fetch_kwargs)
         creds = flow.credentials
         uploader._save_token(creds)
         logger.success("YouTube OAuth2 successfully authenticated via web callback.")
