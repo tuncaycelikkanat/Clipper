@@ -165,10 +165,28 @@ export default function Settings() {
               variant={ytStatus?.authenticated ? 'outline' : 'default'}
               className={!ytStatus?.authenticated ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
               onClick={async () => {
+                // Tarayıcı açılır pencere engelleyicisini (Popup Blocker) aşmak için pencereyi senkron olarak hemen açıyoruz
+                const popup = window.open('about:blank', '_blank', 'width=600,height=750,location=no,status=no');
+                if (popup) {
+                  try {
+                    popup.document.write(
+                      '<!DOCTYPE html><html><head><title>Yönlendiriliyor...</title></head><body style="background:#09090b;color:#a1a1aa;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><p>Google giriş ekranına yönlendiriliyorsunuz...</p></body></html>'
+                    );
+                  } catch {
+                    // cross-origin ignore
+                  }
+                }
+
                 try {
                   const res = await api.auth.youtubeUrl();
                   if (res.url) {
-                    window.open(res.url, '_blank', 'width=600,height=750,location=no,status=no');
+                    if (popup && !popup.closed) {
+                      popup.location.href = res.url;
+                      popup.focus();
+                    } else {
+                      window.location.href = res.url;
+                    }
+
                     // Periyodik kontrol başlat
                     const pollTimer = setInterval(async () => {
                       const updated = await refetchYt();
@@ -180,9 +198,11 @@ export default function Settings() {
                     }, 2000);
                     setTimeout(() => clearInterval(pollTimer), 120000);
                   } else {
+                    if (popup && !popup.closed) popup.close();
                     alert('Yetkilendirme adresi alınamadı.');
                   }
                 } catch (err: any) {
+                  if (popup && !popup.closed) popup.close();
                   alert(`OAuth yetkilendirme akışı başlatılamadı: ${err?.message || err}`);
                 }
               }}
