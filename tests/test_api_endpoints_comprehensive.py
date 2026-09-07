@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -96,9 +96,25 @@ def test_auth_youtube_status_cases():
 
 
 def test_auth_youtube_url():
-    res = client.get("/api/auth/youtube/url")
-    assert res.status_code == 200
-    assert "action" in res.json()
+    with patch("os.path.exists", return_value=True), patch("google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file") as mock_flow:
+        mock_instance = MagicMock()
+        mock_instance.authorization_url.return_value = ("https://accounts.google.com/oauth/test", "state123")
+        mock_flow.return_value = mock_instance
+        res = client.get("/api/auth/youtube/url")
+        assert res.status_code == 200
+        assert "https://accounts.google.com" in res.json()["url"]
+
+    # Test callback endpoint
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file") as mock_flow,
+        patch("core.uploader.YouTubeUploader._save_token", return_value=None),
+    ):
+        mock_instance = MagicMock()
+        mock_flow.return_value = mock_instance
+        res_cb = client.get("/api/auth/youtube/callback?code=test_code_123")
+        assert res_cb.status_code == 200
+        assert "YouTube Bağlantısı Başarılı" in res_cb.text
 
 
 def test_auth_youtube_authenticate():

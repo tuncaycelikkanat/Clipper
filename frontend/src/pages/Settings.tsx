@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -39,6 +39,18 @@ export default function Settings() {
     queryKey: ['youtube-auth-status'],
     queryFn: () => api.auth.youtubeStatus(),
   });
+
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'YOUTUBE_AUTH_SUCCESS') {
+        refetchYt();
+        setStatusMsg('YouTube hesabı başarıyla bağlandı!');
+        setTimeout(() => setStatusMsg(null), 4000);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [refetchYt]);
 
   // 3. Disk Usage
   const { data: diskInfo, refetch: refetchDisk } = useQuery({
@@ -155,10 +167,23 @@ export default function Settings() {
               onClick={async () => {
                 try {
                   const res = await api.auth.youtubeUrl();
-                  if (res.url) window.open(res.url, '_blank');
-                  refetchYt();
-                } catch {
-                  alert('OAuth yetkilendirme akışı başlatılamadı.');
+                  if (res.url) {
+                    window.open(res.url, '_blank', 'width=600,height=750,location=no,status=no');
+                    // Periyodik kontrol başlat
+                    const pollTimer = setInterval(async () => {
+                      const updated = await refetchYt();
+                      if (updated.data?.authenticated) {
+                        clearInterval(pollTimer);
+                        setStatusMsg('YouTube hesabı başarıyla bağlandı!');
+                        setTimeout(() => setStatusMsg(null), 4000);
+                      }
+                    }, 2000);
+                    setTimeout(() => clearInterval(pollTimer), 120000);
+                  } else {
+                    alert('Yetkilendirme adresi alınamadı.');
+                  }
+                } catch (err: any) {
+                  alert(`OAuth yetkilendirme akışı başlatılamadı: ${err?.message || err}`);
                 }
               }}
             >

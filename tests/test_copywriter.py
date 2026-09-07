@@ -35,6 +35,6 @@ def test_copywriter_deepseek_failure_fallback():
         channel_name="Mithrain",
     )
     assert "#Shorts" in res["title"]
-    assert "PUBG Yayını" in res["description"]
+    assert "İnanılmaz" in res["description"]
     assert "Mithrain" in res["description"]
     assert "funny" in res["tags"]
