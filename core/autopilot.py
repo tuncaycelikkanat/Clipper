@@ -548,6 +548,60 @@ class AutoPilotManager:
 
         return {"processed": processed_count, "errors": proc_errors}
 
+    def _ensure_clip_rendered(self, clip_id: str, video_id: str, current_render_path: str | None) -> str | None:
+        """Eğer render dosyası diskte yoksa veritabanındaki bilgilerle anında yeniden render eder."""
+        if current_render_path and os.path.exists(current_render_path) and os.path.getsize(current_render_path) > 0:
+            return current_render_path
+
+        logger.warning(
+            "Render dosyası diskte bulunamadı ({}). Klip {} için otomatik yeniden render başlatılıyor...",
+            current_render_path,
+            clip_id,
+        )
+        with self.db._connect() as conn:
+            clip_row = conn.execute("SELECT * FROM clips WHERE id = ?", (clip_id,)).fetchone()
+            video_row = conn.execute("SELECT url, title FROM videos WHERE id = ?", (video_id,)).fetchone()
+
+        if not clip_row or not video_row:
+            logger.error(
+                "Yeniden render için klip veya video bilgisi bulunamadı: clip_id={}, video_id={}",
+                clip_id,
+                video_id,
+            )
+            return None
+
+        clip_data = dict(clip_row)
+        video_data = dict(video_row)
+
+        from core.cutter import VideoCutter
+
+        cutter = VideoCutter()
+        try:
+            rendered_file = cutter.cut_clip(
+                url=video_data["url"],
+                start_time=float(clip_data.get("start_time", 0.0)),
+                end_time=float(clip_data.get("end_time", 30.0)),
+                clip_id=clip_id,
+                video_title=video_data.get("title", "clip"),
+                hook_caption=clip_data.get("hook_caption", ""),
+                render_mode=clip_data.get("render_mode", "shorts_9x16_blur"),
+                add_subtitles=False,
+                add_hook_card=False,
+                enhance_colors=True,
+                use_whisper=False,
+            )
+            if rendered_file and os.path.exists(rendered_file):
+                with self.db._connect() as conn:
+                    conn.execute("UPDATE clips SET render_path = ? WHERE id = ?", (rendered_file, clip_id))
+                    conn.execute("UPDATE autopilot_queue SET render_path = ? WHERE clip_id = ?", (rendered_file, clip_id))
+                    conn.commit()
+                logger.success("Klip {} başarıyla yeniden render edildi: {}", clip_id, rendered_file)
+                return rendered_file
+        except Exception as e:
+            logger.error("Otomatik yeniden render hatası (clip_id={}): {}", clip_id, e)
+
+        return None
+
     def publish_due_socials(self) -> int:
         """Zamanı gelmiş videoları YouTube Shorts ve Instagram Reels platformlarında yayınlar."""
         from core.multi_publisher import MultiPublisher
@@ -592,63 +646,69 @@ class AutoPilotManager:
                 self.db.update_autopilot_queue_status(q_id, "PUBLISHED")
                 continue
 
-            if render_path and os.path.exists(render_path):
-                try:
-                    logger.info("Publishing queue item {} ({}) to platforms: {}", q_id, title, target_platforms)
-                    res = multi_pub.publish_clip(
-                        clip={"id": clip_id, "video_id": video_id, "title": title, "score": 95},
-                        render_path=render_path,
-                        thumbnail_path=thumb_path,
-                        platforms=target_platforms,
-                        video_title=title,
-                        description_override=desc,
+            valid_render_path = self._ensure_clip_rendered(clip_id, video_id, render_path)
+            if not valid_render_path or not os.path.exists(valid_render_path):
+                err_msg = f"Render dosyası diskte bulunamadı ve yeniden oluşturulamadı: {render_path}"
+                logger.error("Queue item {} skipped: {}", q_id, err_msg)
+                self.db.update_autopilot_queue_status(q_id, "PARTIAL_FAILED", error_msg=err_msg)
+                continue
+
+            try:
+                logger.info("Publishing queue item {} ({}) to platforms: {}", q_id, title, target_platforms)
+                res = multi_pub.publish_clip(
+                    clip={"id": clip_id, "video_id": video_id, "title": title, "score": 95},
+                    render_path=valid_render_path,
+                    thumbnail_path=thumb_path,
+                    platforms=target_platforms,
+                    video_title=title,
+                    description_override=desc,
+                )
+
+                new_yt_url = res.get("youtube", {}).get("url") if res.get("youtube", {}).get("status") == "success" else None
+                new_ig_url = res.get("instagram", {}).get("url") if res.get("instagram", {}).get("status") == "success" else None
+
+                effective_yt = new_yt_url or cur_yt_url
+                effective_ig = new_ig_url or cur_ig_url
+
+                errors: list[str] = []
+                if "youtube" in target_platforms and not new_yt_url:
+                    yt_err = res.get("youtube", {}).get("error", "YouTube upload failed")
+                    errors.append(f"YouTube: {yt_err}")
+                if "instagram" in target_platforms and not new_ig_url:
+                    ig_err = res.get("instagram", {}).get("error", "Instagram upload failed")
+                    errors.append(f"Instagram: {ig_err}")
+
+                if not errors:
+                    self.db.update_autopilot_queue_status(
+                        q_id,
+                        "PUBLISHED",
+                        youtube_url=effective_yt,
+                        instagram_url=effective_ig,
+                        error_msg=None,
                     )
+                    published_count += 1
+                    logger.success("Queue item {} successfully published to all platforms!", q_id)
+                elif effective_yt or effective_ig:
+                    err_str = " | ".join(errors)
+                    self.db.update_autopilot_queue_status(
+                        q_id,
+                        "PARTIAL_FAILED",
+                        youtube_url=effective_yt,
+                        instagram_url=effective_ig,
+                        error_msg=err_str,
+                    )
+                    logger.warning("Queue item {} partially published: {}", q_id, err_str)
+                else:
+                    err_str = " | ".join(errors)
+                    self.db.update_autopilot_queue_status(
+                        q_id,
+                        "PARTIAL_FAILED",
+                        error_msg=err_str,
+                    )
+                    logger.error("Queue item {} failed on all platforms: {}", q_id, err_str)
 
-                    new_yt_url = res.get("youtube", {}).get("url") if res.get("youtube", {}).get("status") == "success" else None
-                    new_ig_url = res.get("instagram", {}).get("url") if res.get("instagram", {}).get("status") == "success" else None
-
-                    effective_yt = new_yt_url or cur_yt_url
-                    effective_ig = new_ig_url or cur_ig_url
-
-                    errors: list[str] = []
-                    if "youtube" in target_platforms and not new_yt_url:
-                        yt_err = res.get("youtube", {}).get("error", "YouTube upload failed")
-                        errors.append(f"YouTube: {yt_err}")
-                    if "instagram" in target_platforms and not new_ig_url:
-                        ig_err = res.get("instagram", {}).get("error", "Instagram upload failed")
-                        errors.append(f"Instagram: {ig_err}")
-
-                    if not errors:
-                        self.db.update_autopilot_queue_status(
-                            q_id,
-                            "PUBLISHED",
-                            youtube_url=effective_yt,
-                            instagram_url=effective_ig,
-                            error_msg=None,
-                        )
-                        published_count += 1
-                        logger.success("Queue item {} successfully published to all platforms!", q_id)
-                    elif effective_yt or effective_ig:
-                        err_str = " | ".join(errors)
-                        self.db.update_autopilot_queue_status(
-                            q_id,
-                            "PARTIAL_FAILED",
-                            youtube_url=effective_yt,
-                            instagram_url=effective_ig,
-                            error_msg=err_str,
-                        )
-                        logger.warning("Queue item {} partially published: {}", q_id, err_str)
-                    else:
-                        err_str = " | ".join(errors)
-                        self.db.update_autopilot_queue_status(
-                            q_id,
-                            "PARTIAL_FAILED",
-                            error_msg=err_str,
-                        )
-                        logger.error("Queue item {} failed on all platforms: {}", q_id, err_str)
-
-                except Exception as e:
-                    logger.error("Publish execution error for {}: {}", q_id, e)
-                    self.db.update_autopilot_queue_status(q_id, "PARTIAL_FAILED", error_msg=str(e))
+            except Exception as e:
+                logger.error("Publish execution error for {}: {}", q_id, e)
+                self.db.update_autopilot_queue_status(q_id, "PARTIAL_FAILED", error_msg=str(e))
 
         return published_count
