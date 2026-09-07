@@ -443,6 +443,9 @@ export default function Clips() {
                     <img
                       src={api.clips.thumbnailUrl(clip.id)}
                       alt={clip.title}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (

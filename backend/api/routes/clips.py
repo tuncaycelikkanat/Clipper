@@ -144,17 +144,49 @@ async def get_clip_file(clip_id: str):
 async def get_clip_thumbnail(clip_id: str):
     db = _get_db()
     with db._connect() as conn:
-        row = conn.execute("SELECT thumbnail_path FROM clips WHERE id = ?", (clip_id,)).fetchone()
+        row = conn.execute(
+            "SELECT thumbnail_path, render_path, video_id, start_time FROM clips WHERE id = ?", (clip_id,)
+        ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Clip not found")
+
     path = row["thumbnail_path"] if row else None
-    if not path or not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Thumbnail not found")
-    return FileResponse(
-        path,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-    )
+    if path and os.path.exists(path) and os.path.getsize(path) > 0:
+        return FileResponse(
+            path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    # Render dosyası mevcutsa anında thumbnail üret ve kaydet
+    render_path = row["render_path"] if row else None
+    if render_path and os.path.exists(render_path):
+        try:
+            from core.thumbnail import ThumbnailGenerator
+
+            out_dir = "outputs/thumbnails"
+            os.makedirs(out_dir, exist_ok=True)
+            out_path = f"{out_dir}/thumb_{clip_id}.jpg"
+            ThumbnailGenerator.extract_best_frame(
+                video_path=render_path,
+                peak_time=1.0,
+                output_path=out_path,
+                width=720,
+                height=1280,
+            )
+            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+                with db._connect() as conn:
+                    conn.execute("UPDATE clips SET thumbnail_path = ? WHERE id = ?", (out_path, clip_id))
+                    conn.commit()
+                return FileResponse(
+                    out_path,
+                    media_type="image/jpeg",
+                    headers={"Cache-Control": "public, max-age=3600"},
+                )
+        except Exception as e:
+            logger.debug("Auto-thumbnail extraction failed for {}: {}", clip_id, e)
+
+    raise HTTPException(status_code=404, detail="Thumbnail not found")
 
 
 @router.post("/{clip_id}/upload-video-thumbnail")
