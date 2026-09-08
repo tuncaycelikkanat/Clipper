@@ -42,6 +42,7 @@ export default function Settings() {
 
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
+      if (e.origin !== 'http://localhost:8000' && e.origin !== window.location.origin) return;
       if (e.data?.type === 'YOUTUBE_AUTH_SUCCESS') {
         refetchYt();
         setStatusMsg('YouTube hesabı başarıyla bağlandı!');

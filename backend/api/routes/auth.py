@@ -83,9 +83,9 @@ async def youtube_auth_callback(code: str, request: Request, state: str | None =
             _SCOPES,
             redirect_uri=redirect_uri,
         )
-        code_verifier = _PENDING_VERIFIERS.pop(state, None) if state else None
-        if not code_verifier and _PENDING_VERIFIERS:
-            code_verifier = list(_PENDING_VERIFIERS.values())[-1]
+        if not state or state not in _PENDING_VERIFIERS:
+            raise HTTPException(status_code=400, detail="Invalid state parameter")
+        code_verifier = _PENDING_VERIFIERS.pop(state)
 
         fetch_kwargs: dict[str, str] = {"code": code}
         if code_verifier:
@@ -159,15 +159,17 @@ async def youtube_auth_callback(code: str, request: Request, state: str | None =
   </div>
   <script>
     if (window.opener) {
-      window.opener.postMessage({ type: 'YOUTUBE_AUTH_SUCCESS' }, '*');
+      window.opener.postMessage({ type: 'YOUTUBE_AUTH_SUCCESS' }, 'http://localhost:5173');
     }
     setTimeout(() => {
       window.close();
     }, 2500);
   </script>
 </body>
-</html>"""
+</html>""",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("OAuth code exchange error: {}", e)
         return HTMLResponse(

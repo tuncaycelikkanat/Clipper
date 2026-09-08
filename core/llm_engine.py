@@ -159,13 +159,11 @@ class GeminiHighlightEngine:
     """Uses Google Gemini Flash to batch-judge Top-N gaming candidate clips in 1 structured call."""
 
     MODELS_TO_TRY = [
-        "gemini-3.5-flash-lite",
-        "gemini-flash-lite-latest",
-        "gemini-3.1-flash-lite",
-        "gemini-3.7-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
-        "gemini-flash-latest",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
     ]
 
     @classmethod

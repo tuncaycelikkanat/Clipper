@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -35,8 +35,9 @@ export interface LogItem {
 }
 
 export default function Analyze() {
-  const search = useSearch({ strict: false });
-  const [url, setUrl] = useState((search as any)?.url || '');
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { url?: string };
+  const [url, setUrl] = useState(search?.url || '');
   const [targetClips, setTargetClips] = useState(3);
   const [addSubtitles, setAddSubtitles] = useState(false);
   const [addHookCard, setAddHookCard] = useState(false);
@@ -125,38 +126,6 @@ export default function Analyze() {
       });
     }
   }, [jobId]);
-
-  // Periodic backup sync polling while running to guarantee real-time UI updates
-  useEffect(() => {
-    if (!jobId || !running) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const job = await api.pipeline.getJob(jobId);
-        if (job) {
-          if (job.progress !== undefined && job.progress > 0) {
-            setProgress((prev) => Math.max(prev, job.progress));
-          }
-          if (job.current_step) setStepMsg(job.current_step);
-          if (job.logs && job.logs.length > 0) setLogs(job.logs);
-          if (job.status === 'done') {
-            setRunning(false);
-            setProgress(100);
-            setCompletedClips(job.result || []);
-            localStorage.removeItem('clipper_active_job_id');
-          } else if (job.status === 'failed') {
-            setRunning(false);
-            setErrorMsg(job.error_msg || 'İşlem başarısız oldu.');
-            localStorage.removeItem('clipper_active_job_id');
-          }
-        }
-      } catch {
-        // Silently ignore poll errors
-      }
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [jobId, running]);
 
   // SSE Stream
   const streamUrl = jobId ? api.pipeline.streamUrl(jobId) : null;
@@ -613,7 +582,7 @@ export default function Analyze() {
                     size="sm"
                     variant="outline"
                     className="w-full text-xs hover:border-violet-500 hover:text-violet-300"
-                    onClick={() => (window.location.href = '/clips')}
+                    onClick={() => navigate({ to: '/clips' })}
                   >
                     Klip Kütüphanesinde Gör <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                   </Button>

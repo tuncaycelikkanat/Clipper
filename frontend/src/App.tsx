@@ -9,7 +9,15 @@ import Planner from './pages/Planner';
 import AutoPilot from './pages/AutoPilot';
 import Settings from './pages/Settings';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000, // 30sn önbellekte tut
+      retry: 2, // Başarısızda 2 kez dene
+      refetchOnWindowFocus: false, // Tab değişiminde gereksiz refetch engelle
+    },
+  },
+});
 
 const rootRoute = createRootRoute({
   component: Layout,

@@ -105,6 +105,8 @@ def test_auth_youtube_url():
         assert "https://accounts.google.com" in res.json()["url"]
 
     # Test callback endpoint
+    from backend.api.routes.auth import _PENDING_VERIFIERS
+    _PENDING_VERIFIERS["state123"] = "mock_verifier"
     with (
         patch("os.path.exists", return_value=True),
         patch("google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file") as mock_flow,
@@ -112,7 +114,7 @@ def test_auth_youtube_url():
     ):
         mock_instance = MagicMock()
         mock_flow.return_value = mock_instance
-        res_cb = client.get("/api/auth/youtube/callback?code=test_code_123")
+        res_cb = client.get("/api/auth/youtube/callback?code=test_code_123&state=state123")
         assert res_cb.status_code == 200
         assert "YouTube Bağlantısı Başarılı" in res_cb.text
 

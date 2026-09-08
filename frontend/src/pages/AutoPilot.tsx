@@ -95,6 +95,8 @@ export default function AutoPilot() {
       setTimeout(() => {
         setStatusMsg(null);
         if (res.jobs && res.jobs.length > 0) {
+          const jobIds = res.jobs.map((j: any) => j.job_id);
+          localStorage.setItem('clipper_active_job_ids', JSON.stringify(jobIds));
           localStorage.setItem('clipper_active_job_id', res.jobs[0].job_id);
           navigate({ to: '/analyze' });
         }

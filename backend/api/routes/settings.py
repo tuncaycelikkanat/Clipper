@@ -11,8 +11,11 @@ if _R not in sys.path:
 
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from backend.deps import get_db
+from core.database import DatabaseManager
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 _ENV_PATH = os.path.join(_R, ".env")
@@ -115,25 +118,19 @@ class ScoringConfigUpdate(BaseModel):
 
 
 @router.get("/scoring")
-async def get_scoring_config():
-    import core.scoring_config as SC
-
-    return {
-        "hook_strength_weight": SC.HOOK_STRENGTH_WEIGHT,
-        "emotion_weight": SC.EMOTION_WEIGHT,
-        "story_completeness_weight": SC.STORY_COMPLETENESS_WEIGHT,
-        "signal_validation_weight": SC.SIGNAL_VALIDATION_WEIGHT,
-        "categories": SC.CATEGORIES,
-        "score_bands": SC.SCORE_BANDS,
-        "band_labels_enabled": SC.BAND_LABELS_ENABLED,
-        "ensemble_runs": SC.ENSEMBLE_RUNS,
-        "mundane_score_cap": SC.MUNDANE_SCORE_CAP,
-    }
+async def get_scoring_config(db: DatabaseManager = Depends(get_db)):
+    return db.get_scoring_config()
 
 
 @router.post("/scoring")
-async def update_scoring_config(body: ScoringConfigUpdate):
+async def update_scoring_config(body: ScoringConfigUpdate, db: DatabaseManager = Depends(get_db)):
     import core.scoring_config as SC
+
+    update_data = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "ensemble_runs" in update_data:
+        update_data["ensemble_runs"] = max(1, update_data["ensemble_runs"])
+
+    db.set_scoring_config(update_data)
 
     if body.hook_strength_weight is not None:
         SC.HOOK_STRENGTH_WEIGHT = body.hook_strength_weight

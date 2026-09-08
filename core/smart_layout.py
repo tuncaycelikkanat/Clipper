@@ -24,6 +24,8 @@ except ImportError:
 class SmartLayoutEngine:
     """Yapay zeka tabanlı Facecam tespiti ve dikey video şablon motoru."""
 
+    _facecam_cache: dict[str, dict[str, Any]] = {}
+
     def __init__(self, api_key: str | None = None):
         if not api_key:
             api_key = os.environ.get("GEMINI_API_KEY")
@@ -33,8 +35,20 @@ class SmartLayoutEngine:
                 load_dotenv(".env")
                 api_key = os.environ.get("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
+        self._facecam_cache = {}
 
     def detect_facecam(self, video_path: str, sample_time_sec: float = 3.0) -> dict[str, Any]:
+        """Video karesinden yayıncının canlı kamera kutusunu cache destekli olarak tespit eder."""
+        if video_path in self._facecam_cache:
+            logger.debug("Facecam cache hit: {}", video_path)
+            return dict(self._facecam_cache[video_path])
+
+        result = self._detect_facecam_uncached(video_path, sample_time_sec)
+        if self.client is not None or result.get("found") is True:
+            self._facecam_cache[video_path] = result
+        return result
+
+    def _detect_facecam_uncached(self, video_path: str, sample_time_sec: float = 3.0) -> dict[str, Any]:
         """Video karesinden yayıncının canlı kamera kutusunu Gemini Model Havuzu ile tespit eder."""
         frame = None
         image_bytes = None
@@ -95,13 +109,11 @@ JSON formatında yanıt ver:
   "box_1000": {"ymin": int, "xmin": int, "ymax": int, "xmax": int}
 }"""
         model_pool = [
-            "gemini-3.5-flash-lite",
-            "gemini-flash-lite-latest",
-            "gemini-3.1-flash-lite",
-            "gemini-3.7-flash",
-            "gemini-3.6-flash",
-            "gemini-3.5-flash",
-            "gemini-flash-latest",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-8b",
         ]
 
         for model_name in model_pool:

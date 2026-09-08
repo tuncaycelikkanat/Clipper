@@ -168,9 +168,65 @@ CREATE TABLE IF NOT EXISTS autopilot_queue (
     instagram_url  TEXT,
     error_msg      TEXT,
     description    TEXT,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+);
+"""
+
+_DDL_APP_CONFIG = """
+CREATE TABLE IF NOT EXISTS app_config (
+    key         TEXT PRIMARY KEY,
+    config_json TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+"""
+
+_DDL_PIPELINE_JOBS = """
+CREATE TABLE IF NOT EXISTS pipeline_jobs (
+    id           TEXT PRIMARY KEY,
+    video_url    TEXT NOT NULL,
+    status       TEXT DEFAULT 'queued',
+    progress     INTEGER DEFAULT 0,
+    current_step TEXT,
+    result_json  TEXT,
+    error_msg    TEXT,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+"""
+
+_DDL_CHANNEL_SEEN_VIDEOS = """
+CREATE TABLE IF NOT EXISTS channel_seen_videos (
+    channel_id   TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+    video_id     TEXT NOT NULL,
+    title        TEXT,
+    upload_date  TEXT,
+    seen_at      TEXT NOT NULL,
+    processed    INTEGER DEFAULT 0,
+    skipped      INTEGER DEFAULT 0,
+    PRIMARY KEY (channel_id, video_id)
+);
+"""
+
+_DDL_PUBLISH_QUEUE = """
+CREATE TABLE IF NOT EXISTS publish_queue (
+    id             TEXT PRIMARY KEY,
+    clip_id        TEXT NOT NULL REFERENCES clips(id) ON DELETE CASCADE,
+    channel_id     TEXT REFERENCES channels(id) ON DELETE SET NULL,
+    scheduled_at   TEXT,
+    status         TEXT DEFAULT 'pool',
+    youtube_url    TEXT,
+    instagram_url  TEXT,
+    tiktok_url     TEXT,
+    title          TEXT,
+    description    TEXT,
+    error_msg      TEXT,
+    retry_count    INTEGER DEFAULT 0,
+    published_at   TEXT,
     created_at     TEXT NOT NULL
 );
 """
+
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +242,8 @@ class DatabaseManager:
                      Defaults to ``<project_root>/clipper.db``.
         """
         self.db_path = db_path
+        if self.db_path != ":memory:":
+            os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
         logger.debug("DatabaseManager initialised — db_path={}", self.db_path)
 
     # ------------------------------------------------------------------
@@ -193,12 +251,22 @@ class DatabaseManager:
     # ------------------------------------------------------------------
 
     def _connect(self) -> sqlite3.Connection:
-        """Open a connection with WAL journal mode and foreign-key support."""
-        conn = sqlite3.connect(self.db_path)
+        """Open a connection with WAL journal mode, busy timeout, and foreign-key support."""
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout=5000;")
         conn.execute("PRAGMA foreign_keys=ON;")
         return conn
+
+    get_connection = _connect
+
+    def execute(self, sql: str, params: tuple | list | dict = ()) -> sqlite3.Cursor:
+        """Execute an arbitrary SQL query and commit."""
+        with self._connect() as conn:
+            cursor = conn.execute(sql, params)
+            conn.commit()
+            return cursor
 
     # ------------------------------------------------------------------
     # Schema initialisation
@@ -215,9 +283,14 @@ class DatabaseManager:
             conn.execute(_DDL_TRACKED_CHANNELS)
             conn.execute(_DDL_CHANNEL_PROCESSED_VIDEOS)
             conn.execute(_DDL_AUTOPILOT_QUEUE)
+            conn.execute(_DDL_APP_CONFIG)
+            conn.execute(_DDL_PIPELINE_JOBS)
+            conn.execute(_DDL_CHANNEL_SEEN_VIDEOS)
+            conn.execute(_DDL_PUBLISH_QUEUE)
             # Mevcut veritabanları için yeni sütunları güvenle ekle
             for col_sql in (
                 "ALTER TABLE autopilot_queue ADD COLUMN description TEXT;",
+                "ALTER TABLE autopilot_queue ADD COLUMN updated_at TEXT;",
                 "ALTER TABLE clips ADD COLUMN description TEXT;",
                 "ALTER TABLE clips ADD COLUMN tags TEXT;",
                 "ALTER TABLE clips ADD COLUMN thumbnail_path TEXT;",
@@ -724,13 +797,13 @@ class DatabaseManager:
         youtube_url: str | None = None,
         description: str | None = None,
     ) -> str:
-        """Zamanlanmış veya stoklanmış klibi autopilot kuyruğuna kaydeder."""
         queue_id = str(uuid.uuid4())
+        now = _utcnow()
         sql = """
             INSERT INTO autopilot_queue
                 (id, video_id, clip_id, channel_url, title, render_path,
-                 thumbnail_path, viral_score, scheduled_at, status, youtube_url, description, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                 thumbnail_path, viral_score, scheduled_at, status, youtube_url, description, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         with self._connect() as conn:
             conn.execute(
@@ -748,7 +821,8 @@ class DatabaseManager:
                     status,
                     youtube_url,
                     description,
-                    _utcnow(),
+                    now,
+                    now,
                 ),
             )
             conn.commit()
@@ -1039,3 +1113,108 @@ class DatabaseManager:
                     except Exception:
                         pass
             return day_items
+
+    def get_scoring_config(self) -> dict[str, Any]:
+        """Scoring konfigürasyonunu app_config tablosundan çeker veya varsayılanları döner."""
+        import core.scoring_config as SC
+
+        defaults: dict[str, Any] = {
+            "hook_strength_weight": SC.HOOK_STRENGTH_WEIGHT,
+            "emotion_weight": SC.EMOTION_WEIGHT,
+            "story_completeness_weight": SC.STORY_COMPLETENESS_WEIGHT,
+            "signal_validation_weight": SC.SIGNAL_VALIDATION_WEIGHT,
+            "categories": SC.CATEGORIES,
+            "score_bands": SC.SCORE_BANDS,
+            "band_labels_enabled": SC.BAND_LABELS_ENABLED,
+            "ensemble_runs": SC.ENSEMBLE_RUNS,
+            "mundane_score_cap": SC.MUNDANE_SCORE_CAP,
+        }
+        with self._connect() as conn:
+            row = conn.execute("SELECT config_json FROM app_config WHERE key = 'scoring'").fetchone()
+            if row and row["config_json"]:
+                try:
+                    loaded = json.loads(row["config_json"])
+                    defaults.update(loaded)
+                except Exception:
+                    pass
+        return defaults
+
+    def set_scoring_config(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Scoring konfigürasyonunu günceller ve veritabanında saklar."""
+        current = self.get_scoring_config()
+        current.update(config)
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO app_config (key, config_json, updated_at) VALUES ('scoring', ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET config_json = excluded.config_json, updated_at = excluded.updated_at",
+                (json.dumps(current, ensure_ascii=False), _utcnow()),
+            )
+            conn.commit()
+        return current
+
+    def create_pipeline_job(self, job_id: str, video_url: str) -> None:
+        """Yeni bir pipeline işini veritabanına kaydeder."""
+        now = _utcnow()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO pipeline_jobs (id, video_url, status, progress, created_at, updated_at) "
+                "VALUES (?, ?, 'queued', 0, ?, ?)",
+                (job_id, video_url, now, now),
+            )
+            conn.commit()
+
+    def update_pipeline_job(
+        self,
+        job_id: str,
+        *,
+        status: str | None = None,
+        progress: int | None = None,
+        current_step: str | None = None,
+        result_json: str | None = None,
+        error_msg: str | None = None,
+    ) -> None:
+        """Pipeline işinin durumunu günceller."""
+        fields: list[str] = []
+        params: list[Any] = []
+        if status is not None:
+            fields.append("status = ?")
+            params.append(status)
+        if progress is not None:
+            fields.append("progress = ?")
+            params.append(progress)
+        if current_step is not None:
+            fields.append("current_step = ?")
+            params.append(current_step)
+        if result_json is not None:
+            fields.append("result_json = ?")
+            params.append(result_json)
+        if error_msg is not None:
+            fields.append("error_msg = ?")
+            params.append(error_msg)
+        if not fields:
+            return
+        fields.append("updated_at = ?")
+        params.append(_utcnow())
+        params.append(job_id)
+        with self._connect() as conn:
+            conn.execute(f"UPDATE pipeline_jobs SET {', '.join(fields)} WHERE id = ?", params)
+            conn.commit()
+
+    def get_pipeline_job(self, job_id: str) -> dict[str, Any] | None:
+        """Kayıtlı pipeline işini ID ile getirir."""
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM pipeline_jobs WHERE id = ?", (job_id,)).fetchone()
+            return dict(row) if row else None
+
+    def list_pipeline_jobs(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Kayıtlı son pipeline işlerini tarihe göre sıralı listeler."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    create_job = create_pipeline_job
+    update_job_status = update_pipeline_job
+    get_job = get_pipeline_job
+

@@ -34,9 +34,74 @@ class VideoCutter:
     ) -> None:
         self.output_dir = output_dir
         self.smart_layout = smart_layout or SmartLayoutEngine()
-        os.makedirs(self.output_dir, exist_ok=True)
-
     _STREAM_CACHE: dict[str, dict[str, Any]] = {}
+    _MAX_STREAM_CACHE_SIZE: int = 32
+
+    @classmethod
+    def _get_stream_info(cls, url: str) -> dict[str, Any] | None:
+        if url in cls._STREAM_CACHE:
+            return cls._STREAM_CACHE[url]
+        try:
+            ydl_opts_fast = {
+                "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+                "quiet": True,
+                "no_warnings": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_fast) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if len(cls._STREAM_CACHE) >= cls._MAX_STREAM_CACHE_SIZE:
+                    oldest_key = next(iter(cls._STREAM_CACHE))
+                    del cls._STREAM_CACHE[oldest_key]
+                cls._STREAM_CACHE[url] = info
+                return info
+        except Exception as e:
+            logger.warning("Stream URL extraction failed for {}: {}", url, e)
+            return None
+
+    @staticmethod
+    def _build_ffmpeg_cmd(
+        input_path: str,
+        output_path: str,
+        filter_str: str,
+        is_complex: bool = False,
+        has_cam: bool = False,
+        preset: str = "fast",
+        crf: str = "18",
+        fps: str = "60",
+        audio_bitrate: str = "192k",
+    ) -> list[str]:
+        """Tüm format, filtre ve facecam kombinasyonları için tekilleştirilmiş FFmpeg komut üreticisi."""
+        cmd = ["ffmpeg", "-y", "-i", input_path]
+        if is_complex and has_cam:
+            cmd += ["-i", input_path]
+        if is_complex:
+            cmd += ["-filter_complex", filter_str, "-map", "[outv]", "-map", "0:a"]
+        else:
+            cmd += ["-vf", filter_str]
+        cmd += [
+            "-c:v",
+            "libx264",
+            "-preset",
+            preset,
+            "-crf",
+            crf,
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            fps,
+            "-c:a",
+            "aac",
+            "-ar",
+            "48000",
+            "-b:a",
+            audio_bitrate,
+            "-movflags",
+            "+faststart",
+            "-af",
+            "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
+            output_path,
+        ]
+        return cmd
 
     def cut_clip(
         self,
@@ -124,16 +189,7 @@ class VideoCutter:
             else:
                 # Fast Direct Stream Seeking (FFmpeg direct HTTP range request with ultrafast frame & audio sync)
                 try:
-                    if url not in VideoCutter._STREAM_CACHE:
-                        ydl_opts_fast = {
-                            "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
-                            "quiet": True,
-                            "no_warnings": True,
-                        }
-                        with yt_dlp.YoutubeDL(ydl_opts_fast) as ydl:
-                            VideoCutter._STREAM_CACHE[url] = ydl.extract_info(url, download=False)
-
-                    info = VideoCutter._STREAM_CACHE.get(url)
+                    info = self._get_stream_info(url)
                     if info:
                         if "requested_formats" in info and len(info["requested_formats"]) >= 2:
                             v_url = info["requested_formats"][0].get("url")
@@ -309,7 +365,8 @@ class VideoCutter:
                     transcriber = WhisperTranscriber(model_size="base", device="cpu", compute_type="int8")
                     word_segments = transcriber.transcribe_from_video(temp_raw_cut, language="tr")
                     if word_segments:
-                        end_time - start_time
+                        duration = end_time - start_time
+                        logger.debug("Clip duration: {:.2f}s", duration)
                         SubtitleGenerator.generate_ass_from_words(
                             word_segments=word_segments,
                             clip_start_sec=start_time,
@@ -379,77 +436,9 @@ class VideoCutter:
             complex_filter = (
                 f"{base_filter};[v]{post_str.lstrip(',')}[outv]" if post_filters else f"{base_filter};[v]null[outv]"
             )
-
-            if has_cam:
-                cmd = [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    temp_raw_cut,
-                    "-i",
-                    temp_raw_cut,
-                    "-filter_complex",
-                    complex_filter,
-                    "-map",
-                    "[outv]",
-                    "-map",
-                    "0:a",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "fast",
-                    "-crf",
-                    "18",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-r",
-                    "60",
-                    "-c:a",
-                    "aac",
-                    "-ar",
-                    "48000",
-                    "-b:a",
-                    "192k",
-                    "-movflags",
-                    "+faststart",
-                    "-af",
-                    "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
-                    output_path,
-                ]
-            else:
-                cmd = [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    temp_raw_cut,
-                    "-filter_complex",
-                    complex_filter,
-                    "-map",
-                    "[outv]",
-                    "-map",
-                    "0:a",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "fast",
-                    "-crf",
-                    "18",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-r",
-                    "60",
-                    "-c:a",
-                    "aac",
-                    "-ar",
-                    "48000",
-                    "-b:a",
-                    "192k",
-                    "-movflags",
-                    "+faststart",
-                    "-af",
-                    "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
-                    output_path,
-                ]
+            cmd = self._build_ffmpeg_cmd(
+                temp_raw_cut, output_path, complex_filter, is_complex=True, has_cam=has_cam, audio_bitrate="192k"
+            )
         else:
             if render_mode == "square_1x1_black":
                 filter_parts.append(
@@ -476,33 +465,9 @@ class VideoCutter:
                 safe_ass = ass_path.replace(":", "\\:").replace("\\", "/")
                 filter_parts.append(f"ass='{safe_ass}'")
 
-            cmd = [
-                "ffmpeg",
-                "-y",
-                "-i",
-                temp_raw_cut,
-                "-vf",
-                ",".join(filter_parts),
-                "-c:v",
-                "libx264",
-                "-preset",
-                "slow",
-                "-crf",
-                "18",
-                "-r",
-                "60",
-                "-c:a",
-                "aac",
-                "-ar",
-                "48000",
-                "-b:a",
-                "128k",
-                "-movflags",
-                "+faststart",
-                "-af",
-                "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
-                output_path,
-            ]
+            cmd = self._build_ffmpeg_cmd(
+                temp_raw_cut, output_path, ",".join(filter_parts), is_complex=False, audio_bitrate="128k"
+            )
 
         try:
             subprocess.run(cmd, capture_output=True, check=True)
@@ -510,101 +475,15 @@ class VideoCutter:
             logger.warning("Primary FFmpeg render failed: {}. Retrying without subtitles...", err)
             if is_vertical:
                 fallback_complex = f"{base_filter};[v]eq=saturation=1.20:contrast=1.08:brightness=0.01[outv]"
-                if has_cam:
-                    cmd_fallback = [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        temp_raw_cut,
-                        "-i",
-                        temp_raw_cut,
-                        "-filter_complex",
-                        fallback_complex,
-                        "-map",
-                        "[outv]",
-                        "-map",
-                        "0:a",
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "slow",
-                        "-crf",
-                        "18",
-                        "-r",
-                        "60",
-                        "-c:a",
-                        "aac",
-                        "-ar",
-                        "48000",
-                        "-b:a",
-                        "128k",
-                        "-movflags",
-                        "+faststart",
-                        "-af",
-                        "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
-                        output_path,
-                    ]
-                else:
-                    cmd_fallback = [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        temp_raw_cut,
-                        "-filter_complex",
-                        fallback_complex,
-                        "-map",
-                        "[outv]",
-                        "-map",
-                        "0:a",
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "slow",
-                        "-crf",
-                        "18",
-                        "-r",
-                        "60",
-                        "-c:a",
-                        "aac",
-                        "-ar",
-                        "48000",
-                        "-b:a",
-                        "128k",
-                        "-movflags",
-                        "+faststart",
-                        "-af",
-                        "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
-                        output_path,
-                    ]
+                cmd_fallback = self._build_ffmpeg_cmd(
+                    temp_raw_cut, output_path, fallback_complex, is_complex=True, has_cam=has_cam, audio_bitrate="128k"
+                )
             else:
                 filter_parts_fallback = [p for p in filter_parts if not p.startswith("ass=")]
-                cmd_fallback = [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    temp_raw_cut,
-                    "-vf",
-                    ",".join(filter_parts_fallback) if filter_parts_fallback else "scale=1920:1080",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "slow",
-                    "-crf",
-                    "18",
-                    "-r",
-                    "60",
-                    "-c:a",
-                    "aac",
-                    "-ar",
-                    "48000",
-                    "-b:a",
-                    "128k",
-                    "-movflags",
-                    "+faststart",
-                    "-af",
-                    "asetpts=PTS-STARTPTS,loudnorm=I=-14:TP=-1.5:LRA=11",
-                    output_path,
-                ]
+                vf_fallback = ",".join(filter_parts_fallback) if filter_parts_fallback else "scale=1920:1080"
+                cmd_fallback = self._build_ffmpeg_cmd(
+                    temp_raw_cut, output_path, vf_fallback, is_complex=False, audio_bitrate="128k"
+                )
             subprocess.run(cmd_fallback, capture_output=True, check=True)
 
         if os.path.exists(temp_raw_cut):

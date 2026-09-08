@@ -52,10 +52,17 @@ class InstagramUploader:
         """Return True if both access token and account ID are present."""
         return bool(self.access_token and self.account_id)
 
-    def upload_temp_cover_image(self, thumbnail_path: str) -> str | None:
-        """Uploads local thumbnail to a temporary public host so Meta Graph API can download it via cover_url."""
+    def upload_temp_cover_image(self, thumbnail_path: str, clip_id: str | None = None) -> str | None:
+        """Uploads local thumbnail or returns public cover URL so Meta Graph API can download it via cover_url."""
         if not thumbnail_path or not os.path.exists(thumbnail_path):
             return None
+
+        public_base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+        if public_base and clip_id:
+            public_thumb_url = f"{public_base}/api/clips/{clip_id}/thumbnail"
+            logger.info("Using local server public cover_url for Instagram: {}", public_thumb_url)
+            return public_thumb_url
+
         try:
             boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
             with open(thumbnail_path, "rb") as f:

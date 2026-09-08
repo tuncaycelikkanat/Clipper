@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -26,6 +27,7 @@ class AutoPilotManager:
     """Otonom kanal takip, klip stoklama ve akıllı zamanlanmış yayın yöneticisi."""
 
     _worker_scheduler: Any | None = None
+    _lock = threading.Lock()
     _worker_info: dict[str, Any] = {
         "running": False,
         "interval_hours": 2.0,
@@ -66,11 +68,20 @@ class AutoPilotManager:
 
     @classmethod
     def get_background_worker_info(cls) -> dict[str, Any]:
-        return dict(cls._worker_info)
+        with cls._lock:
+            return dict(cls._worker_info)
+
+    get_status = get_background_worker_info
+
+    @classmethod
+    def _set_status(cls, **kwargs: Any) -> None:
+        with cls._lock:
+            cls._worker_info.update(kwargs)
 
     @classmethod
     def is_background_worker_running(cls) -> bool:
-        return cls._worker_info.get("running", False)
+        with cls._lock:
+            return bool(cls._worker_info.get("running", False))
 
     @classmethod
     def start_background_worker(cls, interval_hours: float = 2.0, db: DatabaseManager | None = None) -> bool:
@@ -84,7 +95,8 @@ class AutoPilotManager:
             inst = cls(db=db)
 
             def job():
-                cls._worker_info["last_run"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                with cls._lock:
+                    cls._worker_info["last_run"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 inst.run_cycle()
                 inst.publish_due_socials()
 
@@ -109,19 +121,21 @@ class AutoPilotManager:
                 replace_existing=True,
             )
             cls._worker_scheduler.start()
-            cls._worker_info = {
-                "running": True,
-                "interval_hours": interval_hours,
-                "last_run": None,
-                "next_run": (
-                    datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=interval_hours)
-                ).isoformat(),
-            }
+            with cls._lock:
+                cls._worker_info = {
+                    "running": True,
+                    "interval_hours": interval_hours,
+                    "last_run": None,
+                    "next_run": (
+                        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=interval_hours)
+                    ).isoformat(),
+                }
             logger.info("AutoPilot background worker started (interval: {}h).", interval_hours)
             return True
         except Exception as e:
             logger.error("Failed to start AutoPilot background worker: {}", e)
-            cls._worker_info["running"] = False
+            with cls._lock:
+                cls._worker_info["running"] = False
             return False
 
     @classmethod
@@ -130,12 +144,13 @@ class AutoPilotManager:
             if cls._worker_scheduler and cls._worker_scheduler.running:
                 cls._worker_scheduler.shutdown(wait=False)
             cls._worker_scheduler = None
-            cls._worker_info = {
-                "running": False,
-                "interval_hours": 2.0,
-                "last_run": None,
-                "next_run": None,
-            }
+            with cls._lock:
+                cls._worker_info = {
+                    "running": False,
+                    "interval_hours": 2.0,
+                    "last_run": None,
+                    "next_run": None,
+                }
             logger.info("AutoPilot background worker stopped.")
             return True
         except Exception as e:

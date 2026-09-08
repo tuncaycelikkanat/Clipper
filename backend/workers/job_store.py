@@ -63,24 +63,94 @@ class JobState:
         }
 
 
+import json
+import threading
+
+
 class JobStore:
-    """Thread-safe in-memory job store with multi-client pub/sub support."""
+    """Thread-safe in-memory + DB-backed job store with multi-client pub/sub support."""
 
     def __init__(self) -> None:
         self._jobs: dict[str, JobState] = {}
+        self._lock = threading.Lock()
 
     def create(self, video_url: str) -> JobState:
         job = JobState(id=str(uuid.uuid4()), video_url=video_url)
-        self._jobs[job.id] = job
+        with self._lock:
+            self._jobs[job.id] = job
+        try:
+            from backend.deps import get_db
+
+            get_db().create_pipeline_job(job.id, video_url)
+        except Exception as e:
+            logger.debug("DB job create error: {}", e)
         logger.debug("Job created: {}", job.id)
         return job
 
     def get(self, job_id: str) -> JobState | None:
-        return self._jobs.get(job_id)
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job:
+                return job
+        # Fallback to database if server was restarted
+        try:
+            from backend.deps import get_db
+
+            db_job = get_db().get_pipeline_job(job_id)
+            if db_job:
+                result_val = None
+                if db_job.get("result_json"):
+                    with contextlib.suppress(Exception):
+                        result_val = json.loads(db_job["result_json"])
+                job = JobState(
+                    id=db_job["id"],
+                    video_url=db_job["video_url"],
+                    status=db_job.get("status", "queued"),
+                    progress=db_job.get("progress", 0),
+                    current_step=db_job.get("current_step", ""),
+                    result=result_val,
+                    error_msg=db_job.get("error_msg"),
+                    created_at=db_job.get("created_at", _utcnow()),
+                    updated_at=db_job.get("updated_at", _utcnow()),
+                )
+                with self._lock:
+                    self._jobs[job.id] = job
+                return job
+        except Exception as e:
+            logger.debug("DB job get fallback error: {}", e)
+        return None
+
+    get_job = get
 
     def list_recent(self, limit: int = 20) -> list[JobState]:
-        jobs = sorted(self._jobs.values(), key=lambda j: j.created_at, reverse=True)
-        return jobs[:limit]
+        with self._lock:
+            if not self._jobs:
+                try:
+                    from backend.deps import get_db
+
+                    db_jobs = get_db().list_pipeline_jobs(limit=limit)
+                    for dj in db_jobs:
+                        if dj["id"] not in self._jobs:
+                            result_val = None
+                            if dj.get("result_json"):
+                                with contextlib.suppress(Exception):
+                                    result_val = json.loads(dj["result_json"])
+                            self._jobs[dj["id"]] = JobState(
+                                id=dj["id"],
+                                video_url=dj["video_url"],
+                                status=dj.get("status", "queued"),
+                                progress=dj.get("progress", 0),
+                                current_step=dj.get("current_step", ""),
+                                result=result_val,
+                                error_msg=dj.get("error_msg"),
+                                created_at=dj.get("created_at", _utcnow()),
+                                updated_at=dj.get("updated_at", _utcnow()),
+                            )
+                except Exception as e:
+                    logger.debug("DB list_pipeline_jobs fallback error: {}", e)
+
+            jobs = sorted(self._jobs.values(), key=lambda j: j.created_at, reverse=True)
+            return jobs[:limit]
 
     def update(
         self,
@@ -92,20 +162,37 @@ class JobStore:
         result: list[dict] | None = None,
         error_msg: str | None = None,
     ) -> JobState | None:
-        job = self._jobs.get(job_id)
-        if not job:
-            return None
-        if status is not None:
-            job.status = status
-        if progress is not None:
-            job.progress = progress
-        if current_step is not None:
-            job.current_step = current_step
-        if result is not None:
-            job.result = result
-        if error_msg is not None:
-            job.error_msg = error_msg
-        job.updated_at = _utcnow()
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return None
+            if status is not None:
+                job.status = status
+            if progress is not None:
+                job.progress = progress
+            if current_step is not None:
+                job.current_step = current_step
+            if result is not None:
+                job.result = result
+            if error_msg is not None:
+                job.error_msg = error_msg
+            job.updated_at = _utcnow()
+
+        try:
+            from backend.deps import get_db
+
+            res_json = json.dumps(result, ensure_ascii=False) if result is not None else None
+            get_db().update_pipeline_job(
+                job_id,
+                status=status,
+                progress=progress,
+                current_step=current_step,
+                result_json=res_json,
+                error_msg=error_msg,
+            )
+        except Exception as e:
+            logger.debug("DB job update error: {}", e)
+
         return job
 
     async def push_sse(self, job_id: str, event_type: str, data: dict) -> None:

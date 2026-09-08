@@ -4,6 +4,8 @@ from typing import Any
 
 import yt_dlp
 
+from core.logger import logger
+
 
 class YouTubeExtractor:
     """Extracts metadata and Most Replayed (Heatmap) data from YouTube videos."""
@@ -98,8 +100,8 @@ class YouTubeExtractor:
                                 "author": c.get("author", "") or "",
                             }
                         )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("yt-dlp comment extraction failed for {}: {}", cleaned_url, e)
 
         # 2. Eğer yt-dlp yorum bulamadıysa ve YouTube Data API anahtarı varsa API üzerinden dene
         if not formatted:

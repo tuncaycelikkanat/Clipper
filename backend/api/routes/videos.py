@@ -12,15 +12,13 @@ if _R not in sys.path:
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from core.database import DatabaseManager
+from backend.deps import get_db
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
 
 def _db():
-    db = DatabaseManager()
-    db.init_db()
-    return db
+    return get_db()
 
 
 class VideoPreviewRequest(BaseModel):

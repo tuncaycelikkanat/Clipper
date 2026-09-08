@@ -16,15 +16,13 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from backend.deps import get_db
+
 router = APIRouter(prefix="/clips", tags=["clips"])
 
 
 def _get_db():
-    from core.database import DatabaseManager
-
-    db = DatabaseManager()
-    db.init_db()
-    return db
+    return get_db()
 
 
 class ClipUpdateRequest(BaseModel):
@@ -104,19 +102,29 @@ class BatchDeleteRequest(BaseModel):
 
 @router.post("/batch-delete")
 async def batch_delete_clips(body: BatchDeleteRequest):
+    if not body.clip_ids:
+        return {"deleted_count": 0}
     db = _get_db()
-    deleted = 0
+    placeholders = ",".join("?" for _ in body.clip_ids)
     with db._connect() as conn:
-        for cid in body.clip_ids:
-            row = conn.execute("SELECT render_path FROM clips WHERE id = ?", (cid,)).fetchone()
-            if row:
-                rpath = row["render_path"]
-                if rpath and os.path.exists(rpath):
-                    with contextlib.suppress(Exception):
-                        os.remove(rpath)
-                conn.execute("DELETE FROM clips WHERE id = ?", (cid,))
-                conn.execute("DELETE FROM autopilot_queue WHERE clip_id = ?", (cid,))
-                deleted += 1
+        rows = conn.execute(
+            f"SELECT render_path FROM clips WHERE id IN ({placeholders})",
+            body.clip_ids,
+        ).fetchall()
+        for row in rows:
+            rpath = row["render_path"]
+            if rpath and os.path.exists(rpath):
+                with contextlib.suppress(Exception):
+                    os.remove(rpath)
+        conn.execute(
+            f"DELETE FROM autopilot_queue WHERE clip_id IN ({placeholders})",
+            body.clip_ids,
+        )
+        cursor = conn.execute(
+            f"DELETE FROM clips WHERE id IN ({placeholders})",
+            body.clip_ids,
+        )
+        deleted = cursor.rowcount
         conn.commit()
     return {"deleted_count": deleted}
 
@@ -218,17 +226,17 @@ async def upload_clip_video_thumbnail(clip_id: str, file: UploadFile = File(...)
 
     with db._connect() as conn:
         conn.execute(
-            "UPDATE clips SET thumbnail_path = ? WHERE video_id = ? OR id LIKE ?",
-            (target_path, video_id, f"{video_id}%"),
+            "UPDATE clips SET thumbnail_path = ? WHERE video_id = ? OR id = ?",
+            (target_path, video_id, video_id),
         )
         conn.execute(
-            "UPDATE autopilot_queue SET thumbnail_path = ? WHERE video_id = ? OR clip_id LIKE ?",
-            (target_path, video_id, f"{video_id}%"),
+            "UPDATE autopilot_queue SET thumbnail_path = ? WHERE video_id = ? OR clip_id = ?",
+            (target_path, video_id, video_id),
         )
         conn.commit()
 
         updated_count = conn.execute(
-            "SELECT COUNT(*) FROM clips WHERE video_id = ? OR id LIKE ?", (video_id, f"{video_id}%")
+            "SELECT COUNT(*) FROM clips WHERE video_id = ? OR id = ?", (video_id, video_id)
         ).fetchone()[0]
 
     return {

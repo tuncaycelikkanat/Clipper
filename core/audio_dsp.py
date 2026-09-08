@@ -4,6 +4,8 @@ from typing import Any
 import numpy as np
 import yt_dlp
 
+from core.logger import logger
+
 _YDL_EXTRACTOR_ARGS = {
     "extractor_args": {"youtube": {"player_client": ["ios", "android_creator", "tv_embedded", "web"]}}
 }
@@ -98,7 +100,8 @@ class AudioDSPAnalyzer:
             if raw_data and len(raw_data) >= 8:
                 samples = np.frombuffer(raw_data, dtype=np.float32)
                 return start_sec, samples
-        except Exception:
+        except Exception as e:
+            logger.error("Audio chunk extraction failed at {}s: {}", start_sec, e)
             try:
                 proc.kill()
                 proc.communicate()
@@ -270,8 +273,14 @@ class AudioDSPAnalyzer:
         win_hops = max(1, int(pitch_window_sec / hop_sec))
         pitch_var = np.zeros(n_hops, dtype=np.float32)
         if n_hops > win_hops:
-            for i in range(win_hops, n_hops):
-                pitch_var[i] = float(np.var(zcr[i - win_hops : i]))
+            try:
+                from numpy.lib.stride_tricks import sliding_window_view
+
+                windows = sliding_window_view(zcr[:n_hops], window_shape=win_hops)
+                pitch_var[win_hops:n_hops] = np.var(windows[: n_hops - win_hops], axis=1).astype(np.float32)
+            except Exception:
+                for i in range(win_hops, n_hops):
+                    pitch_var[i] = float(np.var(zcr[i - win_hops : i]))
             mx_pv = pitch_var.max()
             if mx_pv > 1e-9:
                 pitch_var = pitch_var / mx_pv
@@ -375,11 +384,21 @@ class AudioDSPAnalyzer:
 
         # 2. Silence to Burst (Shock pattern)
         silence_bursts = np.zeros_like(rms)
-        for i in range(2, len(rms)):
-            pre_min = np.min(rms[max(0, i - 4) : i])
-            cur = rms[i]
-            if pre_min < silence_thresh and cur > 0.6:
-                silence_bursts[i] = min(1.0, (cur - pre_min) / 0.8)
+        if len(rms) > 2:
+            try:
+                from numpy.lib.stride_tricks import sliding_window_view
+
+                padded = np.pad(rms, (4, 0), mode="edge")
+                pre_mins = np.min(sliding_window_view(padded[:-1], 4), axis=1)
+                mask = (np.arange(len(rms)) >= 2) & (pre_mins < silence_thresh) & (rms > 0.6)
+                if np.any(mask):
+                    silence_bursts[mask] = np.clip((rms[mask] - pre_mins[mask]) / 0.8, 0.0, 1.0)
+            except Exception:
+                for i in range(2, len(rms)):
+                    pre_min = np.min(rms[max(0, i - 4) : i])
+                    cur = rms[i]
+                    if pre_min < silence_thresh and cur > 0.6:
+                        silence_bursts[i] = min(1.0, (cur - pre_min) / 0.8)
 
         # 3. Vocal Spikes (Speech isolation)
         vocal_spikes = np.zeros_like(rms)
@@ -410,3 +429,4 @@ class AudioDSPAnalyzer:
             url, duration_sec, sample_rate=sample_rate, hop_sec=hop_sec, pitch_window_sec=pitch_window_sec
         )
         return res["pitch_times"], res["pitch_var"]
+    _detect_audio_peaks = detect_signals
