@@ -133,21 +133,36 @@ class CandidateRanker:
                 speech_rate_curve = np.zeros(n_points)
 
         # ----------------------------------------------------------------
-        # 3. Heatmap — DEVRE DIŞI (yeni videolarda veri yok)
-        # (parametre geriye-uyum için kabul edilir ama skor füzyonuna katılmaz)
+        # 3. Heatmap
         # ----------------------------------------------------------------
         # Gizli viral tespit ve tahmin DB'ye bağımlı metadata
         hidden_viral_peaks: list = []
         heatmap_source = "disabled"
         predicted_confidence = 0.0
+        heatmap_curve = np.zeros(n_points)
+        has_heatmap_signal = False
+        
+        from core.scoring_config import HEATMAP_FUSION_ENABLED, HEATMAP_FUSION_WEIGHT
+        
+        if len(heatmap) > 0 and HEATMAP_FUSION_ENABLED:
+            heatmap_source = "real"
+            has_heatmap_signal = True
+            # Heatmap verisini times dizisine interpolate et
+            hm_times = []
+            hm_vals = []
+            for h in heatmap:
+                t_mid = (float(h.get("start_time", 0.0)) + float(h.get("end_time", 0.0))) / 2.0
+                hm_times.append(t_mid)
+                hm_vals.append(float(h.get("value", 0.0)))
+            if hm_times:
+                heatmap_curve = np.interp(times, hm_times, hm_vals, left=0.0, right=0.0)
+            
         if self._db is not None and view_count > 0:
             try:
                 from core.heatmap_predictor import HeatmapPredictor
-
                 predictor = HeatmapPredictor(self._db)
                 if len(heatmap) > 0:
                     hidden_viral_peaks = predictor.detect_hidden_viral_from_real(heatmap, view_count)
-                    heatmap_source = "real"
                 else:
                     pred_res = predictor.predict(
                         audio_times=times,
@@ -198,6 +213,7 @@ class CandidateRanker:
         pitch_norm = _zscore_normalize(pitch_curve) if has_pitch else pitch_curve
         fdiff_norm = _zscore_normalize(frame_diff_curve) if has_frame_diff else frame_diff_curve
         vocal_norm = _zscore_normalize(vocal_spikes) if (has_vocal and vocal_spikes is not None) else np.zeros(n_points)
+        heatmap_norm = _zscore_normalize(heatmap_curve) if has_heatmap_signal else heatmap_curve
 
         # ----------------------------------------------------------------
         # 6. Adaptif Ağırlık Füzyonu (Yorum & Vokal & Sinyal Entegrasyonu)
@@ -212,6 +228,8 @@ class CandidateRanker:
         optional_signals = []
         if has_comments:
             optional_signals.append(("comment", comment_norm, 0.35))
+        if has_heatmap_signal:
+            optional_signals.append(("heatmap", heatmap_norm, float(HEATMAP_FUSION_WEIGHT)))
         if has_vocal:
             optional_signals.append(("vocal", vocal_norm, 0.20))
         if has_transcript_density:

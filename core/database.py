@@ -688,14 +688,18 @@ class DatabaseManager:
     def add_tracked_channel(
         self,
         url: str,
-        name: str,
-        min_score: int = 90,
+        name: str = "",
+        min_score: int | None = None,
         target_playlist: str | None = None,
-        auto_upload: int = 1,
-        youtube_username: str | None = None,
-        instagram_username: str | None = None,
+        auto_upload: bool = True,
+        youtube_username: str = "",
+        instagram_username: str = "",
     ) -> str:
-        """Kanalı otomatik takip listesine ekler veya günceller."""
+        """Yeni bir YouTube kanalını takip listesine ekler veya mevcutsa günceller."""
+        from core.scoring_config import VIRAL_SCORE_THRESHOLD
+        if min_score is None:
+            min_score = VIRAL_SCORE_THRESHOLD
+
         channel_id = str(uuid.uuid4())
         sql = """
             INSERT INTO tracked_channels

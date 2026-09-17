@@ -278,8 +278,21 @@ class CommentMiner:
                 continue
 
             reaction = self.detect_comment_reaction(text)
+            
+            # Kalite Filtresi: Timestamp kesinliği ve emoji/kelime yoğunluğu
+            quality_multiplier = 1.0
+            
+            # Kesin timestamp formatları (örn. "5:13", "05:13", "1.05.32")
+            if re.search(r"\b\d{1,2}[:.]\d{2}\b", text):
+                quality_multiplier *= 3.0
+            
+            # Emoji veya spesifik yoğun kelime kontrolü
+            if reaction in ["FUNNY", "RAGE", "EPIC", "JUMPSCARE"]:
+                quality_multiplier *= 1.5
+                
             # Beğeni ağırlığı: 1 + log1p(likes)
-            weight = 1.0 + float(np.log1p(max(0, likes)))
+            base_weight = 1.0 + float(np.log1p(max(0, likes)))
+            weight = base_weight * quality_multiplier
 
             for ts in ts_list:
                 if 0 <= ts <= total_duration:

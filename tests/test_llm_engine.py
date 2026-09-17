@@ -86,7 +86,7 @@ def test_success_first_model(mock_client_class, mock_candidates):
     mock_client.models.generate_content.return_value = mock_response
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY", ensemble_runs=1
     )
 
     assert len(result) == 1
@@ -124,7 +124,7 @@ def test_fallback_models(mock_client_class, mock_candidates):
     mock_client.models.generate_content.side_effect = [Exception("First model failed"), mock_response]
 
     result = GeminiHighlightEngine.batch_judge_gaming_candidates(
-        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
+        candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY", ensemble_runs=1
     )
 
     assert len(result) == 1
@@ -140,7 +140,7 @@ def test_all_models_fail(mock_client_class, mock_candidates):
 
     with pytest.raises(RuntimeError, match="Batch Analiz hatası"):
         GeminiHighlightEngine.batch_judge_gaming_candidates(
-            candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY"
+            candidates=mock_candidates, video_title="Test Video", total_duration=100, api_key="TEST_KEY", ensemble_runs=1
         )
 
 
@@ -420,11 +420,12 @@ def test_rationale_field_in_output(mock_client_class, mock_candidates):
         video_title="Test Video",
         total_duration=100,
         api_key="TEST_KEY",
+        ensemble_runs=1,
     )
 
     assert len(result) == 1
     assert "rationale" in result[0], "Çıktı klibinde 'rationale' alanı eksik"
-    assert result[0]["rationale"] == "Ses spike'ı 0.85 ile doruk noktasında."
+    assert result[0]["rationale"].startswith("Ses spike'ı 0.85 ile doruk noktasında.")
     assert "score_band" in result[0], "Çıktı klibinde 'score_band' alanı eksik"
 
 
@@ -472,8 +473,8 @@ def test_ensemble_mode_median(mock_client_class, mock_candidates):
     )
 
     assert len(result) == 1
-    # Medyan(80, 60) = 70
-    assert result[0]["score"] == 70
+    # LLM Medyan(80, 60) = 70. Hybrid = 70*0.7 + 90*0.3 = 76 (mock_candidates fusion_score=90 ise)
+    assert result[0]["score"] == 76
 
 
 @patch("core.llm_engine.genai.Client")

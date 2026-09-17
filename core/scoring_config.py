@@ -67,12 +67,37 @@ BAND_LABELS_ENABLED: bool = True
 # ---------------------------------------------------------------------------
 # ENSEMBLE / MEDYAN SKORLAMA
 # ---------------------------------------------------------------------------
-# Aynı adayı kaç kez skorlatacak?  1 = mevcut tekil davranış.
-# Yüksek değer daha kararlı sonuç verir ama maliyet/gecikme artar.
-ENSEMBLE_RUNS: int = 1
+# Aynı adayı kaç kez skorlatacak?
+# 3 = medyan skor ile LLM kararsızlığını minimize eder (~10-15sn ek süre).
+# 1 = tek çalışma (hızlı ama tutarsız).
+ENSEMBLE_RUNS: int = 3
+
+# ---------------------------------------------------------------------------
+# VİRAL SKOR EŞİĞİ
+# ---------------------------------------------------------------------------
+# Otopilot kuyruğuna alınacak minimum viral_confidence puanı.
+# 80: daha fazla klip yakalanır; 90: sadece en iyiler (eski ayar).
+VIRAL_SCORE_THRESHOLD: int = 80
+
+# ---------------------------------------------------------------------------
+# HİBRİT SKOR AĞIRLIKLARI
+# ---------------------------------------------------------------------------
+# final_score = fusion_score * FUSION_WEIGHT + llm_score * LLM_WEIGHT
+# Fusion sinyali (ses, yorum, pitch) ve LLM yargısı birbirini dengeler.
+FUSION_WEIGHT: float = 0.30
+LLM_WEIGHT: float = 0.70
+
+# ---------------------------------------------------------------------------
+# HEATMAP FÜZYON
+# ---------------------------------------------------------------------------
+# Gerçek YouTube heatmap verisi varsa füzyon sinyaline katılsın mı?
+HEATMAP_FUSION_ENABLED: bool = True
+# Heatmap sinyal ağırlığı (gerçek veri varsa)
+HEATMAP_FUSION_WEIGHT: float = 0.25
 
 # ---------------------------------------------------------------------------
 # TUTARLILIK TESTİ
 # ---------------------------------------------------------------------------
 # score_consistency_test() içinde kaç kez tekrar çalıştırılacak?
 CONSISTENCY_TEST_RUNS: int = 3
+

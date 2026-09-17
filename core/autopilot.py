@@ -273,11 +273,15 @@ class AutoPilotManager:
         self,
         url: str,
         name: str,
-        min_score: int = 90,
+        min_score: int | None = None,
         target_playlist: str | None = None,
         auto_upload: bool = True,
         auto_anchor: bool = True,
     ) -> str:
+        from core.scoring_config import VIRAL_SCORE_THRESHOLD
+        if min_score is None:
+            min_score = VIRAL_SCORE_THRESHOLD
+        
         clean_url = url.strip()
         clean_name = name.strip() or clean_url.split("/")[-1]
         ch_id = self.db.add_tracked_channel(
@@ -481,7 +485,10 @@ class AutoPilotManager:
                     vid_url = vid["url"]
                     vid_title = vid.get("title", "Video")
                     if not self.db.video_exists(vid["id"]):
-                        self.db.save_video({"id": vid["id"], "url": vid_url, "title": vid_title})
+                        import datetime
+                        # Yüklemeden hemen sonra klipleme yapma, Heatmap verisi için 24 saat bekle (Öncelikli)
+                        process_after = (datetime.datetime.utcnow() + datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+                        self.db.save_video({"id": vid["id"], "url": vid_url, "title": vid_title, "process_after": process_after})
                         self.db.record_processed_video(ch_url, vid["id"], vid_title)
                         cb(f"   📥 [Kuyruğa Eklendi] {vid_title}")
                     else:
@@ -563,6 +570,9 @@ class AutoPilotManager:
                     uploader = ch_name or vid.get("uploader", "")
                     upload_date = vid.get("upload_date", "")
 
+                    import datetime
+                    process_after = (datetime.datetime.utcnow() + datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+
                     v_data = {
                         "id": vid_id,
                         "url": vid_url,
@@ -571,6 +581,7 @@ class AutoPilotManager:
                         "upload_date": upload_date,
                         "duration": vid.get("duration", 0),
                         "view_count": vid.get("view_count", 0),
+                        "process_after": process_after,
                         "status": "pending",
                     }
                     self.db.save_video(v_data)
@@ -609,7 +620,7 @@ class AutoPilotManager:
 
         with self.db._connect() as conn:
             pending_videos = conn.execute(
-                "SELECT id, url, title FROM videos WHERE status='pending' LIMIT ?", (max_videos,)
+                "SELECT id, url, title FROM videos WHERE status='pending' AND (process_after IS NULL OR process_after <= datetime('now')) LIMIT ?", (max_videos,)
             ).fetchall()
 
         if not pending_videos:
@@ -656,9 +667,10 @@ class AutoPilotManager:
                     progress_callback=cb,
                 )
 
+                from core.scoring_config import VIRAL_SCORE_THRESHOLD
                 for clip in results:
                     score = int(clip.get("viral_confidence") or clip.get("score") or 0)
-                    if score < 90:
+                    if score < VIRAL_SCORE_THRESHOLD:
                         continue
                     render_path = clip.get("render_path", "")
                     if not render_path or not os.path.exists(render_path):

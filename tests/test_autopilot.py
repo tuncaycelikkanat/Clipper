@@ -214,8 +214,8 @@ def test_run_cycle_processes_and_filters_90_score(
             "clip_id": "clip_low_score",
             "title": "Sıradan An",
             "category": "GAMING",
-            "score": 82,
-            "viral_confidence": 82,
+            "score": 75,
+            "viral_confidence": 75,
             "render_path": fake_render,
             "duration": 20.0,
         },
@@ -241,6 +241,11 @@ def test_run_cycle_processes_and_filters_90_score(
     res_scan = manager.run_cycle()
     assert res_scan["channels_checked"] == 1
     assert res_scan["new_videos_found"] == 1
+
+    # Test ortamı için 24 saat heatmap beklemesini atla
+    with manager.db._connect() as conn:
+        conn.execute("UPDATE videos SET process_after = NULL")
+        conn.commit()
 
     res_proc = manager.process_pending_videos(max_videos=5)
     assert res_proc["processed"] == 1
@@ -311,6 +316,11 @@ def test_run_cycle_upload_error_fallbacks_to_queued(
 
     res_scan = manager.run_cycle()
     assert res_scan["new_videos_found"] == 1
+
+    # Test ortamı için 24 saat heatmap beklemesini atla
+    with manager.db._connect() as conn:
+        conn.execute("UPDATE videos SET process_after = NULL")
+        conn.commit()
 
     res_proc = manager.process_pending_videos(max_videos=5)
     assert res_proc["processed"] == 1

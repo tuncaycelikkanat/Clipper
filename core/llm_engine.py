@@ -330,6 +330,21 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
         """Ham Gemini çıktısını standart klip listesine dönüştürür."""
         verdicts = data.get("selected_clips", [])
 
+        # Hibrit Skor (Fusion + LLM Entegrasyonu)
+        for v in verdicts:
+            cid = v.get("candidate_id")
+            cand_match = next((c for c in candidates if c["candidate_id"] == cid), None)
+            if cand_match:
+                llm_score = int(v.get("viral_confidence", 0))
+                fusion_score = int(cand_match.get("fusion_score", 0))
+                
+                # Hibrit hesaplama
+                hybrid_score = round(fusion_score * SC.FUSION_WEIGHT + llm_score * SC.LLM_WEIGHT)
+                v["viral_confidence"] = min(100, max(0, hybrid_score))
+                
+                # Rationale'a fusion skorunu ekle
+                v["rationale"] = f"{v.get('rationale', '')} [Hibrit: {v['viral_confidence']} (LLM:{llm_score}, Sinyal:{fusion_score})]"
+
         # MUNDANE kırpma: MUNDANE kategorisindeki adayların skoru kap ile sınırla
         for v in verdicts:
             if str(v.get("category", "")).upper() == "MUNDANE":
