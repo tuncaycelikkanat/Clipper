@@ -32,6 +32,8 @@ export interface Clip {
   render_mode: string | null
   has_facecam: boolean
   created_at: string
+  publish_status?: string | null
+  scheduled_at?: string | null
 }
 
 export interface Video {

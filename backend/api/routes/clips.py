@@ -40,13 +40,14 @@ async def list_clips(
 ):
     db = _get_db()
     with db._connect() as conn:
+        q_cols = "c.*, (SELECT status FROM publish_queue WHERE clip_id = c.id ORDER BY created_at DESC LIMIT 1) as publish_status, (SELECT scheduled_at FROM publish_queue WHERE clip_id = c.id ORDER BY created_at DESC LIMIT 1) as scheduled_at"
         if video_id:
             rows = conn.execute(
-                "SELECT * FROM clips WHERE video_id = ? ORDER BY rank LIMIT ? OFFSET ?", (video_id, limit, offset)
+                f"SELECT {q_cols} FROM clips c WHERE c.video_id = ? ORDER BY c.rank LIMIT ? OFFSET ?", (video_id, limit, offset)
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM clips ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)
+                f"SELECT {q_cols} FROM clips c ORDER BY c.created_at DESC LIMIT ? OFFSET ?", (limit, offset)
             ).fetchall()
     return [dict(r) for r in rows]
 

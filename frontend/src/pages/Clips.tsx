@@ -10,12 +10,14 @@ import { Search, Film, Play, Trash2, X, CheckCircle2, Upload, Image as ImageIcon
 
 const CATEGORIES = ['Tümü', 'CLUTCH', 'FAIL', 'FUNNY', 'FAIL/FUNNY', 'RAGE/REACTION', 'JUMPSCARE', 'EPIC_MOMENT', 'STORY', 'MUNDANE'];
 const SCORE_BANDS = ['Tümü', 'Yüksek', 'Orta-Yüksek', 'Orta', 'Düşük'];
+const PUBLISH_STATUSES = ['Tümü', 'Yeniler (İşlenmemiş)', 'Takvimde', 'Yayınlananlar'];
 
 export default function Clips() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Tümü');
   const [scoreBand, setScoreBand] = useState('Tümü');
+  const [publishFilter, setPublishFilter] = useState('Tümü');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showThumbnailModal, setShowThumbnailModal] = useState(false);
   const [selectedClipIds, setSelectedClipIds] = useState<Set<string>>(new Set());
@@ -79,7 +81,15 @@ export default function Clips() {
         (scoreBand === 'Orta' && clip.score >= 35 && clip.score < 55) ||
         (scoreBand === 'Düşük' && clip.score < 35)
       ));
-    return matchesSearch && matchesCategory && matchesScoreBand;
+    
+    const pStat = clip.publish_status || 'new';
+    const matchesPublish =
+      publishFilter === 'Tümü' ||
+      (publishFilter === 'Yeniler (İşlenmemiş)' && (!clip.publish_status || pStat === 'new' || pStat === 'pool')) ||
+      (publishFilter === 'Takvimde' && pStat === 'scheduled') ||
+      (publishFilter === 'Yayınlananlar' && pStat === 'published');
+
+    return matchesSearch && matchesCategory && matchesScoreBand && matchesPublish;
   });
 
   const openDeleteModal = () => {
@@ -418,6 +428,24 @@ export default function Clips() {
             </button>
           ))}
         </div>
+
+        {/* Yayın Durumu Filtre Butonları */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider whitespace-nowrap">Durum:</span>
+          {PUBLISH_STATUSES.map((ps) => (
+            <button
+              key={ps}
+              onClick={() => setPublishFilter(ps)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap ${
+                publishFilter === ps
+                  ? 'bg-blue-500/20 border-blue-500/50 text-blue-300 font-medium'
+                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              {ps}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Klip Kartları Izgarası ──────────────────────────────────── */}
@@ -456,6 +484,20 @@ export default function Clips() {
                       {formatDuration(clip.duration)}
                     </div>
                   )}
+                  
+                  {/* Yayın Durumu Etiketi */}
+                  <div className="absolute top-2 left-2 flex flex-col gap-1">
+                    {(!clip.publish_status || clip.publish_status === 'new' || clip.publish_status === 'pool') && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 bg-black/70 border-zinc-500/40 text-zinc-300">Yeni</Badge>
+                    )}
+                    {clip.publish_status === 'scheduled' && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 bg-black/70 border-blue-500/40 text-blue-300">Takvimde</Badge>
+                    )}
+                    {clip.publish_status === 'published' && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 bg-black/70 border-emerald-500/40 text-emerald-300">Yayınlandı</Badge>
+                    )}
+                  </div>
+
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     {clip.score_band && (
                       <Badge variant="outline" className="text-[9px] px-1 py-0 bg-black/70 border-violet-500/40 text-violet-300">
