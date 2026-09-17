@@ -474,7 +474,13 @@ class AutoPilotManager:
                         continue
                     candidate_new.append(v)
 
-                new_videos = candidate_new[:5]
+                new_videos = []
+                if candidate_new:
+                    new_videos = candidate_new[:1]
+                    # Geri kalan güncel olmayanları bir daha sıraya girmemeleri için atla
+                    for skipped_vid in candidate_new[1:]:
+                        logger.info("Video '{}' ({}) sistemin 1 adet yeni video sınırından dolayı atlandı.", skipped_vid.get("title", ""), skipped_vid["id"])
+                        self.db.record_processed_video(ch_url, skipped_vid["id"], skipped_vid.get("title", ""))
 
                 if not new_videos:
                     self.db.update_tracked_channel_checked(ch_url)
@@ -562,6 +568,9 @@ class AutoPilotManager:
                     candidate_new.append(v)
 
                 to_queue = candidate_new[:max_videos_per_channel]
+                for skipped_vid in candidate_new[max_videos_per_channel:]:
+                    logger.info("Video '{}' ({}) sistemin yeni video sınırından dolayı atlandı.", skipped_vid.get("title", ""), skipped_vid["id"])
+                    self.db.record_processed_video(ch_url, skipped_vid["id"], skipped_vid.get("title", ""))
 
                 for vid in to_queue:
                     vid_id = vid["id"]
