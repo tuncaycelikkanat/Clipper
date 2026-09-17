@@ -229,8 +229,6 @@ class ChannelFeed:
                     v["published_at"] = rss_map[v["id"]].get("published_at", "")
                     if not v.get("upload_date"):
                         v["upload_date"] = rss_map[v["id"]].get("upload_date", "")
-                else:
-                    v["is_older_than_rss"] = True
             # Include any RSS videos not extracted by flat extraction
             existing_ids = {v["id"] for v in videos}
             for rv in reversed(rss_videos):
