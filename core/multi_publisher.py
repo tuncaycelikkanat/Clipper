@@ -53,6 +53,7 @@ class MultiPublisher:
         description_override: str | None = None,
         source_video_id: str | None = None,
         source_video_url: str | None = None,
+        channel_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Publish a rendered clip to selected platforms (YouTube Shorts, Instagram Reels, TikTok).
@@ -65,12 +66,17 @@ class MultiPublisher:
             video_title: Source video title.
             scheduled_at: ISO-8601 UTC timestamp for YouTube scheduling.
             playlist_id: YouTube playlist ID.
+            channel_data: Optional dict with channel info including youtube_username and instagram_username.
 
         Returns:
             Dict mapping platform name to result dict {"status": "success"/"failed", "url": ..., "error": ...}.
         """
         target_platforms = [p.lower().strip() for p in (platforms or ["youtube"])]
         results: dict[str, Any] = {}
+        ch = channel_data or {}
+        youtube_username = ch.get("youtube_username") or ""
+        instagram_username = ch.get("instagram_username") or ""
+        channel_name = ch.get("name") or ""
 
         if not os.path.exists(render_path):
             raise FileNotFoundError(f"Render dosyası bulunamadı: {render_path}")
@@ -82,6 +88,12 @@ class MultiPublisher:
             if "#Shorts" not in title:
                 title = f"{title} #Shorts"
             tags = ["shorts", "gaming", "oyun", "highlights"]
+            # Instagram için yine de platform-specific caption üret
+            ig_caption = InstagramUploader.generate_caption(
+                clip=clip,
+                instagram_username=f"@{instagram_username}" if instagram_username else "",
+                tags=tags,
+            )
         else:
             try:
                 # Orijinal etiketleri DB'den çek
@@ -102,11 +114,22 @@ class MultiPublisher:
                     hook_caption=clip.get("hook_caption", ""),
                     category=clip.get("category", "GAMING"),
                     video_title=video_title,
+                    channel_name=channel_name,
+                    youtube_username=youtube_username,
+                    instagram_username=instagram_username,
                     original_tags=orig_tags_list,
                 )
                 title = seo_data.get("title", f"{clip.get('title')} #Shorts")
                 desc = seo_data.get("description", YouTubeUploader.generate_description(clip, video_title))
                 tags = seo_data.get("tags", ["shorts", "gaming", "oyun", "highlights"])
+                # Instagram için AI'nin ürettiği ayrı caption
+                ig_caption_ai = seo_data.get("instagram_caption", "")
+                ig_caption = InstagramUploader.generate_caption(
+                    clip=clip,
+                    instagram_username=f"@{instagram_username}" if instagram_username else "",
+                    tags=tags,
+                    instagram_caption_override=ig_caption_ai,
+                )
             except Exception as e:
                 logger.warning(f"DeepSeek SEO üretimi başarısız (Fallback kullanılıyor): {e}")
                 title = clip.get("title", "Gaming Highlight #Shorts")
@@ -114,6 +137,11 @@ class MultiPublisher:
                     title = f"{title} #Shorts"
                 desc = clip.get("description") or YouTubeUploader.generate_description(clip, video_title)
                 tags = ["shorts", "gaming", "oyun", "highlights"]
+                ig_caption = InstagramUploader.generate_caption(
+                    clip=clip,
+                    instagram_username=f"@{instagram_username}" if instagram_username else "",
+                    tags=tags,
+                )
 
         # 1. YouTube Shorts
         if "youtube" in target_platforms:
@@ -144,8 +172,6 @@ class MultiPublisher:
         if "instagram" in target_platforms:
             if self.instagram.is_authenticated():
                 try:
-                    # Shorts ile birebir aynı açıklamayı ve etiketleri kullan
-                    ig_caption = desc
                     ig_res = self.instagram.upload_reel(
                         video_path=render_path,
                         caption=ig_caption,
@@ -165,3 +191,4 @@ class MultiPublisher:
                 results["instagram"] = {"status": "skipped", "error": "Instagram oturumu açık değil."}
 
         return results
+

@@ -29,6 +29,8 @@ class ChannelCreateRequest(BaseModel):
     auto_upload: bool = True
     check_interval_h: float = 2.0
     target_playlist: str | None = None
+    youtube_username: str | None = None
+    instagram_username: str | None = None
 
 
 class ChannelUpdateRequest(BaseModel):
@@ -37,6 +39,8 @@ class ChannelUpdateRequest(BaseModel):
     auto_upload: bool | None = None
     active: bool | None = None
     check_interval_h: float | None = None
+    youtube_username: str | None = None
+    instagram_username: str | None = None
 
 
 @router.get("")
@@ -65,6 +69,8 @@ async def create_channel(body: ChannelCreateRequest):
         min_score=body.min_score,
         target_playlist=body.target_playlist,
         auto_upload=1 if body.auto_upload else 0,
+        youtube_username=body.youtube_username,
+        instagram_username=body.instagram_username,
     )
     with db._connect() as conn:
         row = conn.execute("SELECT * FROM tracked_channels WHERE id = ?", (channel_id,)).fetchone()
@@ -112,9 +118,35 @@ async def delete_channel(channel_id: str):
     return {"deleted": True}
 
 
+class ChannelBatchDeleteRequest(BaseModel):
+    channel_ids: list[str] = []
+    all: bool = False
+
+
+@router.post("/batch-delete")
+async def batch_delete_channels(body: ChannelBatchDeleteRequest):
+    db = _db()
+    with db._connect() as conn:
+        if body.all:
+            cur = conn.execute("DELETE FROM tracked_channels")
+            deleted = cur.rowcount
+        elif body.channel_ids:
+            placeholders = ",".join("?" for _ in body.channel_ids)
+            cur = conn.execute(
+                f"DELETE FROM tracked_channels WHERE id IN ({placeholders}) OR url IN ({placeholders})",
+                body.channel_ids + body.channel_ids,
+            )
+            deleted = cur.rowcount
+        else:
+            deleted = 0
+        conn.commit()
+    return {"deleted_count": deleted}
+
+
 class ChannelScanRequest(BaseModel):
     exclude: str | None = None
     max_per_channel: int = 1
+    max_age_days: int = 7
 
 
 @router.post("/scan-latest")
@@ -126,9 +158,11 @@ async def scan_latest_channel_videos(body: ChannelScanRequest | None = None):
     ap = AutoPilotManager(db=db)
     exclude_str = body.exclude if body and body.exclude else None
     max_count = body.max_per_channel if body else 1
+    max_age = body.max_age_days if body and body.max_age_days is not None else 7
     excludes = [k.strip() for k in exclude_str.split(",") if k.strip()] if exclude_str else []
     result = ap.scan_and_queue_latest_channels(
         exclude_keywords=excludes,
         max_videos_per_channel=max_count,
+        max_age_days=max_age,
     )
     return result

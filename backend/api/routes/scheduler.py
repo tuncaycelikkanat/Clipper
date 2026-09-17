@@ -21,8 +21,15 @@ class SchedulerStartRequest(BaseModel):
     interval_hours: float = 2.0
 
 
+class PublisherStartRequest(BaseModel):
+    interval_minutes: int = 2
+
+
+# ── Backward-Compatible Full Scheduler Endpoints ──────────────────────────────
+
+
 @router.post("/start")
-async def start_scheduler(body: SchedulerStartRequest):
+async def start_scheduler(body: SchedulerStartRequest = SchedulerStartRequest()):
     ok = AutoPilotManager.start_background_worker(interval_hours=body.interval_hours)
     return {"started": ok, **AutoPilotManager.get_background_worker_info()}
 
@@ -30,7 +37,40 @@ async def start_scheduler(body: SchedulerStartRequest):
 @router.post("/stop")
 async def stop_scheduler():
     ok = AutoPilotManager.stop_background_worker()
-    return {"stopped": ok}
+    return {"stopped": ok, **AutoPilotManager.get_background_worker_info()}
+
+
+# ── Dedicated Video Scanner Endpoints ─────────────────────────────────────────
+
+
+@router.post("/video-scanner/start")
+async def start_video_scanner(body: SchedulerStartRequest = SchedulerStartRequest()):
+    ok = AutoPilotManager.start_video_scanner(interval_hours=body.interval_hours)
+    return {"started": ok, **AutoPilotManager.get_background_worker_info()}
+
+
+@router.post("/video-scanner/stop")
+async def stop_video_scanner():
+    ok = AutoPilotManager.stop_video_scanner()
+    return {"stopped": ok, **AutoPilotManager.get_background_worker_info()}
+
+
+# ── Dedicated Clip Publisher Endpoints ────────────────────────────────────────
+
+
+@router.post("/clip-publisher/start")
+async def start_clip_publisher(body: PublisherStartRequest = PublisherStartRequest()):
+    ok = AutoPilotManager.start_clip_publisher(interval_minutes=body.interval_minutes)
+    return {"started": ok, **AutoPilotManager.get_background_worker_info()}
+
+
+@router.post("/clip-publisher/stop")
+async def stop_clip_publisher():
+    ok = AutoPilotManager.stop_clip_publisher()
+    return {"stopped": ok, **AutoPilotManager.get_background_worker_info()}
+
+
+# ── Unified Status Endpoint ───────────────────────────────────────────────────
 
 
 @router.get("/status")

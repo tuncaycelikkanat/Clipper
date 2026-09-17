@@ -42,10 +42,10 @@ class AIThumbnailEngine:
     )
 
     IMAGE_MODELS = [
-        "gemini-2.0-flash-exp",
-        "gemini-2.5-flash-image",
-        "imagen-3.0-generate-002",
         "gemini-3.1-flash-image",
+        "gemini-3.1-flash-lite-image",
+        "imagen-3.0-generate-002",
+        "gemini-2.5-flash-image",
     ]
 
     def __init__(self, api_key: str | None = None):

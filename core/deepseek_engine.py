@@ -182,6 +182,8 @@ Lütfen şu JSON formatında yanıt ver:
         category: str = "GAMING",
         video_title: str = "",
         channel_name: str = "",
+        youtube_username: str = "",
+        instagram_username: str = "",
         original_tags: list[str] | None = None,
         api_key: str | None = None,
         raise_on_error: bool = False,
@@ -189,39 +191,57 @@ Lütfen şu JSON formatında yanıt ver:
         """Generate high-CTR organic, human-like Turkish title, interactive description, and tags using DeepSeek."""
         client, model, provider_label = cls.get_client_and_model(api_key)
 
+        yt_credit = f"@{youtube_username}" if youtube_username else (f"@{channel_name}" if channel_name else "yayıncı")
+        ig_credit = f"@{instagram_username}" if instagram_username else ""
+
         system_prompt = (
             "Sen Türkiye'nin en popüler Twitch ve YouTube Gaming klip kanallarını yöneten kıdemli bir Shorts/TikTok editörüsün.\n\n"
             "GÖREVİN:\n"
-            "Verilen oyun klibi için ASLA robotik, yapay zeka kokan ('İnanılmaz An!', 'Şok Etti!', 'Tarihi An!', 'Bunu Kimse Beklemiyordu') "
-            "klişeler KULLANMADAN; tamamen gerçek bir oyun/yayın izleyicisinin ağzından samimi, dikkat çekici, merak uyandıran veya güldüren "
-            "organik başlık, açıklama ve etiketler üretmek.\n\n"
+            "Verilen oyun klibi için ASLA robotik, yapay zeka kokan ('İnanılmaz An!', 'Şok Etti!', 'Tarihi An!', 'Bunu Kimse Beklemiyordu', "
+            "'Gaming Highlight', 'Epic Moment') klişeler KULLANMADAN; tamamen gerçek bir oyun/yayın izleyicisinin ağzından samimi, "
+            "dikkat çekici, merak uyandıran veya güldüren organik başlık, açıklama ve etiketler üretmek.\n\n"
             "İNSANSI BAŞLIK REHBERİ (Aşağıdaki tarzlardan duruma en uygun olanını seç):\n"
-            "1. Doğal Reaksiyon / Durum: 'Burada ölürsem oyunu silerim dedi ve...', 'Hiç beklemediğim yerden çıktı ahahah', 'Son saniyede gelen o panik'\n"
-            "2. Merak / Olay Örgüsü: 'O pozisyonda ne yapmaya çalıştı acaba?', '1 canla kurtulduğu o an', 'Oyunun en saçma bug'ı olabilir'\n"
-            "3. İzleyiciye Soru / Tartışma: 'Sizce burada şans mı var bilek mi?', 'Bu pozisyonda ne yapardınız?'\n"
-            "4. Format Kuralı: Maksimum 80-90 karakter, doğal konuşma dili, 1-2 samimi emoji (😂, 💀, 🤦‍♂️, 🔥, 🎯, 😭) ve sonunda '#Shorts'. "
-            "ASLA BÜTÜN KELİMELERİ BÜYÜK HARFLE YAZMA (Caps Lock abartma).\n\n"
-            "İNSANSI AÇIKLAMA REHBERİ:\n"
-            "- Asla 'Category: GAMING' veya 'Açıklama: ...' gibi teknik veya robotik kalıplar kullanma!\n"
-            "- 1-2 cümlelik samimi ve eğlenceli olay özeti + izleyiciye yorum sorusu (etkileşim için).\n"
-            "- AÇIKLAMANIN İÇİNE VEYA SONUNA ORİJİNAL VİDEO İSMİNİ/LİNKİNİ ASLA EKLEME.\n"
+            "1. Transkriptten direkt replik alıntısı: 'burada ölürsem oyunu silerim dedi ve...', 'abi arkanda arkandaaaa! 💀'\n"
+            "2. Doğal Reaksiyon / Durum: 'Hiç beklemediğim yerden çıktı ahahah', 'Son saniyede gelen o panik'\n"
+            "3. Merak / Olay Örgüsü: 'O pozisyonda ne yapmaya çalıştı acaba?', '1 canla kurtulduğu o an'\n"
+            "4. İzleyiciye Soru / Tartışma: 'Sizce burada şans mı var bilek mi?', 'Bu pozisyonda ne yapardınız?'\n"
+            "5. Format Kuralı: Maksimum 80-90 karakter, doğal konuşma dili, 1-2 samimi emoji (😂, 💀, 🤦‍♂️, 🔥, 🎯, 😭) ve sonunda '#Shorts'. "
+            "ASLA BÜTÜN KELİMELERİ BÜYÜK HARFLE YAZMA. ASLA 'Gaming Highlight', 'Epic', 'Amazing', 'Incredible' gibi İngilizce klişe kullanma.\n\n"
+            "İNSANSI AÇIKLAMA REHBERİ (YouTube Shorts için):\n"
+            "- Asla 'Category: GAMING' veya robotik kalıplar kullanma!\n"
+            "- 1-2 cümlelik samimi ve eğlenceli olay özeti + izleyiciye yorum sorusu.\n"
+            f"- Yayıncı kredisi: '🎮 {yt_credit}' şeklinde gerçek @kullanıcıadı kullan.\n"
+            "- AÇIKLAMANIN İÇİNE ORİJİNAL VİDEO LİNKİNİ ASLA EKLEME.\n"
             "- 4-6 adet temiz ve ilgili hashtag (#oyunadi #gaming #shorts #kesitler #oyun vb.).\n\n"
-            "ETİKETLER (Tags):\n"
-            "- Oyunun tam adı, yayıncının adı, klipteki olayın terimleri (örn: ['valorant', 'clutch', 'ace', 'twitch türkiye', 'oyun kesitleri']).\n"
-            "- İPUCU: Eğer sana Orijinal Video Etiketleri verilmişse, içeriğin ve oyunun ne olduğunu anlamak için o etiketleri baz al (Örn: Orijinal etiketlerde 'Minecraft' geçiyorsa, sen de 'minecraft' etiketi ekle ve konuyu ona göre yorumla)."
+            "ETİKETLER (tags — YouTube için):\n"
+            "- Oyunun tam adı, yayıncının adı, klipteki olayın terimleri (örn: ['valorant', 'clutch', 'ace', 'twitch türkiye']).\n"
+            "- Eğer Orijinal Video Etiketleri verilmişse, oyunu ve konuyu onlardan çıkar.\n\n"
+            "INSTAGRAM CAPTION (Instagram Reels için ayrı alan):\n"
+            "- İlk satır: Klipten çekici 1-2 cümle (başlık görevi görür) — #Shorts EKLEME.\n"
+            "- Yoruma teşvik eden kısa bir soru.\n"
+            f"- {'📌 ' + ig_credit + chr(10) if ig_credit else ''}"
+            "- En az 20 hashtag: #reels #fyp #gaming #oyun #twitch #türkçeyayın #keşfet #viral ve oyuna/yayıncıya özel taglar.\n"
+            "- Caption toplam 300-500 karakter arası olsun."
         )
 
-        user_prompt = f"""
-Klip Bilgileri:
+        tags_hint = ""
+        if original_tags:
+            tags_hint = f"\nOrijinal Video Etiketleri (Oyun/Konu İpucu): {', '.join(original_tags[:15])}"
+
+        user_prompt = f"""Klip Bilgileri:
 - Orijinal Video / Kanal: {video_title}
+- Yayıncı Adı: {channel_name or 'Bilinmiyor'}
+- YouTube Kullanıcı Adı: {yt_credit}
+- Instagram Kullanıcı Adı: {ig_credit or 'Yok'}
 - Klip Başlığı: {clip_title}
 - Kategori: {category}
-- Kanca Cümle / Olay: "{hook_caption}"
+- Kanca Cümle / Olay: "{hook_caption}"{tags_hint}
 
 Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
 {{
   "title": "Samimi, merak uyandıran veya güldüren doğal Türkçe başlık 😂 #Shorts",
-  "description": "Arkadan geleni fark etmeyince olanlar oldu ahahah. Sizce bu pozisyonda ne yapmalıydı?\\n\\\n\\n#oyun #shorts #gaming #kesitler #komik",
+  "description": "Arkadan geleni fark etmeyince olanlar oldu ahahah. Sizce bu pozisyonda ne yapmalıydı?\\n\\n🎮 {yt_credit}\\n\\n#oyun #shorts #gaming #kesitler #komik",
+  "instagram_caption": "Gece 3'te ekiple bu pozisyona düştük 😭 Siz olsaydınız ne yapardınız?\\n\\n#reels #fyp #gaming #oyun #twitch #türkçeyayın #keşfet #viral #shorts #komik #highlight #twitch #youtube #gamingturkiye #oyunkesitleri #türkçeoyun #akıntı #clutch #türkiye #gamer",
   "tags": ["oyun_adi", "yayin_kesitleri", "gaming", "shorts", "turkce_oyun"]
 }}
 """
@@ -235,7 +255,7 @@ Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.75,
-                max_tokens=300,
+                max_tokens=600,
             )
             raw_text = response.choices[0].message.content or "{}"
             data = json.loads(raw_text)
@@ -243,6 +263,7 @@ Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
             return {
                 "title": data.get("title", f"{clip_title} #Shorts"),
                 "description": data.get("description", f"{hook_caption}\n\n\n#Shorts #Gaming"),
+                "instagram_caption": data.get("instagram_caption", data.get("description", "")),
                 "tags": data.get("tags", [video_title.lower(), "shorts", "gaming"]),
                 "provider": provider_label,
             }
@@ -250,10 +271,30 @@ Lütfen samimi ve insansı bir üslupla şu JSON formatında yanıt ver:
             logger.error(f"{provider_label} API error: {exc}")
             if raise_on_error:
                 raise
-            clean_t = f"{clip_title} #Shorts" if not clip_title.endswith("#Shorts") else clip_title
+            # İnsansı fallback — klip kategorisine göre farklı kalıplar
+            category_up = category.upper()
+            if any(k in category_up for k in ["CLUTCH", "EPIC"]):
+                fallback_title = f"Son saniyede gelen o {clip_title.split()[0] if clip_title else 'pozisyon'} 🎯 #Shorts"
+            elif any(k in category_up for k in ["FUNNY", "FAIL", "RAGE"]):
+                fallback_title = f"Bunu beklemiyordu ahahah 😂 #Shorts"
+            else:
+                hook_words = hook_caption.split()[:4] if hook_caption else []
+                fallback_title = (" ".join(hook_words) + "... #Shorts") if hook_words else f"{clip_title} 🎮 #Shorts"
+            ig_fallback_caption = (
+                f"{hook_caption or clip_title}\n\n"
+                f"Siz olsaydınız ne yapardınız? 👇\n\n"
+                f"{'📌 ' + ig_credit + chr(10) if ig_credit else ''}"
+                "#reels #fyp #gaming #oyun #twitch #türkçeyayın #keşfet #viral #shorts "
+                "#komik #highlight #gamingturkiye #oyunkesitleri #türkçeoyun #gamer #clutch #türkiye #twitch"
+            )
             return {
-                "title": clean_t,
-                "description": f"{hook_caption or clip_title}\n\n#Shorts #Gaming",
-                "tags": [category.lower(), "shorts", "gaming"],
+                "title": fallback_title,
+                "description": (
+                    f"{hook_caption or clip_title}\n\n"
+                    f"🎮 {yt_credit}\n\n"
+                    "#Shorts #Gaming #OyunKesitleri"
+                ),
+                "instagram_caption": ig_fallback_caption,
+                "tags": [category.lower(), "shorts", "gaming", "oyun"],
                 "provider": "Heuristic Fallback",
             }

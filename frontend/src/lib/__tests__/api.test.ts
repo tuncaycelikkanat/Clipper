@@ -52,6 +52,10 @@ describe('api client', () => {
     // scheduler
     expect(await api.scheduler.start(2.0)).toEqual(mockJson)
     expect(await api.scheduler.stop()).toEqual(mockJson)
+    expect(await api.scheduler.startVideoScanner(2.0)).toEqual(mockJson)
+    expect(await api.scheduler.stopVideoScanner()).toEqual(mockJson)
+    expect(await api.scheduler.startClipPublisher(2)).toEqual(mockJson)
+    expect(await api.scheduler.stopClipPublisher()).toEqual(mockJson)
     expect(await api.scheduler.status()).toEqual(mockJson)
 
     // upload

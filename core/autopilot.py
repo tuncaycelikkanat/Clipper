@@ -23,6 +23,9 @@ from core.thumbnail import ThumbnailGenerator
 from core.uploader import YouTubeUploader
 
 
+_PUBLISH_LOCK = threading.Lock()
+
+
 class AutoPilotManager:
     """Otonom kanal takip, klip stoklama ve akıllı zamanlanmış yayın yöneticisi."""
 
@@ -30,9 +33,18 @@ class AutoPilotManager:
     _lock = threading.Lock()
     _worker_info: dict[str, Any] = {
         "running": False,
+        "video_scanner_running": False,
+        "clip_publisher_running": False,
         "interval_hours": 2.0,
+        "scanner_interval_hours": 2.0,
+        "publisher_interval_minutes": 2,
         "last_run": None,
         "next_run": None,
+        "last_scanner_run": None,
+        "next_scanner_run": None,
+        "last_publisher_run": None,
+        "next_publisher_run": None,
+        "cycle_count": 0,
     }
 
     def __init__(
@@ -84,78 +96,174 @@ class AutoPilotManager:
             return bool(cls._worker_info.get("running", False))
 
     @classmethod
-    def start_background_worker(cls, interval_hours: float = 2.0, db: DatabaseManager | None = None) -> bool:
-        try:
-            from apscheduler.schedulers.background import BackgroundScheduler
+    def is_video_scanner_running(cls) -> bool:
+        with cls._lock:
+            return bool(cls._worker_info.get("video_scanner_running", False))
 
-            if cls._worker_scheduler and cls._worker_scheduler.running:
-                cls._worker_scheduler.shutdown(wait=False)
+    @classmethod
+    def is_clip_publisher_running(cls) -> bool:
+        with cls._lock:
+            return bool(cls._worker_info.get("clip_publisher_running", False))
 
+    @classmethod
+    def _ensure_scheduler_started(cls) -> None:
+        from apscheduler.schedulers.background import BackgroundScheduler
+
+        if cls._worker_scheduler is None or not cls._worker_scheduler.running:
             cls._worker_scheduler = BackgroundScheduler(timezone="UTC")
+            cls._worker_scheduler.start()
+
+    @classmethod
+    def _stop_scheduler_if_idle(cls) -> None:
+        if cls._worker_scheduler and cls._worker_scheduler.running:
+            has_scanner = cls._worker_info.get("video_scanner_running", False)
+            has_publisher = cls._worker_info.get("clip_publisher_running", False)
+            if not has_scanner and not has_publisher:
+                cls._worker_scheduler.shutdown(wait=False)
+                cls._worker_scheduler = None
+
+    @classmethod
+    def start_video_scanner(cls, interval_hours: float = 2.0, db: DatabaseManager | None = None) -> bool:
+        """Kanal tarayıcısını (yeni videoları tespit edip sıraya ekleyen döngü) başlatır."""
+        try:
+            cls._ensure_scheduler_started()
             inst = cls(db=db)
 
-            def job():
+            def scanner_job():
                 with cls._lock:
-                    cls._worker_info["last_run"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                inst.run_cycle()
-                inst.publish_due_socials()
-
-            def publish_tick():
+                    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    cls._worker_info["last_scanner_run"] = now_str
+                    cls._worker_info["last_run"] = now_str
+                    cls._worker_info["cycle_count"] = cls._worker_info.get("cycle_count", 0) + 1
                 try:
-                    inst.publish_due_socials()
+                    inst.run_cycle()
                 except Exception as e:
-                    logger.debug("Publish tick error: {}", e)
+                    logger.error("AutoPilot scanner cycle error: {}", e)
 
             cls._worker_scheduler.add_job(
-                job,
+                scanner_job,
                 "interval",
                 hours=interval_hours,
                 id="autopilot_cycle_job",
                 replace_existing=True,
             )
-            cls._worker_scheduler.add_job(
-                publish_tick,
-                "interval",
-                minutes=1,
-                id="autopilot_publish_tick",
-                replace_existing=True,
-            )
-            cls._worker_scheduler.start()
             with cls._lock:
-                cls._worker_info = {
-                    "running": True,
-                    "interval_hours": interval_hours,
-                    "last_run": None,
-                    "next_run": (
-                        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=interval_hours)
-                    ).isoformat(),
-                }
-            logger.info("AutoPilot background worker started (interval: {}h).", interval_hours)
+                now_utc = datetime.datetime.now(datetime.timezone.utc)
+                cls._worker_info["video_scanner_running"] = True
+                cls._worker_info["scanner_interval_hours"] = interval_hours
+                cls._worker_info["interval_hours"] = interval_hours
+                cls._worker_info["next_scanner_run"] = (
+                    now_utc + datetime.timedelta(hours=interval_hours)
+                ).isoformat()
+                cls._worker_info["next_run"] = cls._worker_info["next_scanner_run"]
+                cls._worker_info["running"] = True
+            logger.info("AutoPilot video scanner started (interval: {}h).", interval_hours)
             return True
         except Exception as e:
-            logger.error("Failed to start AutoPilot background worker: {}", e)
+            logger.error("Failed to start AutoPilot video scanner: {}", e)
             with cls._lock:
-                cls._worker_info["running"] = False
+                cls._worker_info["video_scanner_running"] = False
+                cls._worker_info["running"] = bool(cls._worker_info.get("clip_publisher_running", False))
             return False
 
     @classmethod
-    def stop_background_worker(cls) -> bool:
+    def stop_video_scanner(cls) -> bool:
+        """Kanal tarayıcısını durdurur."""
         try:
             if cls._worker_scheduler and cls._worker_scheduler.running:
-                cls._worker_scheduler.shutdown(wait=False)
-            cls._worker_scheduler = None
+                try:
+                    cls._worker_scheduler.remove_job("autopilot_cycle_job")
+                except Exception:
+                    pass
             with cls._lock:
-                cls._worker_info = {
-                    "running": False,
-                    "interval_hours": 2.0,
-                    "last_run": None,
-                    "next_run": None,
-                }
-            logger.info("AutoPilot background worker stopped.")
+                cls._worker_info["video_scanner_running"] = False
+                cls._worker_info["next_scanner_run"] = None
+                cls._worker_info["running"] = bool(cls._worker_info.get("clip_publisher_running", False))
+                if not cls._worker_info["running"]:
+                    cls._worker_info["next_run"] = None
+            cls._stop_scheduler_if_idle()
+            logger.info("AutoPilot video scanner stopped.")
             return True
         except Exception as e:
-            logger.error("Failed to stop AutoPilot background worker: {}", e)
+            logger.error("Failed to stop AutoPilot video scanner: {}", e)
             return False
+
+    @classmethod
+    def start_clip_publisher(cls, interval_minutes: int = 2, db: DatabaseManager | None = None) -> bool:
+        """Zamanı gelen klipleri YouTube & Instagram'a yayınlayan periyodik servisi başlatır."""
+        try:
+            cls._ensure_scheduler_started()
+            inst = cls(db=db)
+
+            def publisher_tick():
+                try:
+                    with cls._lock:
+                        now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                        cls._worker_info["last_publisher_run"] = now_str
+                    inst.publish_due_socials()
+                except Exception as e:
+                    logger.debug("Publish tick error: {}", e)
+
+            cls._worker_scheduler.add_job(
+                publisher_tick,
+                "interval",
+                minutes=interval_minutes,
+                id="autopilot_publish_tick",
+                replace_existing=True,
+                max_instances=1,
+            )
+            with cls._lock:
+                now_utc = datetime.datetime.now(datetime.timezone.utc)
+                cls._worker_info["clip_publisher_running"] = True
+                cls._worker_info["publisher_interval_minutes"] = interval_minutes
+                cls._worker_info["next_publisher_run"] = (
+                    now_utc + datetime.timedelta(minutes=interval_minutes)
+                ).isoformat()
+                cls._worker_info["running"] = True
+            logger.info("AutoPilot clip publisher started (interval: {}m).", interval_minutes)
+            return True
+        except Exception as e:
+            logger.error("Failed to start AutoPilot clip publisher: {}", e)
+            with cls._lock:
+                cls._worker_info["clip_publisher_running"] = False
+                cls._worker_info["running"] = bool(cls._worker_info.get("video_scanner_running", False))
+            return False
+
+    @classmethod
+    def stop_clip_publisher(cls) -> bool:
+        """Klip yayınlayıcı servisini durdurur."""
+        try:
+            if cls._worker_scheduler and cls._worker_scheduler.running:
+                try:
+                    cls._worker_scheduler.remove_job("autopilot_publish_tick")
+                except Exception:
+                    pass
+            with cls._lock:
+                cls._worker_info["clip_publisher_running"] = False
+                cls._worker_info["next_publisher_run"] = None
+                cls._worker_info["running"] = bool(cls._worker_info.get("video_scanner_running", False))
+                if not cls._worker_info["running"]:
+                    cls._worker_info["next_run"] = None
+            cls._stop_scheduler_if_idle()
+            logger.info("AutoPilot clip publisher stopped.")
+            return True
+        except Exception as e:
+            logger.error("Failed to stop AutoPilot clip publisher: {}", e)
+            return False
+
+    @classmethod
+    def start_background_worker(cls, interval_hours: float = 2.0, db: DatabaseManager | None = None) -> bool:
+        """Hem kanal tarayıcıyı hem de klip yayınlayıcıyı başlatır (Geriye dönük uyumluluk)."""
+        ok_scan = cls.start_video_scanner(interval_hours=interval_hours, db=db)
+        ok_pub = cls.start_clip_publisher(interval_minutes=2, db=db)
+        return ok_scan and ok_pub
+
+    @classmethod
+    def stop_background_worker(cls) -> bool:
+        """Tüm arka plan servislerini durdurur (Geriye dönük uyumluluk)."""
+        ok_scan = cls.stop_video_scanner()
+        ok_pub = cls.stop_clip_publisher()
+        return ok_scan and ok_pub
 
     # ------------------------------------------------------------------
     # Channel Management Delegates
@@ -168,16 +276,26 @@ class AutoPilotManager:
         min_score: int = 90,
         target_playlist: str | None = None,
         auto_upload: bool = True,
+        auto_anchor: bool = True,
     ) -> str:
         clean_url = url.strip()
         clean_name = name.strip() or clean_url.split("/")[-1]
-        return self.db.add_tracked_channel(
+        ch_id = self.db.add_tracked_channel(
             url=clean_url,
             name=clean_name,
             min_score=min_score,
             target_playlist=target_playlist,
             auto_upload=1 if auto_upload else 0,
         )
+        if auto_anchor:
+            try:
+                recent_videos = self.feed.get_channel_videos(clean_url, max_count=30)
+                for v in recent_videos:
+                    self.db.record_processed_video(clean_url, v["id"], v.get("title", ""))
+                logger.info("Auto-anchored {} existing videos for channel: {}", len(recent_videos), clean_name)
+            except Exception as e:
+                logger.debug("Failed to auto-anchor channel {}: {}", clean_name, e)
+        return ch_id
 
     def get_tracked_channels(self, active_only: bool = True) -> list[dict[str, Any]]:
         return self.db.get_tracked_channels(active_only=active_only)
@@ -309,7 +427,10 @@ class AutoPilotManager:
         return {"channels": len(channels), "recorded": recorded_total, "errors": backfill_errors}
 
     def run_cycle(
-        self, api_key: str | None = None, progress_callback: Callable[[str], None] | None = None
+        self,
+        api_key: str | None = None,
+        max_age_days: int | None = 7,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         cb = progress_callback or (lambda msg: None)
         channels = self.get_tracked_channels(active_only=True)
@@ -338,7 +459,17 @@ class AutoPilotManager:
                     continue
 
                 processed_ids = self.db.get_processed_video_ids(ch_url)
-                candidate_new = [v for v in recent_videos if v["id"] not in processed_ids]
+                candidate_new = []
+                for v in recent_videos:
+                    vid_id = v["id"]
+                    if vid_id in processed_ids or self.db.video_exists(vid_id):
+                        continue
+                    if self.feed.is_video_too_old(v, max_age_days):
+                        logger.info("Video '{}' ({}) {} günden eski olduğu için atlandı.", v.get("title", ""), vid_id, max_age_days)
+                        self.db.record_processed_video(ch_url, vid_id, v.get("title", ""))
+                        continue
+                    candidate_new.append(v)
+
                 new_videos = candidate_new[:5]
 
                 if not new_videos:
@@ -371,6 +502,7 @@ class AutoPilotManager:
         self,
         exclude_keywords: list[str] | None = None,
         max_videos_per_channel: int = 1,
+        max_age_days: int | None = 7,
         progress_callback: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         """Takip edilen aktif kanalları tarar ve son videoları işleme sırasına ekler."""
@@ -411,16 +543,18 @@ class AutoPilotManager:
                     continue
 
                 processed_ids = self.db.get_processed_video_ids(ch_url)
-                candidate_new = [
-                    v for v in recent_videos if v["id"] not in processed_ids and not self.db.video_exists(v["id"])
-                ]
-                to_queue = candidate_new[:max_videos_per_channel]
+                candidate_new = []
+                for v in recent_videos:
+                    vid_id = v["id"]
+                    if vid_id in processed_ids or self.db.video_exists(vid_id):
+                        continue
+                    if self.feed.is_video_too_old(v, max_age_days):
+                        logger.info("Video '{}' ({}) {} günden eski olduğu için atlandı.", v.get("title", ""), vid_id, max_age_days)
+                        self.db.record_processed_video(ch_url, vid_id, v.get("title", ""))
+                        continue
+                    candidate_new.append(v)
 
-                # Eğer hepsi işlenmiş görünüyorsa ama DB'de yoksa ilk videoyu al
-                if not to_queue and recent_videos:
-                    latest_v = recent_videos[0]
-                    if not self.db.video_exists(latest_v["id"]):
-                        to_queue = [latest_v]
+                to_queue = candidate_new[:max_videos_per_channel]
 
                 for vid in to_queue:
                     vid_id = vid["id"]
@@ -490,6 +624,27 @@ class AutoPilotManager:
                     conn.execute("UPDATE videos SET status='processing' WHERE id=?", (v_id,))
                     conn.commit()
 
+                # Kanalın bilgilerini DB'den çek (youtube_username, instagram_username dahil)
+                channel_data: dict[str, Any] = {}
+                with self.db._connect() as conn:
+                    ch_row = conn.execute(
+                        "SELECT * FROM tracked_channels WHERE url = ? LIMIT 1", (v_url,)
+                    ).fetchone()
+                    if not ch_row:
+                        # URL tam eşleşmeyebilir, uploader ile ara
+                        vid_row = conn.execute("SELECT uploader FROM videos WHERE id = ?", (v_id,)).fetchone()
+                        if vid_row and vid_row["uploader"]:
+                            ch_row = conn.execute(
+                                "SELECT * FROM tracked_channels WHERE name = ? LIMIT 1",
+                                (vid_row["uploader"],),
+                            ).fetchone()
+                    if ch_row:
+                        channel_data = dict(ch_row)
+
+                channel_name = channel_data.get("name") or ""
+                youtube_username = channel_data.get("youtube_username") or ""
+                instagram_username = channel_data.get("instagram_username") or ""
+
                 pipeline = ClipperPipeline(db=self.db)
                 results = pipeline.execute(
                     url=v_url,
@@ -509,14 +664,14 @@ class AutoPilotManager:
                     if not render_path or not os.path.exists(render_path):
                         continue
 
-                    # Copywriting & Metadata
+                    # Copywriting & Metadata (gerçek kanal adı ve username'lerle)
                     meta = self.copywriter.generate_shorts_metadata(
                         clip=clip,
                         video_title=v_title,
-                        channel_name="",
+                        channel_name=channel_name,
                     )
                     clip_title = meta.get("title", clip.get("title", "Highlight"))
-                    desc = meta.get("description", f"{clip_title}\n\n🎬 Orijinal: {v_url}")
+                    desc = meta.get("description", f"{clip_title}\n\n#Shorts #Gaming")
 
                     # Thumbnail
                     thumb_path = None
@@ -562,6 +717,7 @@ class AutoPilotManager:
                     conn.commit()
 
         return {"processed": processed_count, "errors": proc_errors}
+
 
     def _ensure_clip_rendered(self, clip_id: str, video_id: str, current_render_path: str | None) -> str | None:
         """Eğer render dosyası diskte yoksa veritabanındaki bilgilerle anında yeniden render eder."""
@@ -621,26 +777,30 @@ class AutoPilotManager:
         """Zamanı gelmiş videoları YouTube Shorts ve Instagram Reels platformlarında yayınlar."""
         from core.multi_publisher import MultiPublisher
 
-        multi_pub = MultiPublisher(
-            youtube_uploader=self.uploader, instagram_uploader=self.instagram, notifier=self.notifier, db=self.db
-        )
-        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        with self.db._connect() as conn:
-            due_items = conn.execute(
-                """
-                SELECT id, video_id, clip_id, title, render_path, thumbnail_path, scheduled_at, description, youtube_url, instagram_url
-                FROM autopilot_queue
-                WHERE scheduled_at <= ? AND status IN ('QUEUED', 'PARTIAL_FAILED')
-                ORDER BY scheduled_at ASC;
-            """,
-                (now_iso,),
-            ).fetchall()
-
-        if not due_items:
+        # Eşzamanlı yayınlama çakışmalarını engelle
+        if not _PUBLISH_LOCK.acquire(blocking=False):
+            logger.debug("publish_due_socials zaten başka bir thread tarafından çalıştırılıyor, atlandı.")
             return 0
+        try:
+            multi_pub = MultiPublisher(
+                youtube_uploader=self.uploader, instagram_uploader=self.instagram, notifier=self.notifier, db=self.db
+            )
+            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-        published_count = 0
-        for row in due_items:
+            with self.db._connect() as conn:
+                due_items = conn.execute(
+                    """
+                    SELECT id, video_id, clip_id, title, render_path, thumbnail_path, scheduled_at, description, youtube_url, instagram_url, retry_count, channel_url
+                    FROM autopilot_queue
+                    WHERE scheduled_at <= ? AND status IN ('QUEUED', 'PARTIAL_FAILED')
+                    ORDER BY scheduled_at ASC
+                    LIMIT 1;
+                """,
+                    (now_iso,),
+                ).fetchall()
+            if not due_items:
+                return 0
+            row = due_items[0]
             q_id = row["id"]
             video_id = row["video_id"]
             clip_id = row["clip_id"]
@@ -650,80 +810,104 @@ class AutoPilotManager:
             desc = row["description"]
             cur_yt_url = row["youtube_url"]
             cur_ig_url = row["instagram_url"]
-
+            cur_retries = int(row["retry_count"] or 0)
             target_platforms: list[str] = []
             if not cur_yt_url:
                 target_platforms.append("youtube")
             if not cur_ig_url:
                 target_platforms.append("instagram")
-
             if not target_platforms:
                 self.db.update_autopilot_queue_status(q_id, "PUBLISHED")
-                continue
-
+                return 1
+            # Başka bir tick'in aynı videoyu tekrar seçmesini engellemek için PUBLISHING yap
+            self.db.update_autopilot_queue_status(q_id, "PUBLISHING")
             valid_render_path = self._ensure_clip_rendered(clip_id, video_id, render_path)
             if not valid_render_path or not os.path.exists(valid_render_path):
-                err_msg = f"Render dosyası diskte bulunamadı ve yeniden oluşturulamadı: {render_path}"
+                err_msg = f"Render dosyası diskte bulunamadı: {render_path}"
                 logger.error("Queue item {} skipped: {}", q_id, err_msg)
                 self.db.update_autopilot_queue_status(q_id, "PARTIAL_FAILED", error_msg=err_msg)
-                continue
-
-            try:
-                logger.info("Publishing queue item {} ({}) to platforms: {}", q_id, title, target_platforms)
-                res = multi_pub.publish_clip(
-                    clip={"id": clip_id, "video_id": video_id, "title": title, "score": 95},
-                    render_path=valid_render_path,
-                    thumbnail_path=thumb_path,
-                    platforms=target_platforms,
-                    video_title=title,
-                    description_override=desc,
+                return 0
+            logger.info("Publishing queue item {} ({}) to platforms: {}", q_id, title, target_platforms)
+            # Kanal bilgilerini çek (youtube_username, instagram_username)
+            channel_data: dict[str, Any] = {}
+            channel_url = row.get("channel_url", "") if hasattr(row, "get") else ""
+            with self.db._connect() as conn:
+                ch_row = conn.execute(
+                    "SELECT * FROM tracked_channels WHERE url = ? LIMIT 1", (channel_url,)
+                ).fetchone()
+                if not ch_row and video_id:
+                    vid_row = conn.execute("SELECT uploader FROM videos WHERE id = ?", (video_id,)).fetchone()
+                    if vid_row and vid_row["uploader"]:
+                        ch_row = conn.execute(
+                            "SELECT * FROM tracked_channels WHERE name = ? LIMIT 1",
+                            (vid_row["uploader"],),
+                        ).fetchone()
+                if ch_row:
+                    channel_data = dict(ch_row)
+            res = multi_pub.publish_clip(
+                clip={"id": clip_id, "video_id": video_id, "title": title, "score": 95},
+                render_path=valid_render_path,
+                thumbnail_path=thumb_path,
+                platforms=target_platforms,
+                video_title=title,
+                description_override=desc,
+                channel_data=channel_data,
+            )
+            new_yt_url = res.get("youtube", {}).get("url") if res.get("youtube", {}).get("status") == "success" else None
+            new_ig_url = res.get("instagram", {}).get("url") if res.get("instagram", {}).get("status") == "success" else None
+            effective_yt = new_yt_url or cur_yt_url
+            effective_ig = new_ig_url or cur_ig_url
+            # KRİTİK: YouTube başarılı olduysa anında kaydet (Instagram patlasa bile YouTube tekrar yüklenmez!)
+            if new_yt_url:
+                self.db.update_autopilot_queue_status(q_id, "PUBLISHING", youtube_url=effective_yt)
+            errors: list[str] = []
+            if "youtube" in target_platforms and not new_yt_url:
+                errors.append(f"YouTube: {res.get('youtube', {}).get('error', 'failed')}")
+            if "instagram" in target_platforms and not new_ig_url:
+                errors.append(f"Instagram: {res.get('instagram', {}).get('error', 'failed')}")
+            if not errors:
+                self.db.update_autopilot_queue_status(
+                    q_id,
+                    "PUBLISHED",
+                    youtube_url=effective_yt,
+                    instagram_url=effective_ig,
+                    error_msg=None,
                 )
-
-                new_yt_url = res.get("youtube", {}).get("url") if res.get("youtube", {}).get("status") == "success" else None
-                new_ig_url = res.get("instagram", {}).get("url") if res.get("instagram", {}).get("status") == "success" else None
-
-                effective_yt = new_yt_url or cur_yt_url
-                effective_ig = new_ig_url or cur_ig_url
-
-                errors: list[str] = []
-                if "youtube" in target_platforms and not new_yt_url:
-                    yt_err = res.get("youtube", {}).get("error", "YouTube upload failed")
-                    errors.append(f"YouTube: {yt_err}")
-                if "instagram" in target_platforms and not new_ig_url:
-                    ig_err = res.get("instagram", {}).get("error", "Instagram upload failed")
-                    errors.append(f"Instagram: {ig_err}")
-
-                if not errors:
+                logger.success("Queue item {} successfully published to all platforms!", q_id)
+                return 1
+            else:
+                err_str = " | ".join(errors)
+                next_retries = cur_retries + 1
+                max_retries = 3
+                if next_retries >= max_retries:
+                    # Maksimum denemeye ulaşıldı -> Nihai başarısız veya kısmi yayınlandı
+                    final_status = "PARTIAL_PUBLISHED" if effective_yt else "FAILED"
                     self.db.update_autopilot_queue_status(
                         q_id,
-                        "PUBLISHED",
+                        final_status,
                         youtube_url=effective_yt,
                         instagram_url=effective_ig,
-                        error_msg=None,
+                        error_msg=f"Maksimum deneme ({max_retries}) aşıldı: {err_str}",
+                        retry_count=next_retries,
                     )
-                    published_count += 1
-                    logger.success("Queue item {} successfully published to all platforms!", q_id)
-                elif effective_yt or effective_ig:
-                    err_str = " | ".join(errors)
-                    self.db.update_autopilot_queue_status(
-                        q_id,
-                        "PARTIAL_FAILED",
-                        youtube_url=effective_yt,
-                        instagram_url=effective_ig,
-                        error_msg=err_str,
-                    )
-                    logger.warning("Queue item {} partially published: {}", q_id, err_str)
+                    logger.error("Queue item {} reached max retries, marked as {}: {}", q_id, final_status, err_str)
                 else:
-                    err_str = " | ".join(errors)
+                    # Exponential Backoff: 10 dk, 20 dk sonra tekrar dene (1 dakikada bir taciz etmeyi engelle)
+                    backoff_min = 10 * next_retries
+                    next_run_dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=backoff_min)
+                    next_run_iso = next_run_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
                     self.db.update_autopilot_queue_status(
                         q_id,
                         "PARTIAL_FAILED",
-                        error_msg=err_str,
+                        youtube_url=effective_yt,
+                        instagram_url=effective_ig,
+                        scheduled_at=next_run_iso,  # Saati ileriye ötele!
+                        error_msg=f"(Deneme {next_retries}/{max_retries}) {err_str}",
+                        retry_count=next_retries,
                     )
-                    logger.error("Queue item {} failed on all platforms: {}", q_id, err_str)
-
-            except Exception as e:
-                logger.error("Publish execution error for {}: {}", q_id, e)
-                self.db.update_autopilot_queue_status(q_id, "PARTIAL_FAILED", error_msg=str(e))
-
-        return published_count
+                    logger.warning(
+                        f"Queue item {q_id} kısmi hata aldı. {backoff_min} dk sonraya ({next_run_iso}) ertelendi. Hata: {err_str}"
+                    )
+                return 0
+        finally:
+            _PUBLISH_LOCK.release()

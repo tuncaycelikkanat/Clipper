@@ -124,6 +124,30 @@ async def delete_video(video_id: str):
     return {"deleted": True}
 
 
+class BatchVideoDeleteRequest(BaseModel):
+    video_ids: list[str] = []
+    all_pending: bool = False
+
+
+@router.post("/batch-delete")
+async def batch_delete_videos(body: BatchVideoDeleteRequest):
+    db = _db()
+    with db._connect() as conn:
+        if body.all_pending:
+            conn.execute("DELETE FROM clips WHERE video_id IN (SELECT id FROM videos WHERE status = 'pending')")
+            cur = conn.execute("DELETE FROM videos WHERE status = 'pending'")
+            deleted = cur.rowcount
+        elif body.video_ids:
+            placeholders = ",".join("?" for _ in body.video_ids)
+            conn.execute(f"DELETE FROM clips WHERE video_id IN ({placeholders})", body.video_ids)
+            cur = conn.execute(f"DELETE FROM videos WHERE id IN ({placeholders})", body.video_ids)
+            deleted = cur.rowcount
+        else:
+            deleted = 0
+        conn.commit()
+    return {"deleted_count": deleted}
+
+
 @router.post("/{video_id}/thumbnail")
 async def upload_video_thumbnail(video_id: str, file: UploadFile = File(...)):
     if not file.content_type or not file.content_type.startswith("image/"):

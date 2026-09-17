@@ -409,10 +409,53 @@ def test_background_worker_lifecycle(auto_db):
 
     info = AutoPilotManager.get_background_worker_info()
     assert info["running"] is True
+    assert info["video_scanner_running"] is True
+    assert info["clip_publisher_running"] is True
     assert info["interval_hours"] == 1.0
 
     stopped = AutoPilotManager.stop_background_worker()
     assert stopped is True
+    assert AutoPilotManager.is_background_worker_running() is False
+    assert AutoPilotManager.is_video_scanner_running() is False
+    assert AutoPilotManager.is_clip_publisher_running() is False
+
+
+def test_video_scanner_and_publisher_independent_lifecycle(auto_db):
+    AutoPilotManager.stop_background_worker()
+    assert AutoPilotManager.is_video_scanner_running() is False
+    assert AutoPilotManager.is_clip_publisher_running() is False
+
+    # 1. Start only clip publisher
+    pub_ok = AutoPilotManager.start_clip_publisher(interval_minutes=2, db=auto_db)
+    assert pub_ok is True
+    assert AutoPilotManager.is_clip_publisher_running() is True
+    assert AutoPilotManager.is_video_scanner_running() is False
+    assert AutoPilotManager.is_background_worker_running() is True
+
+    # 2. Start video scanner
+    scan_ok = AutoPilotManager.start_video_scanner(interval_hours=1.5, db=auto_db)
+    assert scan_ok is True
+    assert AutoPilotManager.is_video_scanner_running() is True
+    assert AutoPilotManager.is_clip_publisher_running() is True
+
+    info = AutoPilotManager.get_background_worker_info()
+    assert info["video_scanner_running"] is True
+    assert info["clip_publisher_running"] is True
+    assert info["scanner_interval_hours"] == 1.5
+    assert info["publisher_interval_minutes"] == 2
+
+    # 3. Stop only video scanner
+    stop_scan_ok = AutoPilotManager.stop_video_scanner()
+    assert stop_scan_ok is True
+    assert AutoPilotManager.is_video_scanner_running() is False
+    assert AutoPilotManager.is_clip_publisher_running() is True
+    assert AutoPilotManager.is_background_worker_running() is True
+
+    # 4. Stop clip publisher
+    stop_pub_ok = AutoPilotManager.stop_clip_publisher()
+    assert stop_pub_ok is True
+    assert AutoPilotManager.is_clip_publisher_running() is False
+    assert AutoPilotManager.is_video_scanner_running() is False
     assert AutoPilotManager.is_background_worker_running() is False
 
 

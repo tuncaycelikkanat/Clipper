@@ -78,6 +78,8 @@ export const api = {
     pending: () => get<Video[]>('/api/videos/pending'),
     get: (id: string) => get<Video>(`/api/videos/${id}`),
     delete: (id: string) => del<{ deleted: boolean }>(`/api/videos/${id}`),
+    batchDelete: (video_ids: string[], all_pending: boolean = false) =>
+      post<{ deleted_count: number }>('/api/videos/batch-delete', { video_ids, all_pending }),
     preview: (url: string) => post<import('../types').VideoPreview>('/api/videos/preview', { url }),
     setDelay: (id: string, delay_hours: number) =>
       post<{ success: boolean; video: Video }>(`/api/videos/${id}/delay`, { delay_hours }),
@@ -102,6 +104,8 @@ export const api = {
     create: (body: CreateChannelRequest) => post<Channel>('/api/channels', body),
     update: (id: string, body: Partial<Channel>) => patch<Channel>(`/api/channels/${id}`, body),
     delete: (id: string) => del(`/api/channels/${id}`),
+    batchDelete: (channel_ids: string[], all: boolean = false) =>
+      post<{ deleted_count: number }>('/api/channels/batch-delete', { channel_ids, all }),
   },
   queue: {
     list: (params?: {status?: string}) => get<QueueItem[]>('/api/queue', params),
@@ -114,7 +118,25 @@ export const api = {
   scheduler: {
     start: (interval_hours: number) => post('/api/scheduler/start', {interval_hours}),
     stop: () => post('/api/scheduler/stop', {}),
-    status: () => get<{running: boolean, interval_hours: number, cycle_count?: number, last_run: string|null, next_run: string|null}>('/api/scheduler/status'),
+    startVideoScanner: (interval_hours: number = 2.0) => post('/api/scheduler/video-scanner/start', {interval_hours}),
+    stopVideoScanner: () => post('/api/scheduler/video-scanner/stop', {}),
+    startClipPublisher: (interval_minutes: number = 2) => post('/api/scheduler/clip-publisher/start', {interval_minutes}),
+    stopClipPublisher: () => post('/api/scheduler/clip-publisher/stop', {}),
+    status: () => get<{
+      running: boolean,
+      video_scanner_running?: boolean,
+      clip_publisher_running?: boolean,
+      interval_hours: number,
+      scanner_interval_hours?: number,
+      publisher_interval_minutes?: number,
+      cycle_count?: number,
+      last_run: string | null,
+      next_run: string | null,
+      last_scanner_run?: string | null,
+      next_scanner_run?: string | null,
+      last_publisher_run?: string | null,
+      next_publisher_run?: string | null,
+    }>('/api/scheduler/status'),
   },
   upload: {
     youtube: (clip_id: string) => post(`/api/upload/youtube/${clip_id}`, {}),

@@ -47,6 +47,8 @@ def run_migrations(db) -> None:
             _safe_alter(conn, "ALTER TABLE tracked_channels ADD COLUMN check_interval_h REAL DEFAULT 2.0")
             _safe_alter(conn, "ALTER TABLE tracked_channels ADD COLUMN last_video_id TEXT")
             _safe_alter(conn, "ALTER TABLE tracked_channels ADD COLUMN last_video_date TEXT")
+            _safe_alter(conn, "ALTER TABLE tracked_channels ADD COLUMN youtube_username TEXT")
+            _safe_alter(conn, "ALTER TABLE tracked_channels ADD COLUMN instagram_username TEXT")
 
         # ── 4. channel_seen_videos (channel_processed_videos'dan migrate) ──
         if "channel_processed_videos" in tables and "channel_seen_videos" not in tables:

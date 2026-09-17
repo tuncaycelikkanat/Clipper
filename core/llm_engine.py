@@ -159,11 +159,11 @@ class GeminiHighlightEngine:
     """Uses Google Gemini Flash to batch-judge Top-N gaming candidate clips in 1 structured call."""
 
     MODELS_TO_TRY = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
     ]
 
     @classmethod
@@ -552,17 +552,23 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
     ) -> dict[str, Any]:
         """Generate high-CTR title, SEO description, and tags for YouTube Shorts."""
         # 1. Try DeepSeek V3/R1 first if configured (Dream Team Creative Lead)
-        try:
-            from core.deepseek_engine import DeepSeekEngine
+        if not getattr(cls, "_DEEPSEEK_CREDIT_EXHAUSTED", False):
+            try:
+                from core.deepseek_engine import DeepSeekEngine
 
-            if DeepSeekEngine.is_available():
-                res = DeepSeekEngine.generate_shorts_copy(
-                    clip_title=clip_title, hook_caption=hook_caption, category=category, video_title=video_title
-                )
-                res["provider"] = "DeepSeek V3 (Kreatif Motor)"
-                return res
-        except Exception as e:
-            logger.debug("DeepSeek metadata generation failed, falling back to Gemini: {}", e)
+                if DeepSeekEngine.is_available():
+                    res = DeepSeekEngine.generate_shorts_copy(
+                        clip_title=clip_title, hook_caption=hook_caption, category=category, video_title=video_title
+                    )
+                    res["provider"] = "DeepSeek V3 (Kreatif Motor)"
+                    return res
+            except Exception as e:
+                err_str = str(e)
+                if "402" in err_str or "credit" in err_str.lower():
+                    cls._DEEPSEEK_CREDIT_EXHAUSTED = True
+                    logger.info("OpenRouter bakiyesi tükendi (402). Shorts metin motoru doğrudan Gemini yedeğine geçirildi.")
+                else:
+                    logger.debug("DeepSeek metadata generation failed, falling back to Gemini: {}", e)
 
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:

@@ -39,14 +39,31 @@ async def lifespan(app: FastAPI):
     run_migrations(db)
     logger.info("✅ Database hazır.")
 
-    # AutoPilot background scheduler daemon
-    try:
-        from core.autopilot import AutoPilotManager
+    # ── 1. Klip Paylaşma Servisi (Varsayılan: AÇIK) ───────────────────────────
+    if os.getenv("AUTOPILOT_PUBLISHER_AUTO_START", "true").lower() in ("true", "1", "yes"):
+        try:
+            from core.autopilot import AutoPilotManager
 
-        AutoPilotManager.start_background_worker(interval_hours=2.0)
-        logger.info("⏰ AutoPilot zamanlayıcı arka planda başlatıldı (1 dk yayın kontrolü aktif).")
-    except Exception as e:
-        logger.warning("AutoPilot worker başlatılamadı: {}", e)
+            AutoPilotManager.start_clip_publisher(interval_minutes=2)
+            logger.info("AutoPilot Klip Paylaşma servisi arka planda başlatıldı (2 dk yayın kontrolü aktif).")
+        except Exception as e:
+            logger.warning("AutoPilot Klip Paylaşma servisi başlatılamadı: {}", e)
+    else:
+        logger.info("AutoPilot Klip Paylaşma servisi devre dışı bırakıldı.")
+
+    # ── 2. Yeni Video Tarama Servisi (Varsayılan: KAPALI) ─────────────────────
+    # UI üzerinden veya /api/scheduler/video-scanner/start ile manuel başlatılabilir.
+    # .env içinde AUTOPILOT_SCANNER_AUTO_START=true verilirse otomatik başlatılır.
+    if os.getenv("AUTOPILOT_SCANNER_AUTO_START", os.getenv("AUTOPILOT_AUTO_START", "false")).lower() in ("true", "1", "yes"):
+        try:
+            from core.autopilot import AutoPilotManager
+
+            AutoPilotManager.start_video_scanner(interval_hours=2.0)
+            logger.info("AutoPilot Yeni Video Tarama servisi arka planda başlatıldı (2 saat aralıkla).")
+        except Exception as e:
+            logger.warning("AutoPilot Video Tarama servisi başlatılamadı: {}", e)
+    else:
+        logger.info("AutoPilot Yeni Video Tarama servisi varsayılan olarak KAPALI (Manuel başlatılabilir).")
 
     yield
 

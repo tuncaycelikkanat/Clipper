@@ -243,30 +243,52 @@ class InstagramUploader:
 
         raise TimeoutError(f"Instagram video işleme zaman aşımına uğradı ({timeout} sn). Video Meta sunucularında henüz işlenemedi.")
 
-    def publish_container(self, container_id: str) -> dict[str, Any]:
+    def publish_container(self, container_id: str, max_retries: int = 3) -> dict[str, Any]:
         """
         Step 4: Publish or finalize the verified container to the Instagram feed as a Reel.
+        Includes retry mechanism for Meta's transient propagation delay errors.
         """
         url = f"{self.BASE_URL}/{self.account_id}/media_publish"
         params = {
             "creation_id": container_id,
             "access_token": self.access_token,
         }
-
-        resp = requests.post(url, params=params, timeout=30)
-        data = resp.json()
-
-        if resp.status_code != 200 or "id" not in data:
-            error_msg = data.get("error", {}).get("message", resp.text)
-            raise RuntimeError(f"Instagram Reels yayına alınamadı: {error_msg}")
-
-        media_id = data["id"]
-        logger.success(f"Instagram Reel başarıyla yayınlandı/planlandı! Media ID: {media_id}")
-        return {
-            "media_id": media_id,
-            "url": f"https://www.instagram.com/reel/{media_id}",
-            "status": "published",
-        }
+        last_error = ""
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Meta video işleme bittikten hemen sonra CDN yayılımı için ilk denemede 3sn bekle
+                if attempt == 1:
+                    time.sleep(3)
+                resp = requests.post(url, params=params, timeout=35)
+                data = resp.json()
+                if resp.status_code == 200 and "id" in data:
+                    media_id = data["id"]
+                    logger.success(f"Instagram Reel başarıyla yayınlandı! Media ID: {media_id}")
+                    return {
+                        "media_id": media_id,
+                        "url": f"https://www.instagram.com/reel/{media_id}",
+                        "status": "published",
+                    }
+                err_obj = data.get("error", {})
+                last_error = err_obj.get("message", resp.text)
+                err_code = err_obj.get("code")
+                # Meta Error Code 2 veya "retry your request later" transient hatası
+                if attempt < max_retries and (err_code == 2 or "retry" in last_error.lower() or resp.status_code >= 500):
+                    wait_sec = 6 * attempt  # 6s, 12s
+                    logger.warning(
+                        f"Meta media_publish geçici gecikme hatası (deneme {attempt}/{max_retries}): {last_error}. "
+                        f"{wait_sec} sn bekleyip tekrar deneniyor…"
+                    )
+                    time.sleep(wait_sec)
+                    continue
+                break
+            except requests.RequestException as req_exc:
+                last_error = str(req_exc)
+                if attempt < max_retries:
+                    time.sleep(5 * attempt)
+                    continue
+                break
+        raise RuntimeError(f"Instagram Reels yayına alınamadı: {last_error}")
 
     def upload_reel(
         self,
@@ -294,22 +316,39 @@ class InstagramUploader:
         if not resolved_cover_url and thumbnail_path and os.path.exists(thumbnail_path):
             resolved_cover_url = self.upload_temp_cover_image(thumbnail_path)
 
-        # 1. Container oluştur
-        init_res = self.create_resumable_container(
-            file_size=file_size,
-            caption=caption,
-            share_to_feed=share_to_feed,
-            thumb_offset=thumb_offset,
-            cover_url=resolved_cover_url,
-            scheduled_publish_time=scheduled_publish_time,
-        )
-        container_id = init_res["container_id"]
-        upload_url = init_res.get("upload_url")
+        # 1 & 2. Container oluştur ve Binary yükle (Meta container'ı geçersiz kılarsa yeni container ile tekrar dener)
+        max_container_attempts = 2
+        last_upload_err = ""
+        container_id = ""
 
-        # 2. Binary yükle (Eğer resumable URI döndüyse)
-        if upload_url:
-            logger.debug(f"Uploading binary bytes to Meta endpoint: {upload_url}")
-            self.upload_binary_to_container(upload_url, str(path))
+        for container_attempt in range(1, max_container_attempts + 1):
+            try:
+                init_res = self.create_resumable_container(
+                    file_size=file_size,
+                    caption=caption,
+                    share_to_feed=share_to_feed,
+                    thumb_offset=thumb_offset,
+                    cover_url=resolved_cover_url,
+                    scheduled_publish_time=scheduled_publish_time,
+                )
+                container_id = init_res["container_id"]
+                upload_url = init_res.get("upload_url")
+
+                if upload_url:
+                    logger.debug(
+                        f"Uploading binary bytes to Meta endpoint: {upload_url} (Container attempt {container_attempt}/{max_container_attempts})"
+                    )
+                    self.upload_binary_to_container(upload_url, str(path), max_retries=1)
+
+                # Yükleme başarılı, döngüden çık
+                break
+            except Exception as e:
+                last_upload_err = str(e)
+                logger.warning(f"Meta container yükleme denemesi {container_attempt}/{max_container_attempts} başarısız: {e}")
+                if container_attempt < max_container_attempts:
+                    time.sleep(3)
+                else:
+                    raise RuntimeError(f"Instagram Reels yükleme başarısız oldu: {last_upload_err}")
 
         # 3. İşleme durumunu bekle
         logger.info(f"Waiting for Meta processing (Container: {container_id})…")
@@ -322,19 +361,81 @@ class InstagramUploader:
         return res
 
     @staticmethod
-    def generate_caption(clip: dict[str, Any], video_title: str = "") -> str:
-        """Generate an authentic, high-converting Instagram Reels caption."""
+    def generate_caption(
+        clip: dict[str, Any],
+        video_title: str = "",
+        instagram_username: str = "",
+        game_name: str = "",
+        tags: list[str] | None = None,
+        instagram_caption_override: str = "",
+    ) -> str:
+        """Generate an authentic, high-converting Instagram Reels caption with 20+ hashtags."""
+
+        # Eğer AI tarafından üretilmiş özel bir Instagram caption varsa onu kullan
+        if instagram_caption_override and instagram_caption_override.strip():
+            return instagram_caption_override.strip()
+
         title = clip.get("title", "").replace("#Shorts", "").strip()
         hook = clip.get("hook_caption", "").strip()
+        category = str(clip.get("category", "GAMING")).upper()
 
+        # İlk satır: Hook veya başlık (caption'ın başına çarpıcı metin — Instagram'da title alanı yok)
         if hook:
-            opener = f"{hook} 😂\nSiz bu durumda ne yapardınız? Yorumlarda buluşalım 👇"
+            opener = f"{hook} 😂"
+        elif title:
+            opener = title
         else:
-            opener = f"{title}\n\nFikirlerinizi yoruma bekliyorum! 👇"
+            opener = "Bu pozisyona inanamadım 😭"
 
-        lines = [
-            opener,
-            "",
-            "#reels #gaming #oyun #oyunkesitleri #kesitler #türkçegaming #twitchtürkiye #viral",
+        # Yoruma çeken soru (kategoriye göre değişen)
+        if any(k in category for k in ["CLUTCH", "EPIC"]):
+            question = "Siz bu pozisyonda ne yapardınız? 🎯"
+        elif any(k in category for k in ["FUNNY", "FAIL"]):
+            question = "Bunu gören herkes aynı tepkiyi verdi 😂 Siz ne yapardınız?"
+        elif any(k in category for k in ["RAGE", "TILT"]):
+            question = "Bu anı yaşasanız cihazı fırlatır mıydınız? 😡"
+        else:
+            question = "Fikirlerinizi yoruma bekliyorum! 👇"
+
+        # Yayıncı mention
+        mention_line = f"📌 {instagram_username}" if instagram_username else ""
+
+        # Oyun bazlı hashtag'lar
+        game_tags: list[str] = []
+        if game_name:
+            slug = game_name.lower().replace(" ", "")
+            game_tags = [f"#{slug}", f"#{slug}türkiye", f"#{slug}clips", f"#{slug}highlight"]
+
+        # Yayıncı bazlı hashtag'lar
+        extra_tags: list[str] = []
+        if tags:
+            for t in tags[:8]:
+                clean = t.lower().replace(" ", "").replace("-", "")
+                if clean and len(clean) > 2:
+                    extra_tags.append(f"#{clean}")
+
+        # Temel Instagram hashtag seti (keşfet + gaming niche)
+        base_hashtags = [
+            "#reels", "#fyp", "#keşfet", "#viral", "#gaming", "#oyun",
+            "#twitch", "#twitchturkiye", "#türkçeyayın", "#oyunkesitleri",
+            "#türkçeoyun", "#gamer", "#gamingturkiye", "#highlight",
+            "#shorts", "#komik", "#eğlenceli", "#youtube", "#tiktok", "#clip",
         ]
-        return "\n".join(line for line in lines if line)
+
+        # Tüm hashtag'leri birleştir (tekrarsız, toplam 20+ hedef)
+        all_hashtags: list[str] = []
+        seen: set[str] = set()
+        for h in game_tags + extra_tags + base_hashtags:
+            if h not in seen:
+                seen.add(h)
+                all_hashtags.append(h)
+
+        hashtag_block = " ".join(all_hashtags[:30])  # Instagram 30 hashtag limiti
+
+        lines = [opener, "", question]
+        if mention_line:
+            lines += ["", mention_line]
+        lines += ["", hashtag_block]
+
+        return "\n".join(line for line in lines if line is not None).strip()
+

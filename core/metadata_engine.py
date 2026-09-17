@@ -121,21 +121,29 @@ KESİN KURALLAR — ROBOTİK VE YAPAY OLMAKTAN KAÇIN
         video_title: str = "",
         game_name: str | None = None,
         duration_sec: float = 30.0,
+        youtube_username: str = "",
+        instagram_username: str = "",
     ) -> dict[str, Any]:
         tag_data = YouTubeTagMiner.mine_popular_tags(
             streamer_name=streamer_name, game_name=game_name, clip_topic=video_title
         )
 
+        yt_credit = f"@{youtube_username}" if youtube_username else f"@{streamer_name.replace(' ', '')}"
+        ig_credit = f"@{instagram_username}" if instagram_username else ""
+
         user_prompt = f"""
 Klip Bilgileri:
 - Yayıncı / Kanal: {streamer_name}
+- YouTube Kullanıcı Adı: {yt_credit}
+- Instagram Kullanıcı Adı: {ig_credit or 'Belirtilmemiş'}
 - Oyun / Kategori: {game_name or "Bilinmiyor / Genel"}
 - Video Başlığı: {video_title}
 - Klip Süresi: {duration_sec:.1f} saniye
 - Klipte Konuşulanlar (Transkript):
 \"\"\"{transcript_snippet}\"\"\"
 
-Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıktı üret:
+Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıktı üret.
+Açıklamada yayıncı kredisi için MUTLAKA "{yt_credit}" kullanıcı adını kullan (Örn: "🎮 {yt_credit} | 🕹️ {game_name or 'Gaming'}").
 {{
   "titles": {{
     "quote_based": "Transkriptten replik başlığı",
@@ -151,32 +159,38 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
 
         result_json = None
         # 1. DeepSeek-V3 Call
-        try:
-            from core.deepseek_engine import DeepSeekEngine
+        if not getattr(cls, "_DEEPSEEK_CREDIT_EXHAUSTED", False):
+            try:
+                from core.deepseek_engine import DeepSeekEngine
 
-            if DeepSeekEngine.is_available():
-                client, model_name, _ = DeepSeekEngine.get_client_and_model()
-                messages_payload: list[Any] = [
-                    {"role": "system", "content": cls.SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ]
-                kwargs: dict[str, Any] = {
-                    "model": model_name,
-                    "messages": messages_payload,
-                    "temperature": 0.7,
-                    "max_tokens": 800,
-                }
-                if "deepseek" in model_name:
-                    kwargs["response_format"] = {"type": "json_object"}
-                response = client.chat.completions.create(**kwargs)
-                if response and getattr(response, "choices", None) and len(response.choices) > 0:
-                    msg = response.choices[0].message
-                    raw_text = getattr(msg, "content", "") or ""
-                    clean_json = re.search(r"\{.*\}", raw_text, re.DOTALL)
-                    if clean_json:
-                        result_json = json.loads(clean_json.group(0))
-        except Exception as exc:
-            logger.debug("DeepSeek metadata generation failed: {}", exc)
+                if DeepSeekEngine.is_available():
+                    client, model_name, _ = DeepSeekEngine.get_client_and_model()
+                    messages_payload: list[Any] = [
+                        {"role": "system", "content": cls.SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ]
+                    kwargs: dict[str, Any] = {
+                        "model": model_name,
+                        "messages": messages_payload,
+                        "temperature": 0.7,
+                        "max_tokens": 800,
+                    }
+                    if "deepseek" in model_name:
+                        kwargs["response_format"] = {"type": "json_object"}
+                    response = client.chat.completions.create(**kwargs)
+                    if response and getattr(response, "choices", None) and len(response.choices) > 0:
+                        msg = response.choices[0].message
+                        raw_text = getattr(msg, "content", "") or ""
+                        clean_json = re.search(r"\{.*\}", raw_text, re.DOTALL)
+                        if clean_json:
+                            result_json = json.loads(clean_json.group(0))
+            except Exception as exc:
+                err_str = str(exc)
+                if "402" in err_str or "credit" in err_str.lower():
+                    cls._DEEPSEEK_CREDIT_EXHAUSTED = True
+                    logger.info("OpenRouter bakiyesi tükendi (402). Meta veri motoru doğrudan Gemini yedeğine geçirildi.")
+                else:
+                    logger.debug("DeepSeek metadata generation failed: {}", exc)
 
         # 2. Gemini Fallback
         if not result_json:
@@ -228,15 +242,20 @@ Lütfen yukarıdaki kurallara uygun olarak aşağıdaki JSON şablonunda çıkt�
                 "titles": {
                     "quote_based": f'"{snippet_part}..." dedi ve...',
                     "pov_reaction": f"kanka {streamer_name}'in bu pozisyona bak amk 😂",
-                    "streamer_tone": f"{streamer_name} bu sahnede çıldırdı!",
+                    "streamer_tone": f"oyun bitti beyler 😭 #Shorts",
                 },
-                "recommended_title": f"kanka {streamer_name}'in bu pozisyona bak amk 😂",
-                "hook_caption": "BUNU KİMSE BEKLEMİYORDU!",
+                "recommended_title": f"kanka {streamer_name}'in bu pozisyona bak 😂 #Shorts",
+                "hook_caption": "BEKLENMEDIK AN!",
                 "engagement_question": "Sizce burada ne yapılmalıydı? Yorumlara yazın 👇",
-                "description": f"Sizce burada ne yapılmalıydı? Yorumlara yazın 👇\n\n🎮 Yayıncı: @{streamer_name}\n🕹️ Oyun: {game_name or 'Gaming'}\n\n{' '.join(tag_data['hashtags'])}",
+                "description": (
+                    f"Sizce burada ne yapılmalıydı? Yorumlara yazın 👇\n\n"
+                    f"🎮 {yt_credit} | 🕹️ {game_name or 'Gaming'}\n\n"
+                    f"{' '.join(tag_data['hashtags'])}"
+                ),
             }
 
         result_json["tags"] = tag_data["tags"]
         result_json["hashtags"] = tag_data["hashtags"]
         result_json["tags_comma_separated"] = tag_data["tags_comma_separated"]
         return result_json
+

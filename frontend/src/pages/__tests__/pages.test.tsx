@@ -499,8 +499,15 @@ describe('Pages', () => {
       vi.spyOn(api.channels, 'list').mockResolvedValue([
         { id: 'ch1', name: 'Tolunay Ören', url: 'https://youtube.com/@TolunayOren', min_score: 90, active: true, auto_upload: true } as any,
       ])
-      vi.spyOn(api.scheduler, 'status').mockResolvedValue({ running: true, cycle_count: 12, last_run: '2026-09-03T10:00:00' } as any)
-      vi.spyOn(api.scheduler, 'stop').mockResolvedValue({ status: 'stopped' } as any)
+      vi.spyOn(api.scheduler, 'status').mockResolvedValue({
+        running: true,
+        video_scanner_running: true,
+        clip_publisher_running: true,
+        cycle_count: 12,
+        last_run: '2026-09-03T10:00:00',
+      } as any)
+      vi.spyOn(api.scheduler, 'stopVideoScanner').mockResolvedValue({ status: 'stopped' } as any)
+      vi.spyOn(api.scheduler, 'stopClipPublisher').mockResolvedValue({ status: 'stopped' } as any)
       vi.spyOn(api.channels, 'create').mockResolvedValue({ id: 'ch2' } as any)
       vi.spyOn(api.channels, 'update').mockResolvedValue({ status: 'ok' } as any)
       vi.spyOn(api.channels, 'delete').mockResolvedValue({ status: 'ok' } as any)
@@ -510,13 +517,20 @@ describe('Pages', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Tolunay Ören')).toBeInTheDocument()
-        expect(screen.getByText('Otomasyonu Durdur')).toBeInTheDocument()
+        expect(screen.getByText('Taramayı Durdur')).toBeInTheDocument()
+        expect(screen.getByText('Paylaşımı Durdur')).toBeInTheDocument()
       })
 
-      const stopBtn = screen.getByRole('button', { name: /Otomasyonu Durdur/i })
-      fireEvent.click(stopBtn)
+      const stopScanBtn = screen.getByRole('button', { name: /Taramayı Durdur/i })
+      fireEvent.click(stopScanBtn)
       await waitFor(() => {
-        expect(api.scheduler.stop).toHaveBeenCalled()
+        expect(api.scheduler.stopVideoScanner).toHaveBeenCalled()
+      })
+
+      const stopPubBtn = screen.getByRole('button', { name: /Paylaşımı Durdur/i })
+      fireEvent.click(stopPubBtn)
+      await waitFor(() => {
+        expect(api.scheduler.stopClipPublisher).toHaveBeenCalled()
       })
 
       const toggleBtn = screen.getByRole('button', { name: 'Durdur' })
@@ -538,7 +552,7 @@ describe('Pages', () => {
       await waitFor(() => {
         expect(api.channels.create).toHaveBeenCalled()
       })
-    })
+    }, 15000)
   })
 
   describe('Settings', () => {

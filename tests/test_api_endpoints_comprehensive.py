@@ -191,6 +191,19 @@ def test_channels_full_flow():
     assert del_res.status_code == 200
     assert del_res.json() == {"deleted": True}
 
+    # Test batch delete channels
+    ch1 = client.post("/api/channels", json={"url": "https://youtube.com/@batch1", "name": "B1"}).json()["id"]
+    ch2 = client.post("/api/channels", json={"url": "https://youtube.com/@batch2", "name": "B2"}).json()["id"]
+    batch_del_res = client.post("/api/channels/batch-delete", json={"channel_ids": [ch1, ch2]})
+    assert batch_del_res.status_code == 200
+    assert batch_del_res.json()["deleted_count"] >= 2
+
+    # Test batch delete channels by IDs
+    ch3 = client.post("/api/channels", json={"url": "https://youtube.com/@all1", "name": "A1"}).json()["id"]
+    del_ids_res = client.post("/api/channels/batch-delete", json={"channel_ids": [ch3]})
+    assert del_ids_res.status_code == 200
+    assert del_ids_res.json()["deleted_count"] == 1
+
 
 # ─────────────────────────────────────────────────────────────
 # 3. CLIPS
@@ -428,6 +441,51 @@ def test_scheduler_endpoints():
         assert stop_res.status_code == 200
         assert stop_res.json()["stopped"] is True
 
+    # Video Scanner endpoints
+    with (
+        patch("core.autopilot.AutoPilotManager.start_video_scanner", return_value=True),
+        patch("core.autopilot.AutoPilotManager.get_background_worker_info", return_value={"video_scanner_running": True}),
+    ):
+        v_start = client.post("/api/scheduler/video-scanner/start", json={"interval_hours": 3.0})
+        assert v_start.status_code == 200
+        assert v_start.json()["started"] is True
+        assert v_start.json()["video_scanner_running"] is True
+
+    with (
+        patch("core.autopilot.AutoPilotManager.stop_video_scanner", return_value=True),
+        patch("core.autopilot.AutoPilotManager.get_background_worker_info", return_value={"video_scanner_running": False}),
+    ):
+        v_stop = client.post("/api/scheduler/video-scanner/stop")
+        assert v_stop.status_code == 200
+        assert v_stop.json()["stopped"] is True
+
+    # Clip Publisher endpoints
+    with (
+        patch("core.autopilot.AutoPilotManager.start_clip_publisher", return_value=True),
+        patch("core.autopilot.AutoPilotManager.get_background_worker_info", return_value={"clip_publisher_running": True}),
+    ):
+        p_start = client.post("/api/scheduler/clip-publisher/start", json={"interval_minutes": 5})
+        assert p_start.status_code == 200
+        assert p_start.json()["started"] is True
+        assert p_start.json()["clip_publisher_running"] is True
+
+    with (
+        patch("core.autopilot.AutoPilotManager.stop_clip_publisher", return_value=True),
+        patch("core.autopilot.AutoPilotManager.get_background_worker_info", return_value={"clip_publisher_running": False}),
+    ):
+        p_stop = client.post("/api/scheduler/clip-publisher/stop")
+        assert p_stop.status_code == 200
+        assert p_stop.json()["stopped"] is True
+
+    # Status endpoint
+    with patch(
+        "core.autopilot.AutoPilotManager.get_background_worker_info",
+        return_value={"running": True, "video_scanner_running": False, "clip_publisher_running": True},
+    ):
+        st_res = client.get("/api/scheduler/status")
+        assert st_res.status_code == 200
+        assert st_res.json()["clip_publisher_running"] is True
+
 
 # ─────────────────────────────────────────────────────────────
 # 7. SETTINGS
@@ -641,6 +699,14 @@ def test_videos_endpoints(test_data):
 
     # Get non-existent video -> 404
     assert client.get("/api/videos/nonexistent_vid").status_code == 404
+
+    # Test batch delete videos
+    db = DatabaseManager()
+    db.save_video({"id": "bv1", "url": "https://youtu.be/bv1", "title": "Batch Vid 1", "status": "pending"})
+    db.save_video({"id": "bv2", "url": "https://youtu.be/bv2", "title": "Batch Vid 2", "status": "pending"})
+    batch_del_v = client.post("/api/videos/batch-delete", json={"video_ids": ["bv1", "bv2"]})
+    assert batch_del_v.status_code == 200
+    assert batch_del_v.json()["deleted_count"] == 2
 
 
 def test_channel_scan_latest_and_batch_process(test_data):

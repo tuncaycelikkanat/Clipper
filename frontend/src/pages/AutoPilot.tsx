@@ -23,6 +23,7 @@ import {
   Sparkles,
   Scissors,
   Layers,
+  Share2,
 } from 'lucide-react';
 
 export default function AutoPilot() {
@@ -39,6 +40,7 @@ export default function AutoPilot() {
 
   // Selected videos for batch processing
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [batchTargetClips, setBatchTargetClips] = useState(0); // 0 = Otomatik (Süreye Göre)
   const [batchSubtitles, setBatchSubtitles] = useState(false); // Default FALSE
   const [batchHookCard, setBatchHookCard] = useState(false); // Default FALSE
@@ -181,6 +183,42 @@ export default function AutoPilot() {
     },
   });
 
+  const startVideoScannerMutation = useMutation({
+    mutationFn: (interval: number = 2.0) => api.scheduler.startVideoScanner(interval),
+    onSuccess: () => {
+      refetchScheduler();
+      setStatusMsg('Yeni video tarama servisi başlatıldı.');
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
+  const stopVideoScannerMutation = useMutation({
+    mutationFn: () => api.scheduler.stopVideoScanner(),
+    onSuccess: () => {
+      refetchScheduler();
+      setStatusMsg('Yeni video tarama servisi durduruldu.');
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
+  const startClipPublisherMutation = useMutation({
+    mutationFn: (intervalMinutes: number = 2) => api.scheduler.startClipPublisher(intervalMinutes),
+    onSuccess: () => {
+      refetchScheduler();
+      setStatusMsg('Klip paylaşma servisi başlatıldı.');
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
+  const stopClipPublisherMutation = useMutation({
+    mutationFn: () => api.scheduler.stopClipPublisher(),
+    onSuccess: () => {
+      refetchScheduler();
+      setStatusMsg('Klip paylaşma servisi durduruldu.');
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
   const createChannelMutation = useMutation({
     mutationFn: (body: any) => api.channels.create(body),
     onSuccess: () => {
@@ -199,6 +237,35 @@ export default function AutoPilot() {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       setStatusMsg('Kanal takipten çıkarıldı.');
       setTimeout(() => setStatusMsg(null), 4000);
+    },
+  });
+
+  const batchDeleteChannelsMutation = useMutation({
+    mutationFn: ({ ids, all }: { ids: string[]; all?: boolean }) =>
+      api.channels.batchDelete(ids, all),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      setSelectedChannelIds([]);
+      setStatusMsg(`${res.deleted_count} kanal takipten çıkarıldı.`);
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+    onError: (err: any) => {
+      setStatusMsg(`Kanal silme hatası: ${err.message || 'Bilinmeyen hata'}`);
+      setTimeout(() => setStatusMsg(null), 5000);
+    },
+  });
+
+  const batchDeleteVideosMutation = useMutation({
+    mutationFn: (ids: string[]) => api.videos.batchDelete(ids),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['pending-videos'] });
+      setSelectedVideoIds([]);
+      setStatusMsg(`${res.deleted_count} video listeden silindi.`);
+      setTimeout(() => setStatusMsg(null), 4000);
+    },
+    onError: (err: any) => {
+      setStatusMsg(`Video silme hatası: ${err.message || 'Bilinmeyen hata'}`);
+      setTimeout(() => setStatusMsg(null), 5000);
     },
   });
 
@@ -238,7 +305,25 @@ export default function AutoPilot() {
     }
   };
 
-  const isRunning = schedulerStatus?.running ?? false;
+  const toggleSelectChannel = (id: string) => {
+    setSelectedChannelIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllChannels = () => {
+    if (!channels || channels.length === 0) return;
+    const allIds = channels.map((c) => c.id || c.url);
+    if (selectedChannelIds.length === allIds.length) {
+      setSelectedChannelIds([]);
+    } else {
+      setSelectedChannelIds(allIds);
+    }
+  };
+
+  const isVideoScannerRunning = schedulerStatus?.video_scanner_running ?? false;
+  const isClipPublisherRunning = schedulerStatus?.clip_publisher_running ?? false;
+  const isRunning = schedulerStatus?.running ?? (isVideoScannerRunning || isClipPublisherRunning);
 
   return (
     <div className="space-y-8 max-w-6xl pb-12">
@@ -299,6 +384,20 @@ export default function AutoPilot() {
           <div className="flex flex-wrap items-center gap-2">
             {selectedVideoIds.length > 0 && (
               <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={batchDeleteVideosMutation.isPending}
+                  onClick={() => {
+                    if (confirm(`Seçili ${selectedVideoIds.length} videoyu listeden silmek istediğinize emin misiniz?`)) {
+                      batchDeleteVideosMutation.mutate(selectedVideoIds);
+                    }
+                  }}
+                  className="text-xs border-red-600/40 text-red-300 hover:bg-red-600/10"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  Seçilenleri Sil ({selectedVideoIds.length})
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -512,69 +611,150 @@ export default function AutoPilot() {
         </CardContent>
       </Card>
 
-      {/* ── 1. Daemon Durumu ve Kontrol Kartı ────────────────────────── */}
-      <Card className="border-zinc-800 bg-zinc-900/90">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                isRunning ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-400'
-              }`}
-            >
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Arka Plan Otomasyon Servisi</CardTitle>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                {isRunning ? 'Tüm aktif kanallar otomatik kontrol ediliyor.' : 'Servis durduruldu. Manuel başlatabilirsiniz.'}
-              </p>
-            </div>
-          </div>
-          <Badge variant={isRunning ? 'success' : 'secondary'} className="px-3 py-1 text-xs">
-            {isRunning ? '● Çalışıyor' : 'Durduruldu'}
-          </Badge>
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-4 bg-zinc-950/70 p-4 rounded-lg border border-zinc-800/80">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
-              <div>
-                <span className="text-xs text-zinc-500 block">Kontrol Sıklığı</span>
-                <span className="font-semibold text-zinc-200">
-                  {schedulerStatus?.interval_hours ? `${schedulerStatus.interval_hours} Saatte bir` : '2 Saatte bir'}
-                </span>
+      {/* ── Otomasyon Servisleri (Video Tarama & Klip Paylaşma) ──────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 1. Yeni Video Tarama Servisi */}
+        <Card className="border-zinc-800 bg-zinc-900/90 flex flex-col justify-between">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  isVideoScannerRunning
+                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    : 'bg-zinc-800 text-zinc-400'
+                }`}
+              >
+                <Radar className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs text-zinc-500 block">Tamamlanan Döngü</span>
-                <span className="font-semibold text-zinc-200">{schedulerStatus?.cycle_count ?? 0}</span>
-              </div>
-              <div>
-                <span className="text-xs text-zinc-500 block">Son Tarama</span>
-                <span className="font-semibold text-zinc-200">
-                  {schedulerStatus?.last_run ? new Date(schedulerStatus.last_run).toLocaleTimeString() : 'Henüz yok'}
-                </span>
+                <CardTitle className="text-base">Yeni Video Tarama</CardTitle>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {isVideoScannerRunning ? 'Kanallar periyodik taranıyor.' : 'Tarama kapalı. Manuel başlatabilirsiniz.'}
+                </p>
               </div>
             </div>
+            <Badge variant={isVideoScannerRunning ? 'success' : 'secondary'} className="px-3 py-1 text-xs">
+              {isVideoScannerRunning ? '● Çalışıyor' : 'Durduruldu'}
+            </Badge>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="bg-zinc-950/70 p-4 rounded-lg border border-zinc-800/80 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span className="text-xs text-zinc-500 block">Tarama Sıklığı</span>
+                  <span className="font-semibold text-zinc-200">
+                    {schedulerStatus?.scanner_interval_hours ?? schedulerStatus?.interval_hours ?? 2} Saatte bir
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-500 block">Tamamlanan Döngü</span>
+                  <span className="font-semibold text-zinc-200">{schedulerStatus?.cycle_count ?? 0}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-500 block">Son Tarama</span>
+                  <span className="font-semibold text-zinc-200 text-xs">
+                    {schedulerStatus?.last_scanner_run || schedulerStatus?.last_run
+                      ? new Date(schedulerStatus.last_scanner_run || schedulerStatus.last_run!).toLocaleTimeString()
+                      : 'Henüz yok'}
+                  </span>
+                </div>
+              </div>
 
-            <div className="flex gap-2">
-              {!isRunning ? (
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => startSchedulerMutation.mutate(2.0)}
-                >
-                  <Play className="w-4 h-4 mr-1.5 fill-current" /> Otomasyonu Başlat
-                </Button>
-              ) : (
-                <Button
-                  variant="destructive"
-                  onClick={() => stopSchedulerMutation.mutate()}
-                >
-                  <Square className="w-4 h-4 mr-1.5 fill-current" /> Otomasyonu Durdur
-                </Button>
-              )}
+              <div className="flex justify-end pt-1">
+                {!isVideoScannerRunning ? (
+                  <Button
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+                    onClick={() => startVideoScannerMutation.mutate(2.0)}
+                    disabled={startVideoScannerMutation.isPending}
+                  >
+                    <Play className="w-4 h-4 mr-1.5 fill-current" /> Taramayı Başlat
+                  </Button>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    onClick={() => stopVideoScannerMutation.mutate()}
+                    disabled={stopVideoScannerMutation.isPending}
+                  >
+                    <Square className="w-4 h-4 mr-1.5 fill-current" /> Taramayı Durdur
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* 2. Klip Paylaşma Servisi */}
+        <Card className="border-zinc-800 bg-zinc-900/90 flex flex-col justify-between">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  isClipPublisherRunning
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-zinc-800 text-zinc-400'
+                }`}
+              >
+                <Share2 className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Klip Paylaşma Otomasyonu</CardTitle>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {isClipPublisherRunning ? 'Zamanı gelen klipler sosyal medyada paylaşılıyor.' : 'Klip paylaşımı durduruldu.'}
+                </p>
+              </div>
+            </div>
+            <Badge variant={isClipPublisherRunning ? 'success' : 'secondary'} className="px-3 py-1 text-xs">
+              {isClipPublisherRunning ? '● Çalışıyor' : 'Durduruldu'}
+            </Badge>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="bg-zinc-950/70 p-4 rounded-lg border border-zinc-800/80 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span className="text-xs text-zinc-500 block">Yayın Kontrolü</span>
+                  <span className="font-semibold text-zinc-200">
+                    {schedulerStatus?.publisher_interval_minutes ?? 2} Dakikada bir
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-500 block">Hedef Platform</span>
+                  <span className="font-semibold text-zinc-200">YouTube & Reels</span>
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-500 block">Son Yayın Kontrolü</span>
+                  <span className="font-semibold text-zinc-200 text-xs">
+                    {schedulerStatus?.last_publisher_run
+                      ? new Date(schedulerStatus.last_publisher_run).toLocaleTimeString()
+                      : 'Henüz yok'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                {!isClipPublisherRunning ? (
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
+                    onClick={() => startClipPublisherMutation.mutate(2)}
+                    disabled={startClipPublisherMutation.isPending}
+                  >
+                    <Play className="w-4 h-4 mr-1.5 fill-current" /> Paylaşımı Başlat
+                  </Button>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    onClick={() => stopClipPublisherMutation.mutate()}
+                    disabled={stopClipPublisherMutation.isPending}
+                  >
+                    <Square className="w-4 h-4 mr-1.5 fill-current" /> Paylaşımı Durdur
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ── 2. Yeni Kanal Ekleme Formu ──────────────────────────────── */}
       {showAddModal && (
@@ -664,11 +844,57 @@ export default function AutoPilot() {
 
       {/* ── 3. Takip Edilen Kanallar Listesi ────────────────────────── */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
           <div>
             <CardTitle className="text-base">Takip Edilen Kanallar ({channels?.length || 0})</CardTitle>
             <p className="text-xs text-zinc-400 mt-0.5">Çift katmanlı anchor sistemi ile taranan kanallar</p>
           </div>
+
+          {channels && channels.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedChannelIds.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={batchDeleteChannelsMutation.isPending}
+                  onClick={() => {
+                    if (confirm(`Seçili ${selectedChannelIds.length} kanalı takipten çıkarmak istediğinize emin misiniz?`)) {
+                      batchDeleteChannelsMutation.mutate({ ids: selectedChannelIds });
+                    }
+                  }}
+                  className="text-xs border-red-600/40 text-red-300 hover:bg-red-600/10"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  Seçilenleri Sil ({selectedChannelIds.length})
+                </Button>
+              )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleSelectAllChannels}
+                className="text-xs border-zinc-700"
+              >
+                <CheckSquare className="w-3.5 h-3.5 mr-1" />
+                {selectedChannelIds.length === channels.length ? 'Seçimi Kaldır' : 'Tümünü Seç'}
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={batchDeleteChannelsMutation.isPending}
+                onClick={() => {
+                  if (confirm('DİKKAT: Takip edilen TÜM kanalları silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+                    batchDeleteChannelsMutation.mutate({ ids: [], all: true });
+                  }
+                }}
+                className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                Hepsini Sil
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="pt-0">
           {channelsLoading ? (
@@ -677,78 +903,93 @@ export default function AutoPilot() {
             <div className="text-sm text-zinc-500 py-8 text-center">Henüz takip edilen kanal yok.</div>
           ) : (
             <div className="divide-y divide-zinc-800/80 border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/40">
-              {channels.map((channel: Channel) => (
-                <div
-                  key={channel.id || channel.url}
-                  className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-zinc-900/40 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-zinc-100">{channel.name}</span>
-                      <a
-                        href={channel.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-zinc-500 hover:text-zinc-300 inline-flex items-center"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                      <Badge
-                        variant={channel.active !== false ? 'success' : 'secondary'}
-                        className="text-[10px] py-0 px-1.5"
-                      >
-                        {channel.active !== false ? 'Aktif' : 'Pasif'}
+              {channels.map((channel: Channel) => {
+                const channelKey = channel.id || channel.url;
+                const isSelected = selectedChannelIds.includes(channelKey);
+
+                return (
+                  <div
+                    key={channelKey}
+                    className={`p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
+                      isSelected ? 'bg-violet-950/25' : 'hover:bg-zinc-900/40'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectChannel(channelKey)}
+                        className="rounded border-zinc-700 bg-zinc-900 text-violet-600 w-4 h-4 cursor-pointer mt-1"
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-zinc-100">{channel.name}</span>
+                          <a
+                            href={channel.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-zinc-500 hover:text-zinc-300 inline-flex items-center"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <Badge
+                            variant={channel.active !== false ? 'success' : 'secondary'}
+                            className="text-[10px] py-0 px-1.5"
+                          >
+                            {channel.active !== false ? 'Aktif' : 'Pasif'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-zinc-400 font-mono">{channel.url}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 text-xs text-zinc-400">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-violet-400" />
+                        <span>Min Skor: <strong className="text-zinc-200">{channel.min_score || 90}</strong></span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-zinc-500" />
+                        <span>{channel.check_interval_h ? `${channel.check_interval_h}h` : '2h'}</span>
+                      </div>
+
+                      <Badge variant={channel.auto_upload ? 'default' : 'outline'} className="text-[10px]">
+                        {channel.auto_upload ? 'Oto Yayın' : 'Manuel'}
                       </Badge>
-                    </div>
-                    <p className="text-xs text-zinc-400 font-mono">{channel.url}</p>
-                  </div>
 
-                  <div className="flex items-center gap-6 text-xs text-zinc-400">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-violet-400" />
-                      <span>Min Skor: <strong className="text-zinc-200">{channel.min_score || 90}</strong></span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-zinc-500" />
-                      <span>{channel.check_interval_h ? `${channel.check_interval_h}h` : '2h'}</span>
-                    </div>
-
-                    <Badge variant={channel.auto_upload ? 'default' : 'outline'} className="text-[10px]">
-                      {channel.auto_upload ? 'Oto Yayın' : 'Manuel'}
-                    </Badge>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className={channel.active !== false ? 'text-amber-400 hover:text-amber-300' : 'text-emerald-400 hover:text-emerald-300'}
-                        onClick={() =>
-                          toggleChannelMutation.mutate({
-                            id: channel.id || channel.url,
-                            active: channel.active === false,
-                          })
-                        }
-                      >
-                        {channel.active !== false ? 'Durdur' : 'Aktifleştir'}
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                        onClick={() => {
-                          if (confirm(`${channel.name} kanalını takipten çıkarmak istediğinize emin misiniz?`)) {
-                            deleteChannelMutation.mutate(channel.id || channel.url);
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className={channel.active !== false ? 'text-amber-400 hover:text-amber-300' : 'text-emerald-400 hover:text-emerald-300'}
+                          onClick={() =>
+                            toggleChannelMutation.mutate({
+                              id: channel.id || channel.url,
+                              active: channel.active === false,
+                            })
                           }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        >
+                          {channel.active !== false ? 'Durdur' : 'Aktifleştir'}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => {
+                            if (confirm(`${channel.name} kanalını takipten çıkarmak istediğinize emin misiniz?`)) {
+                              deleteChannelMutation.mutate(channel.id || channel.url);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

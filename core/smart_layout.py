@@ -109,11 +109,11 @@ JSON formatında yanıt ver:
   "box_1000": {"ymin": int, "xmin": int, "ymax": int, "xmax": int}
 }"""
         model_pool = [
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-8b",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
         ]
 
         for model_name in model_pool:

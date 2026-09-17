@@ -104,16 +104,17 @@ def test_stream_cache_bounded_lru():
 
 
 def test_llm_models_to_try_are_valid():
-    """Verify MODELS_TO_TRY does not contain invalid, non-existent Gemini model names."""
+    """Verify MODELS_TO_TRY contains active Gemini 3.x models and no deprecated models."""
     models = GeminiHighlightEngine.MODELS_TO_TRY
     assert len(models) > 0
 
-    # Ensure no fabricated models exist
-    for bad_name in ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.7-flash", "gemini-3.6-flash"]:
-        assert bad_name not in models
+    # Ensure deprecated models are removed
+    for deprecated in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+        assert deprecated not in models
 
-    # Ensure standard verified models are in list
-    assert "gemini-2.5-flash" in models or "gemini-2.0-flash" in models or "gemini-1.5-flash" in models
+    # Ensure active verified Gemini 3.x models are in list
+    assert "gemini-3.6-flash" in models or "gemini-3.5-flash-lite" in models
+
 
 
 def test_ffmpeg_preset_is_fast():

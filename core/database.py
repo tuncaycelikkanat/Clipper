@@ -130,15 +130,17 @@ CREATE TABLE IF NOT EXISTS heatmap_patterns (
 
 _DDL_TRACKED_CHANNELS = """
 CREATE TABLE IF NOT EXISTS tracked_channels (
-    id              TEXT PRIMARY KEY,
-    url             TEXT UNIQUE NOT NULL,
-    name            TEXT NOT NULL,
-    min_score       INTEGER DEFAULT 90,
-    target_playlist TEXT,
-    auto_upload     INTEGER DEFAULT 1,
-    last_checked    TEXT,
-    active          INTEGER DEFAULT 1,
-    created_at      TEXT NOT NULL
+    id                 TEXT PRIMARY KEY,
+    url                TEXT UNIQUE NOT NULL,
+    name               TEXT NOT NULL,
+    min_score          INTEGER DEFAULT 90,
+    target_playlist    TEXT,
+    auto_upload        INTEGER DEFAULT 1,
+    last_checked       TEXT,
+    active             INTEGER DEFAULT 1,
+    created_at         TEXT NOT NULL,
+    youtube_username   TEXT,
+    instagram_username TEXT
 );
 """
 
@@ -168,6 +170,7 @@ CREATE TABLE IF NOT EXISTS autopilot_queue (
     instagram_url  TEXT,
     error_msg      TEXT,
     description    TEXT,
+    retry_count    INTEGER DEFAULT 0,
     created_at     TEXT NOT NULL,
     updated_at     TEXT NOT NULL
 );
@@ -291,6 +294,7 @@ class DatabaseManager:
             for col_sql in (
                 "ALTER TABLE autopilot_queue ADD COLUMN description TEXT;",
                 "ALTER TABLE autopilot_queue ADD COLUMN updated_at TEXT;",
+                "ALTER TABLE autopilot_queue ADD COLUMN retry_count INTEGER DEFAULT 0;",
                 "ALTER TABLE clips ADD COLUMN description TEXT;",
                 "ALTER TABLE clips ADD COLUMN tags TEXT;",
                 "ALTER TABLE clips ADD COLUMN thumbnail_path TEXT;",
@@ -301,6 +305,8 @@ class DatabaseManager:
                 "ALTER TABLE videos ADD COLUMN process_after TEXT;",
                 "ALTER TABLE videos ADD COLUMN delay_hours INTEGER DEFAULT 0;",
                 "ALTER TABLE videos ADD COLUMN upload_date TEXT;",
+                "ALTER TABLE tracked_channels ADD COLUMN youtube_username TEXT;",
+                "ALTER TABLE tracked_channels ADD COLUMN instagram_username TEXT;",
             ):
                 with contextlib.suppress(Exception):
                     conn.execute(col_sql)
@@ -686,28 +692,61 @@ class DatabaseManager:
         min_score: int = 90,
         target_playlist: str | None = None,
         auto_upload: int = 1,
+        youtube_username: str | None = None,
+        instagram_username: str | None = None,
     ) -> str:
         """Kanalı otomatik takip listesine ekler veya günceller."""
         channel_id = str(uuid.uuid4())
         sql = """
             INSERT INTO tracked_channels
-                (id, url, name, min_score, target_playlist, auto_upload, active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+                (id, url, name, min_score, target_playlist, auto_upload, active, created_at, youtube_username, instagram_username)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
             ON CONFLICT(url) DO UPDATE SET
-                name            = excluded.name,
-                min_score       = excluded.min_score,
-                target_playlist = excluded.target_playlist,
-                auto_upload     = excluded.auto_upload,
-                active          = 1;
+                name               = excluded.name,
+                min_score          = excluded.min_score,
+                target_playlist    = excluded.target_playlist,
+                auto_upload        = excluded.auto_upload,
+                active             = 1,
+                youtube_username   = COALESCE(excluded.youtube_username, tracked_channels.youtube_username),
+                instagram_username = COALESCE(excluded.instagram_username, tracked_channels.instagram_username);
         """
         with self._connect() as conn:
             conn.execute(
                 sql,
-                (channel_id, url.strip(), name.strip(), int(min_score), target_playlist, int(auto_upload), _utcnow()),
+                (channel_id, url.strip(), name.strip(), int(min_score), target_playlist, int(auto_upload), _utcnow(),
+                 youtube_username.strip() if youtube_username else None,
+                 instagram_username.strip() if instagram_username else None),
             )
             conn.commit()
+            actual_row = conn.execute("SELECT id FROM tracked_channels WHERE url = ?", (url.strip(),)).fetchone()
+            if actual_row:
+                channel_id = actual_row["id"]
         logger.info("Tracked channel added/updated: {} ({})", name, url)
         return channel_id
+
+    def update_tracked_channel_usernames(
+        self,
+        channel_id_or_url: str,
+        youtube_username: str | None = None,
+        instagram_username: str | None = None,
+    ) -> None:
+        """Kanal için YouTube ve/veya Instagram kullanıcı adını günceller."""
+        updates: dict[str, Any] = {}
+        if youtube_username is not None:
+            updates["youtube_username"] = youtube_username.strip() if youtube_username else None
+        if instagram_username is not None:
+            updates["instagram_username"] = instagram_username.strip() if instagram_username else None
+        if not updates:
+            return
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [channel_id_or_url, channel_id_or_url]
+        with self._connect() as conn:
+            conn.execute(
+                f"UPDATE tracked_channels SET {set_clause} WHERE id = ? OR url = ?;",
+                values,
+            )
+            conn.commit()
+        logger.info("Updated usernames for channel {}: {}", channel_id_or_url, updates)
 
     def get_tracked_channels(self, active_only: bool = True) -> list[dict[str, Any]]:
         """Takip edilen kanalları listeler."""
@@ -734,6 +773,7 @@ class DatabaseManager:
         with self._connect() as conn:
             conn.execute(sql, (_utcnow(), channel_url))
             conn.commit()
+
 
     # ------------------------------------------------------------------
     # Per-channel processed video tracking (anchor-based new detection)
@@ -843,18 +883,23 @@ class DatabaseManager:
         youtube_url: str | None = None,
         instagram_url: str | None = None,
         error_msg: str | None = None,
+        retry_count: int | None = None,
+        scheduled_at: str | None = None,
     ) -> None:
-        """Kuyruk öğesinin durumunu günceller."""
+        """Kuyruk öğesinin durumunu, platform URL'lerini ve yeniden deneme zamanını günceller."""
         sql = """
             UPDATE autopilot_queue
             SET status = ?,
                 youtube_url = COALESCE(?, youtube_url),
                 instagram_url = COALESCE(?, instagram_url),
-                error_msg = ?
+                error_msg = ?,
+                retry_count = COALESCE(?, retry_count),
+                scheduled_at = COALESCE(?, scheduled_at),
+                updated_at = ?
             WHERE id = ?;
         """
         with self._connect() as conn:
-            conn.execute(sql, (status, youtube_url, instagram_url, error_msg, queue_id))
+            conn.execute(sql, (status, youtube_url, instagram_url, error_msg, retry_count, scheduled_at, _utcnow(), queue_id))
             conn.commit()
         logger.debug("Updated autopilot queue {} status={}", queue_id, status)
 

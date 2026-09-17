@@ -7,14 +7,114 @@ using yt-dlp, enabling automated new-video discovery for the scheduler.
 
 from __future__ import annotations
 
+import datetime
+import re
 from typing import Any
+import xml.etree.ElementTree as ET
 
+import requests
 import yt_dlp
 from loguru import logger
 
 
 class ChannelFeed:
     """Retrieves video listings from YouTube channels and playlists via yt-dlp."""
+
+    @staticmethod
+    def extract_channel_id(url: str) -> str | None:
+        """URL veya metinden 24 karakterlik YouTube UC... kanal ID'sini ayıklar."""
+        m = re.search(r"(?:channel/|videos\.xml\?channel_id=)(UC[a-zA-Z0-9_-]{22})", url)
+        if m:
+            return m.group(1)
+        return None
+
+    @classmethod
+    def fetch_youtube_rss_videos(cls, channel_id: str, timeout: float = 6.0) -> list[dict[str, Any]]:
+        """YouTube resmi Atom RSS beslemesi üzerinden kesin ISO yayın tarihleriyle son videoları çeker."""
+        clean_id = channel_id.strip()
+        if not clean_id or not clean_id.startswith("UC"):
+            return []
+
+        rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={clean_id}"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+        try:
+            resp = requests.get(rss_url, headers=headers, timeout=timeout)
+            if resp.status_code != 200:
+                logger.debug("YouTube RSS returned status {} for channel {}", resp.status_code, clean_id)
+                return []
+
+            root = ET.fromstring(resp.text)
+            ns = {
+                "atom": "http://www.w3.org/2005/Atom",
+                "yt": "http://www.youtube.com/xml/schemas/2015",
+            }
+            results: list[dict[str, Any]] = []
+            for entry in root.findall("atom:entry", ns):
+                vid_elem = entry.find("yt:videoId", ns)
+                title_elem = entry.find("atom:title", ns)
+                pub_elem = entry.find("atom:published", ns)
+                if vid_elem is not None and vid_elem.text:
+                    vid_id = vid_elem.text.strip()
+                    title = title_elem.text.strip() if title_elem is not None and title_elem.text else "Başlıksız"
+                    published_iso = pub_elem.text.strip() if pub_elem is not None and pub_elem.text else ""
+                    upload_date = published_iso[:10].replace("-", "") if published_iso else ""
+                    results.append(
+                        {
+                            "id": vid_id,
+                            "url": f"https://www.youtube.com/watch?v={vid_id}",
+                            "title": title,
+                            "upload_date": upload_date,
+                            "published_at": published_iso,
+                            "duration": 0,
+                            "view_count": 0,
+                        }
+                    )
+            logger.debug("YouTube RSS retrieved {} videos for channel {}", len(results), clean_id)
+            return results
+        except Exception as exc:
+            logger.debug("Failed to fetch YouTube RSS for {}: {}", clean_id, exc)
+            return []
+
+    @staticmethod
+    def is_video_too_old(
+        video: dict[str, Any],
+        max_age_days: int | None = None,
+        allow_undated: bool = True,
+    ) -> bool:
+        """Videonun yayınlanma tarihi max_age_days sınırını aşıyorsa True döner."""
+        if not max_age_days or max_age_days <= 0:
+            return False
+
+        if video.get("is_older_than_rss"):
+            return True
+
+        # 1. ISO 8601 yayın tarihi kontrolü
+        pub = video.get("published_at")
+        if pub:
+            try:
+                dt = datetime.datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                age = datetime.datetime.now(datetime.timezone.utc) - dt
+                return age.total_seconds() > (max_age_days * 86400)
+            except Exception:
+                pass
+
+        # 2. YYYYMMDD upload_date kontrolü
+        u_date = video.get("upload_date")
+        if u_date and len(u_date) == 8:
+            try:
+                dt = datetime.datetime.strptime(u_date, "%Y%m%d").replace(tzinfo=datetime.timezone.utc)
+                age = datetime.datetime.now(datetime.timezone.utc) - (dt + datetime.timedelta(days=1))
+                return age.total_seconds() > (max_age_days * 86400)
+            except Exception:
+                pass
+
+        return not allow_undated
+
 
     _BASE_OPTS: dict[str, Any] = {
         "skip_download": True,
@@ -116,12 +216,30 @@ class ChannelFeed:
                 }
             )
 
-        # Sort newest-first by upload_date string ('YYYYMMDD'). Videoları tarihsiz
-        # (upload_date boş) olanları "en yeni" kabul et (büyük bir anahtarla) ki
-        # tarihi eksik olsa bile yeni videolar en üstte kalsın ve anchor tespitinde
-        # kaçırılmasın.
+        # Try to resolve channel_id and enrich with RSS feed data (for real publication dates)
+        channel_id = cls.extract_channel_id(channel_url) or (info.get("channel_id") if info else None)
+        rss_videos: list[dict[str, Any]] = []
+        if channel_id:
+            rss_videos = cls.fetch_youtube_rss_videos(channel_id)
+
+        if rss_videos:
+            rss_map = {rv["id"]: rv for rv in rss_videos}
+            for v in videos:
+                if v["id"] in rss_map:
+                    v["published_at"] = rss_map[v["id"]].get("published_at", "")
+                    if not v.get("upload_date"):
+                        v["upload_date"] = rss_map[v["id"]].get("upload_date", "")
+                else:
+                    v["is_older_than_rss"] = True
+            # Include any RSS videos not extracted by flat extraction
+            existing_ids = {v["id"] for v in videos}
+            for rv in reversed(rss_videos):
+                if rv["id"] not in existing_ids:
+                    videos.insert(0, rv)
+
+        # Sort newest-first by published_at (ISO datetime) or upload_date ('YYYYMMDD')
         videos.sort(
-            key=lambda v: v["upload_date"] if v["upload_date"] else "99999999",
+            key=lambda v: v.get("published_at") or v.get("upload_date") or "",
             reverse=True,
         )
 
@@ -134,27 +252,16 @@ class ChannelFeed:
         channel_url: str,
         processed_ids: list[str],
         max_count: int = 10,
+        max_age_days: int | None = None,
     ) -> list[dict[str, Any]]:
-        """Return only videos that have not yet been processed.
-
-        Fetches up to ``max_count * 3`` recent videos from the channel and
-        filters out IDs present in *processed_ids*.
-
-        Args:
-            channel_url:    YouTube channel or playlist URL.
-            processed_ids:  List of video IDs already processed/stored.
-            max_count:      Maximum number of *new* videos to return (default 10).
-
-        Returns:
-            Subset of :meth:`get_channel_videos` results excluding processed IDs,
-            still sorted newest-first.
-        """
-        # Fetch more than needed so filtering still yields max_count results.
         fetch_count = max(max_count * 3, 30)
         all_videos = cls.get_channel_videos(channel_url, max_count=fetch_count)
 
         seen = set(processed_ids)
-        new_videos = [v for v in all_videos if v["id"] not in seen]
+        new_videos = [
+            v for v in all_videos
+            if v["id"] not in seen and not cls.is_video_too_old(v, max_age_days)
+        ]
 
         logger.info(
             "get_new_videos: {} yeni, {} işlenmiş, {} toplam alındı",
