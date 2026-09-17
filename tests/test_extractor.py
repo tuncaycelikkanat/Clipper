@@ -129,12 +129,13 @@ def test_calculate_recommended_clips():
     # 37 min video
     res_37 = YouTubeExtractor.calculate_recommended_clips(2220)
     assert res_37["recommended_clips"] == 10
-    assert "8 - 14" in res_37["clip_range"]
+    assert "8 - 10" in res_37["clip_range"]
 
-    # 75 min video
+    # 75 min video (capped at 10)
     res_long = YouTubeExtractor.calculate_recommended_clips(4500)
-    assert res_long["recommended_clips"] == 15
+    assert res_long["recommended_clips"] == 10
 
-    # 180 min marathon
+    # 180 min marathon (capped at 10)
     res_marathon = YouTubeExtractor.calculate_recommended_clips(10800)
-    assert res_marathon["recommended_clips"] >= 20
+    assert res_marathon["recommended_clips"] == 10
+

@@ -151,7 +151,7 @@ class YouTubeExtractor:
 
     @staticmethod
     def calculate_recommended_clips(duration_sec: int) -> dict[str, Any]:
-        """Calculates generous, duration-based recommended clip count for gaming videos."""
+        """Calculates duration-based recommended clip count for gaming videos (capped at max 10)."""
         minutes = max(1, round(duration_sec / 60))
         if minutes <= 3:
             recommended = 2
@@ -163,27 +163,27 @@ class YouTubeExtractor:
             tier_label = "Kısa Video"
         elif minutes <= 15:
             recommended = 5
-            clip_range = "4 - 7"
+            clip_range = "4 - 6"
             tier_label = "Orta Süreli Video"
         elif minutes <= 30:
             recommended = 7
-            clip_range = "5 - 10"
+            clip_range = "5 - 8"
             tier_label = "Standart Gaming Videosu"
         elif minutes <= 45:  # e.g. 37 min
             recommended = 10
-            clip_range = "8 - 14"
+            clip_range = "8 - 10"
             tier_label = "Uzun Gaming / Maç Videosu"
         elif minutes <= 60:
-            recommended = 12
-            clip_range = "10 - 16"
+            recommended = 10
+            clip_range = "8 - 10"
             tier_label = "1 Saatlik Kayıt"
         elif minutes <= 90:
-            recommended = 15
-            clip_range = "12 - 20"
+            recommended = 10
+            clip_range = "8 - 10"
             tier_label = "Uzun Canlı Yayın Tekrarı"
         else:
-            recommended = min(25, max(15, round(minutes / 4.5)))
-            clip_range = f"{max(10, recommended - 4)} - {min(25, recommended + 5)}"
+            recommended = 10
+            clip_range = "8 - 10"
             tier_label = "Maraton Canlı Yayın"
 
         return {
@@ -191,5 +191,5 @@ class YouTubeExtractor:
             "recommended_clips": recommended,
             "clip_range": clip_range,
             "tier_label": tier_label,
-            "explanation": f"{minutes} dakikalık {tier_label.lower()} için önerilen bol klip havuzu: {recommended} klip ({clip_range} adet).",
+            "explanation": f"{minutes} dakikalık {tier_label.lower()} için önerilen klip havuzu: {recommended} klip ({clip_range} adet).",
         }
