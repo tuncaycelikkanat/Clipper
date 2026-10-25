@@ -878,13 +878,18 @@ class AutoPilotManager:
             new_ig_url = res.get("instagram", {}).get("url") if res.get("instagram", {}).get("status") == "success" else None
             effective_yt = new_yt_url or cur_yt_url
             effective_ig = new_ig_url or cur_ig_url
-            # KRİTİK: YouTube başarılı olduysa anında kaydet (Instagram patlasa bile YouTube tekrar yüklenmez!)
-            if new_yt_url:
-                self.db.update_autopilot_queue_status(q_id, "PUBLISHING", youtube_url=effective_yt)
+            # KRİTİK: YouTube veya Instagram başarılı olduysa anında kaydet
+            if new_yt_url or new_ig_url:
+                self.db.update_autopilot_queue_status(
+                    q_id,
+                    "PUBLISHING",
+                    youtube_url=effective_yt,
+                    instagram_url=effective_ig,
+                )
             errors: list[str] = []
-            if "youtube" in target_platforms and not new_yt_url:
+            if "youtube" in target_platforms and not effective_yt:
                 errors.append(f"YouTube: {res.get('youtube', {}).get('error', 'failed')}")
-            if "instagram" in target_platforms and not new_ig_url:
+            if "instagram" in target_platforms and not effective_ig:
                 errors.append(f"Instagram: {res.get('instagram', {}).get('error', 'failed')}")
             if not errors:
                 self.db.update_autopilot_queue_status(
@@ -902,7 +907,7 @@ class AutoPilotManager:
                 max_retries = 3
                 if next_retries >= max_retries:
                     # Maksimum denemeye ulaşıldı -> Nihai başarısız veya kısmi yayınlandı
-                    final_status = "PARTIAL_PUBLISHED" if effective_yt else "FAILED"
+                    final_status = "PARTIAL_PUBLISHED" if (effective_yt or effective_ig) else "FAILED"
                     self.db.update_autopilot_queue_status(
                         q_id,
                         final_status,
