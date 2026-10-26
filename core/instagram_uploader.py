@@ -168,12 +168,66 @@ class InstagramUploader:
     ) -> bool:
         """
         Step 2: Upload the local .mp4 binary chunks to Meta's upload URI with retries.
+        Uses curl as primary native binary transport (avoids urllib3/requests proxy header chunking issues with Meta),
+        falling back to requests if curl is not available.
         """
         path = Path(video_path).resolve()
         if not path.exists():
             raise FileNotFoundError(f"Video dosyası bulunamadı: {video_path}")
 
         file_size = path.stat().st_size
+        last_err = ""
+
+        # 1. Primary: Native curl binary upload (Meta rupload strongly prefers this)
+        import shutil
+        import subprocess
+
+        if shutil.which("curl"):
+            for attempt in range(1, max_retries + 1):
+                try:
+                    cmd = [
+                        "curl",
+                        "-s",
+                        "-w",
+                        "\nHTTP_STATUS: %{http_code}\n",
+                        "-X",
+                        "POST",
+                        upload_url,
+                        "-H",
+                        f"Authorization: OAuth {self.access_token}",
+                        "-H",
+                        "offset: 0",
+                        "-H",
+                        f"file_size: {file_size}",
+                        "-H",
+                        "Content-Type: application/octet-stream",
+                        "--data-binary",
+                        f"@{str(path)}",
+                    ]
+                    res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                    stdout = res.stdout or ""
+                    status_code = None
+                    if "HTTP_STATUS: " in stdout:
+                        try:
+                            status_code = int(stdout.split("HTTP_STATUS: ")[1].split("\n")[0].strip())
+                        except Exception:
+                            status_code = None
+
+                    logger.debug(f"Meta rupload curl (attempt {attempt}/{max_retries}) status: {status_code}")
+                    if status_code in (200, 201) or '"success":true' in stdout:
+                        logger.info(f"Meta binary upload successful via curl ({file_size / (1024 * 1024):.1f} MB).")
+                        return True
+
+                    last_err = f"HTTP {status_code}: {stdout[:200]}"
+                    logger.warning(f"Meta rupload curl attempt {attempt} failed: {last_err}")
+                except Exception as e:
+                    last_err = str(e)
+                    logger.warning(f"Meta rupload curl attempt {attempt} error: {e}")
+
+                if attempt < max_retries:
+                    time.sleep(attempt * 3)
+
+        # 2. Fallback: Python requests upload
         headers = {
             "Authorization": f"OAuth {self.access_token}",
             "offset": "0",
@@ -182,13 +236,12 @@ class InstagramUploader:
             "Content-Type": "application/octet-stream",
         }
 
-        last_err = ""
         for attempt in range(1, max_retries + 1):
             try:
                 with open(path, "rb") as f:
                     resp = requests.post(upload_url, headers=headers, data=f, timeout=240)
 
-                logger.debug(f"Meta rupload (attempt {attempt}/{max_retries}) status: {resp.status_code}")
+                logger.debug(f"Meta rupload requests (attempt {attempt}/{max_retries}) status: {resp.status_code}")
                 if resp.status_code in (200, 201):
                     logger.info(f"Meta binary upload successful ({file_size / (1024 * 1024):.1f} MB).")
                     return True
@@ -338,7 +391,7 @@ class InstagramUploader:
                     logger.debug(
                         f"Uploading binary bytes to Meta endpoint: {upload_url} (Container attempt {container_attempt}/{max_container_attempts})"
                     )
-                    self.upload_binary_to_container(upload_url, str(path), max_retries=1)
+                    self.upload_binary_to_container(upload_url, str(path), max_retries=2)
 
                 # Yükleme başarılı, döngüden çık
                 break
