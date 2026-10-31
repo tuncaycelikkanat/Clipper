@@ -1,6 +1,6 @@
 import { PipelineJob, Clip, Video, Channel, QueueItem, CalendarDay, PipelineRunRequest, SettingsStatus, CreateChannelRequest } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const isFormData = options?.body instanceof FormData;

@@ -159,7 +159,7 @@ async def youtube_auth_callback(code: str, request: Request, state: str | None =
   </div>
   <script>
     if (window.opener) {
-      window.opener.postMessage({ type: 'YOUTUBE_AUTH_SUCCESS' }, 'http://localhost:5173');
+      window.opener.postMessage({ type: 'YOUTUBE_AUTH_SUCCESS' }, '*');
     }
     setTimeout(() => {
       window.close();
