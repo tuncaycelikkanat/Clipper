@@ -124,7 +124,7 @@ class AutoPilotManager:
 
     @classmethod
     def start_video_scanner(cls, interval_hours: float = 2.0, db: DatabaseManager | None = None) -> bool:
-        """Kanal tarayıcısını (yeni videoları tespit edip sıraya ekleyen döngü) başlatır."""
+        """Kanal tarayıcısını ve otomatik video işleme döngüsünü başlatır."""
         try:
             cls._ensure_scheduler_started()
             inst = cls(db=db)
@@ -140,13 +140,34 @@ class AutoPilotManager:
                 except Exception as e:
                     logger.error("AutoPilot scanner cycle error: {}", e)
 
+            def processor_job():
+                try:
+                    inst.process_pending_videos(max_videos=2)
+                except Exception as e:
+                    logger.error("AutoPilot periodic processor error: {}", e)
+
+            # İlk tarama 10 saniye sonra başlasın, ardından belirtilen saat aralığıyla devam etsin
+            first_run = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=10)
             cls._worker_scheduler.add_job(
                 scanner_job,
                 "interval",
                 hours=interval_hours,
+                next_run_time=first_run,
                 id="autopilot_cycle_job",
                 replace_existing=True,
+                max_instances=1,
             )
+
+            # Bekleme süresi (24 saat) dolan videoları her 15 dakikada bir kontrol eden otomatik işleyici
+            cls._worker_scheduler.add_job(
+                processor_job,
+                "interval",
+                minutes=15,
+                id="autopilot_process_pending_job",
+                replace_existing=True,
+                max_instances=1,
+            )
+
             with cls._lock:
                 now_utc = datetime.datetime.now(datetime.timezone.utc)
                 cls._worker_info["video_scanner_running"] = True
@@ -157,7 +178,7 @@ class AutoPilotManager:
                 ).isoformat()
                 cls._worker_info["next_run"] = cls._worker_info["next_scanner_run"]
                 cls._worker_info["running"] = True
-            logger.info("AutoPilot video scanner started (interval: {}h).", interval_hours)
+            logger.info("AutoPilot video scanner & processor started (interval: {}h, processor: 15m).", interval_hours)
             return True
         except Exception as e:
             logger.error("Failed to start AutoPilot video scanner: {}", e)
@@ -168,13 +189,14 @@ class AutoPilotManager:
 
     @classmethod
     def stop_video_scanner(cls) -> bool:
-        """Kanal tarayıcısını durdurur."""
+        """Kanal tarayıcısını ve otomatik video işleyiciyi durdurur."""
         try:
             if cls._worker_scheduler and cls._worker_scheduler.running:
-                try:
-                    cls._worker_scheduler.remove_job("autopilot_cycle_job")
-                except Exception:
-                    pass
+                for jid in ("autopilot_cycle_job", "autopilot_process_pending_job"):
+                    try:
+                        cls._worker_scheduler.remove_job(jid)
+                    except Exception:
+                        pass
             with cls._lock:
                 cls._worker_info["video_scanner_running"] = False
                 cls._worker_info["next_scanner_run"] = None
@@ -430,6 +452,49 @@ class AutoPilotManager:
 
         return {"channels": len(channels), "recorded": recorded_total, "errors": backfill_errors}
 
+    @staticmethod
+    def calculate_process_after(video: dict[str, Any], wait_hours: int = 24) -> str | None:
+        """Video yayınlanma tarihine göre işlenme zamanını belirler.
+
+        Kural:
+        - Video yayınlanalı wait_hours (default: 24 saat) geçmişse:
+          Yorumlar ve heatmap zaten oluşmuştur -> direkt işlenir (None döner).
+        - Video wait_hours'tan daha yeniyse:
+          Yayınlanma zamanından itibaren wait_hours dolana kadar bekletilir.
+        - Tarih tespit edilemezse:
+          Şu andan itibaren wait_hours sonraya ertelenir.
+        """
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        # 1. ISO published_at kontrolü (en hassas)
+        pub = video.get("published_at")
+        if pub:
+            try:
+                pub_dt = datetime.datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                if pub_dt.tzinfo is None:
+                    pub_dt = pub_dt.replace(tzinfo=datetime.timezone.utc)
+                target_dt = pub_dt + datetime.timedelta(hours=wait_hours)
+                if target_dt <= now:
+                    return None
+                return target_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                pass
+
+        # 2. YYYYMMDD upload_date kontrolü
+        u_date = video.get("upload_date")
+        if u_date and len(str(u_date)) == 8:
+            try:
+                dt = datetime.datetime.strptime(str(u_date), "%Y%m%d").replace(tzinfo=datetime.timezone.utc)
+                target_dt = dt + datetime.timedelta(hours=wait_hours)
+                if target_dt <= now:
+                    return None
+                return target_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                pass
+
+        # 3. Tarih bilgisi yoksa: şu andan itibaren wait_hours beklet
+        return (now + datetime.timedelta(hours=wait_hours)).strftime("%Y-%m-%d %H:%M:%S")
+
     def run_cycle(
         self,
         api_key: str | None = None,
@@ -447,6 +512,7 @@ class AutoPilotManager:
             return {
                 "channels_checked": 0,
                 "new_videos_found": 0,
+                "videos_processed": 0,
                 "clips_stockpiled": 0,
                 "clips_scheduled": 0,
                 "errors": [],
@@ -491,24 +557,41 @@ class AutoPilotManager:
                     vid_url = vid["url"]
                     vid_title = vid.get("title", "Video")
                     if not self.db.video_exists(vid["id"]):
-                        import datetime
-                        # Yüklemeden hemen sonra klipleme yapma, Heatmap verisi için 24 saat bekle (Öncelikli)
-                        process_after = (datetime.datetime.utcnow() + datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
-                        self.db.save_video({"id": vid["id"], "url": vid_url, "title": vid_title, "process_after": process_after})
+                        process_after = self.calculate_process_after(vid, wait_hours=24)
+                        v_data = {
+                            "id": vid["id"],
+                            "url": vid_url,
+                            "title": vid_title,
+                            "uploader": ch_name,
+                            "upload_date": vid.get("upload_date", ""),
+                            "duration": vid.get("duration", 0),
+                            "view_count": vid.get("view_count", 0),
+                            "process_after": process_after,
+                            "status": "pending",
+                        }
+                        self.db.save_video(v_data)
                         self.db.record_processed_video(ch_url, vid["id"], vid_title)
-                        cb(f"   📥 [Kuyruğa Eklendi] {vid_title}")
+                        if process_after is None:
+                            cb(f"   📥 [Direkt İşleme Alındı (>24h)] {vid_title}")
+                        else:
+                            cb(f"   ⏳ [24 Saat Beklemeye Alındı (Hedef: {process_after})] {vid_title}")
                     else:
                         cb(f"   ⏩ [Zaten Var] {vid_title}")
+                self.db.update_tracked_channel_checked(ch_url)
             except Exception as e:
                 logger.error("Channel scan error: {}", e)
                 cycle_errors.append(str(e))
 
+        # Taranan videolar sonrası işlenmeye hazır (1 günden eski veya süresi dolmuş) videoları otomatik işle
+        proc_res = self.process_pending_videos(api_key=api_key, progress_callback=cb)
+
         return {
             "channels_checked": len(channels),
             "new_videos_found": new_videos_found,
+            "videos_processed": proc_res.get("processed", 0),
             "clips_stockpiled": 0,
             "clips_scheduled": 0,
-            "errors": cycle_errors,
+            "errors": cycle_errors + proc_res.get("errors", []),
         }
 
     def scan_and_queue_latest_channels(
@@ -579,8 +662,7 @@ class AutoPilotManager:
                     uploader = ch_name or vid.get("uploader", "")
                     upload_date = vid.get("upload_date", "")
 
-                    import datetime
-                    process_after = (datetime.datetime.utcnow() + datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+                    process_after = self.calculate_process_after(vid, wait_hours=24)
 
                     v_data = {
                         "id": vid_id,
@@ -596,7 +678,10 @@ class AutoPilotManager:
                     self.db.save_video(v_data)
                     self.db.record_processed_video(ch_url, vid_id, vid_title)
                     new_videos.append(v_data)
-                    cb(f"   📥 [Sıraya Alındı] {vid_title}")
+                    if process_after is None:
+                        cb(f"   📥 [Direkt İşleme Alındı (>24h)] {vid_title}")
+                    else:
+                        cb(f"   ⏳ [24 Saat Beklemeye Alındı (Hedef: {process_after})] {vid_title}")
 
                 self.db.update_tracked_channel_checked(ch_url)
             except Exception as exc:
@@ -629,7 +714,7 @@ class AutoPilotManager:
 
         with self.db._connect() as conn:
             pending_videos = conn.execute(
-                "SELECT id, url, title FROM videos WHERE status='pending' AND (process_after IS NULL OR process_after <= datetime('now')) LIMIT ?", (max_videos,)
+                "SELECT id, url, title FROM videos WHERE status='pending' AND (process_after IS NULL OR datetime(process_after) <= datetime('now')) LIMIT ?", (max_videos,)
             ).fetchall()
 
         if not pending_videos:
@@ -677,9 +762,10 @@ class AutoPilotManager:
                 )
 
                 from core.scoring_config import VIRAL_SCORE_THRESHOLD
+                min_threshold = int(channel_data.get("min_score") or VIRAL_SCORE_THRESHOLD)
                 for clip in results:
                     score = int(clip.get("viral_confidence") or clip.get("score") or 0)
-                    if score < VIRAL_SCORE_THRESHOLD:
+                    if score < min_threshold:
                         continue
                     render_path = clip.get("render_path", "")
                     if not render_path or not os.path.exists(render_path):

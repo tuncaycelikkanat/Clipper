@@ -51,19 +51,17 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("AutoPilot Klip Paylaşma servisi devre dışı bırakıldı.")
 
-    # ── 2. Yeni Video Tarama Servisi (Varsayılan: KAPALI) ─────────────────────
-    # UI üzerinden veya /api/scheduler/video-scanner/start ile manuel başlatılabilir.
-    # .env içinde AUTOPILOT_SCANNER_AUTO_START=true verilirse otomatik başlatılır.
-    if os.getenv("AUTOPILOT_SCANNER_AUTO_START", os.getenv("AUTOPILOT_AUTO_START", "false")).lower() in ("true", "1", "yes"):
+    # ── 2. Yeni Video Tarama & Otomatik İşleme Servisi (Varsayılan: AÇIK) ─────
+    if os.getenv("AUTOPILOT_SCANNER_AUTO_START", os.getenv("AUTOPILOT_AUTO_START", "true")).lower() in ("true", "1", "yes"):
         try:
             from core.autopilot import AutoPilotManager
 
             AutoPilotManager.start_video_scanner(interval_hours=2.0)
-            logger.info("AutoPilot Yeni Video Tarama servisi arka planda başlatıldı (2 saat aralıkla).")
+            logger.info("AutoPilot Video Tarama & Otomatik İşleme servisi arka planda başlatıldı (2 saat aralıkla, 15 dk işleme kontrolü aktif).")
         except Exception as e:
             logger.warning("AutoPilot Video Tarama servisi başlatılamadı: {}", e)
     else:
-        logger.info("AutoPilot Yeni Video Tarama servisi varsayılan olarak KAPALI (Manuel başlatılabilir).")
+        logger.info("AutoPilot Video Tarama servisi devre dışı bırakıldı.")
 
     yield
 

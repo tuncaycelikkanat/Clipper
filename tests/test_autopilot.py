@@ -557,3 +557,36 @@ def test_scan_and_queue_latest_channels_with_exclude(manager, auto_db):
     assert "Adal" in res["skipped_channels"]
     assert res["new_videos_found"] == 1
     assert res["videos"][0]["id"] == "vid_tolunay_2"
+
+
+def test_calculate_process_after_rules():
+    """1 günden eski videolar direkt None dönmeli, 1 günden yeniler 24 saat tamamlanana kadar bekletilmeli."""
+    import datetime
+    from core.autopilot import AutoPilotManager
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # 1. Video 2 gün önce yayınlanmış -> direkt None (hemen işlenebilir)
+    old_iso = (now - datetime.timedelta(days=2)).isoformat()
+    assert AutoPilotManager.calculate_process_after({"published_at": old_iso}) is None
+
+    # 2. Video 4 saat önce yayınlanmış -> 20 saat sonraya ertelenmeli
+    new_iso = (now - datetime.timedelta(hours=4)).isoformat()
+    target_str = AutoPilotManager.calculate_process_after({"published_at": new_iso})
+    assert target_str is not None
+    target_dt = datetime.datetime.strptime(target_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+    diff_h = (target_dt - now).total_seconds() / 3600
+    assert 19.5 <= diff_h <= 20.5
+
+    # 3. YYYYMMDD upload_date 3 gün önce -> direkt None
+    old_upload = (now - datetime.timedelta(days=3)).strftime("%Y%m%d")
+    assert AutoPilotManager.calculate_process_after({"upload_date": old_upload}) is None
+
+    # 4. YYYYMMDD upload_date bugün -> hedef zaman dönmeli
+    today_upload = now.strftime("%Y%m%d")
+    assert AutoPilotManager.calculate_process_after({"upload_date": today_upload}) is not None
+
+    # 5. Tarih bilgisi olmayan video -> varsayılan 24 saat ertelenmeli
+    no_date = AutoPilotManager.calculate_process_after({})
+    assert no_date is not None
+
