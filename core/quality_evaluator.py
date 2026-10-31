@@ -85,6 +85,7 @@ Kriterler (Oyun & Eğlence Kriterleri):
 Lütfen Pydantic JSON olarak değerlendir.
 """
                 for g_model in [
+                    "gemini-3.8-flash",
                     "gemini-3.5-flash-lite",
                     "gemini-flash-lite-latest",
                     "gemini-3.1-flash-lite",
