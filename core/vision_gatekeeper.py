@@ -200,9 +200,11 @@ class VisionGatekeeper:
         with tempfile.TemporaryDirectory() as tmp_dir:
             for idx, t in enumerate(target_times):
                 out_path = os.path.join(tmp_dir, f"frame_{idx}.jpg")
-                cmd = [
-                    "ffmpeg",
-                    "-y",
+                cmd = ["ffmpeg", "-y"]
+                if source.startswith("http://") or source.startswith("https://"):
+                    headers_str = "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n"
+                    cmd.extend(["-headers", headers_str])
+                cmd.extend([
                     "-reconnect",
                     "1",
                     "-reconnect_at_eof",
@@ -220,7 +222,7 @@ class VisionGatekeeper:
                     "-q:v",
                     "5",
                     out_path,
-                ]
+                ])
                 try:
                     subprocess.run(cmd, capture_output=True, timeout=25, check=True)
                     if os.path.exists(out_path) and os.path.getsize(out_path) > 0:

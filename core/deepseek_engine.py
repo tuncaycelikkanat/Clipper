@@ -121,6 +121,47 @@ Lütfen şu JSON formatında yanıt ver:
             raise
 
     @classmethod
+    def batch_judge_candidates_to_clips(
+        cls,
+        candidates: list[dict[str, Any]],
+        video_title: str,
+        total_duration: int,
+        target_clips: int = 3,
+        api_key: str | None = None,
+        include_rejected: bool = False,
+    ) -> list[dict[str, Any]]:
+        """DeepSeek V3 / OpenRouter ile adayları değerlendirir ve final klip listesi döner."""
+        from core.llm_engine import GeminiHighlightEngine
+
+        candidates_summary = []
+        for c in candidates:
+            candidates_summary.append({
+                "candidate_id": c.get("candidate_id", 0),
+                "start_time": c.get("start_time", 0.0),
+                "end_time": c.get("end_time", 0.0),
+                "peak_time": c.get("peak_time", 0.0),
+                "transcript_snippet": c.get("transcript_snippet", ""),
+                "signals": c.get("signals", {}),
+                "fusion_score": c.get("fusion_score", 0),
+            })
+
+        data = cls.batch_judge_candidates(
+            candidates_summary=candidates_summary,
+            video_title=video_title,
+            total_duration=total_duration,
+            target_clips=target_clips,
+            api_key=api_key,
+        )
+        return GeminiHighlightEngine._build_final_clips(
+            data=data,
+            candidates=candidates,
+            total_duration=total_duration,
+            target_clips=target_clips,
+            allow_zero_clips=True,
+            include_rejected=include_rejected,
+        )
+
+    @classmethod
     def evaluate_quality(
         cls,
         clip: dict[str, Any],

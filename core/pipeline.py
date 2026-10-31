@@ -237,21 +237,48 @@ class ClipperPipeline:
                     api_key=api_key,
                     include_rejected=save_rejected,
                 )
-                vision_success = True
+                if evaluated_clips:
+                    vision_success = True
+                else:
+                    logger.info("Vision Gatekeeper 0 klip döndü, metin tabanlı LLM fallback devreye giriyor...")
             except Exception as ve:
                 logger.warning("Vision Gatekeeper hatası, metin tabanlı LLM fallback devreye giriyor: {}", ve)
                 vision_success = False
 
         if not vision_success:
-            evaluated_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
-                candidates=candidates,
-                video_title=video_title,
-                total_duration=duration,
-                target_clips=target_clips,
-                api_key=api_key,
-                allow_zero_clips=True,
-                include_rejected=save_rejected,
-            )
+            gemini_success = False
+            try:
+                evaluated_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
+                    candidates=candidates,
+                    video_title=video_title,
+                    total_duration=duration,
+                    target_clips=target_clips,
+                    api_key=api_key,
+                    allow_zero_clips=True,
+                    include_rejected=save_rejected,
+                )
+                if evaluated_clips:
+                    gemini_success = True
+            except Exception as ge:
+                logger.warning("GeminiHighlightEngine başarısız oldu (kota/bağlantı): {}. DeepSeek fallback devreye giriyor...", ge)
+                gemini_success = False
+
+            if not gemini_success:
+                try:
+                    from core.deepseek_engine import DeepSeekEngine
+
+                    if DeepSeekEngine.is_available():
+                        safe_cb("🤖 DeepSeek / OpenRouter motoru ile klip değerlendirmesi yapılıyor...")
+                        evaluated_clips = DeepSeekEngine.batch_judge_candidates_to_clips(
+                            candidates=candidates,
+                            video_title=video_title,
+                            total_duration=duration,
+                            target_clips=target_clips,
+                            include_rejected=save_rejected,
+                        )
+                        logger.info("DeepSeek motoru ile {} klip başarıyla değerlendirildi.", len(evaluated_clips))
+                except Exception as de:
+                    logger.error("DeepSeek fallback değerlendirme hatası: {}", de)
         step_timings["4. Multimodal Vision Viral Judgement"] = time.perf_counter() - t0
 
         # Kalite eşiğini geçen klip yoksa 0 klip dön ve gereksiz render yapma
