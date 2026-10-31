@@ -159,10 +159,12 @@ class AutoPilotManager:
             )
 
             # Bekleme süresi (24 saat) dolan videoları her 15 dakikada bir kontrol eden otomatik işleyici
+            first_proc_run = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=15)
             cls._worker_scheduler.add_job(
                 processor_job,
                 "interval",
                 minutes=15,
+                next_run_time=first_proc_run,
                 id="autopilot_process_pending_job",
                 replace_existing=True,
                 max_instances=1,
