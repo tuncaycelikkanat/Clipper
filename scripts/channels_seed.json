@@ -1,0 +1,3464 @@
+{
+  "channels": [
+    {
+      "id": "33436b42-bd4e-45c5-808c-a1162764efa1",
+      "url": "https://www.youtube.com/@TolunayOren",
+      "name": "Tolunay Ören",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:16.720333+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.452823+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "acafb93b-0b73-4a6a-830b-bead19e72397",
+      "url": "https://www.youtube.com/@Elraenn",
+      "name": "Elraenn",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:15.207548+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453145+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "4c1d4b14-badf-45cd-a9a6-940242c09fc3",
+      "url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "name": "Enis Kirazoğlu",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:13.668057+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453159+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "40ca741e-af5a-4709-a9d4-98bfa1b1bff8",
+      "url": "https://www.youtube.com/@DogukanAdalTvo",
+      "name": "Doğukan Adal",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:11.976798+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453164+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "25fd159a-c4c9-48e9-8f65-24a8b3914e49",
+      "url": "https://www.youtube.com/@RRaenee",
+      "name": "RRaenee",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:10.263799+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453169+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "4bfe8df1-0288-4b7d-8661-d7f1ebbe70a2",
+      "url": "https://www.youtube.com/@mithrain",
+      "name": "Mithrain",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:08.737306+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453173+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "c41efa85-e69e-4c43-a909-8bee5bcbd47d",
+      "url": "https://www.youtube.com/@combatry",
+      "name": "CombatRy",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:07.196062+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453177+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "c68ab232-1584-47e0-ada4-cd57b0abfd7c",
+      "url": "https://www.youtube.com/@hawkpawk2571",
+      "name": "hawkpawk",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:05.757688+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453180+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "6a0e0141-0527-40d2-96e1-fa9c2402bce9",
+      "url": "https://www.youtube.com/@YusufTe",
+      "name": "YusufTe",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:04.039583+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453184+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "42c26118-14cf-46f2-9d52-f9071d77ff72",
+      "url": "https://www.youtube.com/@vuraluzul",
+      "name": "Vural Üzül",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:02.363408+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453188+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "c6415e37-fe26-4664-aec3-0119d9a4ff55",
+      "url": "https://www.youtube.com/@VURALUZUL2",
+      "name": "Vural Üzül 2",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:31:00.770586+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453191+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "5dec4358-b40c-4fb1-ba7a-54635724e3eb",
+      "url": "https://www.youtube.com/@Peach",
+      "name": "Peach",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:30:57.542140+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453195+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "f884a853-d412-44f2-b86f-69d0f81c1266",
+      "url": "https://www.youtube.com/@zSuatCanliYayin",
+      "name": "Suat Canlı Yayın",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:30:55.942711+00:00",
+      "active": 1,
+      "created_at": "2026-09-10T13:42:41.453199+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": null,
+      "instagram_username": null
+    },
+    {
+      "id": "61ea4cb9-54c0-4623-9685-7abea04ce507",
+      "url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "name": "Suat Canlı Yayın (Streams)",
+      "min_score": 70,
+      "target_playlist": null,
+      "auto_upload": 1,
+      "last_checked": "2026-10-15T20:30:54.501298+00:00",
+      "active": 1,
+      "created_at": "2026-09-17T10:08:28.068501+00:00",
+      "check_interval_h": 2.0,
+      "last_video_id": null,
+      "last_video_date": null,
+      "youtube_username": "zsuat",
+      "instagram_username": "zsuat"
+    }
+  ],
+  "processed_videos": [
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "_c2pjhjbWts",
+      "title": "horror4",
+      "processed_at": "2026-09-04T15:22:19.326735+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "dCe5icgGMHs",
+      "title": "Her Kazada Arabam İnceliyor!",
+      "processed_at": "2026-09-04T15:22:20.473556+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "C59GCyZpoaA",
+      "title": "Minecraft RASTGELE Eşya Yarışı",
+      "processed_at": "2026-09-04T15:22:22.210793+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "YQNJKbfeoF0",
+      "title": "TURKEY vs FRANCE! | VALORANT TOURNAMENT #2",
+      "processed_at": "2026-09-04T15:22:23.170075+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "d9uwBXdAQPM",
+      "title": "Sonsuz Okyanusta 100 Gün Hayatta Kalabilir Miyim? Minecraft Hardcore",
+      "processed_at": "2026-09-04T15:22:24.095000+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "kwD-CapKudU",
+      "title": "SERVING JUSTICE WITH THE NEW RPG WEAPON",
+      "processed_at": "2026-09-04T15:22:25.311905+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "dHXRC2yM4tk",
+      "title": "Minecraft'ta Kolumuzu Sallamak HER ŞEYE Vuruyor",
+      "processed_at": "2026-09-04T15:22:26.542365+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "39Q8Xh2YYxg",
+      "title": "BÜYÜK KAPIŞMA, BÜYÜK FİNAL! | MOBILE LEGENDS BANG BANG |",
+      "processed_at": "2026-09-04T15:22:27.503593+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "9n4itdBuyY8",
+      "title": "I CHECKED OUT 16 AMAZING GAMES IN 2 DAYS! (GTA 6, METRO 2039, WITCHER)",
+      "processed_at": "2026-09-04T15:22:28.514568+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "nDSjnm5ppuI",
+      "title": "YENİ BOSS BÜTÜN DENGELERİ BOZDU! | HOW TO FISH | BÖLÜM 2",
+      "processed_at": "2026-09-04T15:22:29.543869+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "tTM6XyugwJI",
+      "title": "WE WON! OUR OWN SET IS COMING TO THE GAME! WE’RE DESIGNING IT TOGETHER!",
+      "processed_at": "2026-09-04T15:22:30.508099+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "Ry3ZTldidyU",
+      "title": "100 People Dropping into a Tiny Area | PUBG",
+      "processed_at": "2026-09-04T15:22:31.450032+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "48aIHCX869k",
+      "title": "WE CAUGHT A VERY EXPENSIVE FISH! WE'RE GETTING RICH! How to Fish #2",
+      "processed_at": "2026-09-04T15:22:32.469496+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "VwDhvYrW794",
+      "title": "If you live in fear, you only watch life go by.",
+      "processed_at": "2026-09-04T17:34:21.901835+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "Qef5Bq2kYSU",
+      "title": "GTA 6 HATEWATCH",
+      "processed_at": "2026-09-04T17:34:21.918081+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "uK5kWuKF8-k",
+      "title": "PAT",
+      "processed_at": "2026-09-04T17:34:21.933735+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "rGEJPLqL_7k",
+      "title": "Fear can be useful, but cowardice is useless.",
+      "processed_at": "2026-09-04T17:34:21.949682+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "TvIGmgrBU3U",
+      "title": "BAŞOÇ",
+      "processed_at": "2026-09-04T17:34:21.965205+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "oMYFivgVj2o",
+      "title": "Becoming an American Cop in BeamNG?!",
+      "processed_at": "2026-09-04T17:34:29.436720+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "5vhLJhwH2ok",
+      "title": "Kamyonumuz Bozuldu!! │ Beam.ng Kariyer!",
+      "processed_at": "2026-09-04T17:34:29.454063+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "mAy3hlF99IM",
+      "title": "Being a YouTuber in Beam.NG?",
+      "processed_at": "2026-09-04T17:34:29.469466+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "Q1R8-39gdrI",
+      "title": "My Tires Get Wider With Every Crash!",
+      "processed_at": "2026-09-04T17:34:29.484803+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "JSEn20br-tM",
+      "title": "Minecraft Mace Manhunt ama 4 AVCIYA Karşı",
+      "processed_at": "2026-09-04T17:34:32.474030+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "2DpP_la_IeM",
+      "title": "Minecraft'ı Bitiriyoruz ama Aramızda Bir HAİN Var (3.BÖLÜM)",
+      "processed_at": "2026-09-04T17:34:32.490505+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "fDmYATOmy4U",
+      "title": "Minecraft'ı Bitiriyorum ama BOŞLUĞUN İÇİNDE",
+      "processed_at": "2026-09-04T17:34:32.506258+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "DcuSbXlYTJY",
+      "title": "Minecraft Manhunt ama MACE AVCI’ya Karşı...",
+      "processed_at": "2026-09-04T17:34:32.522457+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "0UKtVc6CYOc",
+      "title": "Bir Haftada 0'dan Minecraft Speedrun Yapmayı Öğrendim!",
+      "processed_at": "2026-09-04T17:34:32.538563+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "XE_3fkrnYGA",
+      "title": "I Played YORU Against YORU Mains From EVERY RANK! Valorant",
+      "processed_at": "2026-09-04T17:34:35.039334+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "CG60Tds0y9s",
+      "title": "ASCENDANT rank SKYE | Educational coaching session #9 (Members Only)",
+      "processed_at": "2026-09-04T17:34:35.055450+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "dnoOKKd2-iM",
+      "title": "FIRST TROUBLE with the NEW CELESTIAL set! (Valorant Celestial collection Gameplay)",
+      "processed_at": "2026-09-04T17:34:35.071116+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "LQAHycOuZCo",
+      "title": "FADE SPLIT | Tutorial coaching session #8 (Join Members)",
+      "processed_at": "2026-09-04T17:34:35.086982+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "TwcYGmH7XHM",
+      "title": "TURKEY vs GERMANY! | VALORANT TOURNAMENT",
+      "processed_at": "2026-09-04T17:34:35.102832+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "nTDe5wevrgs",
+      "title": "Fizikli Minecraft Skyblock Ama 5 Maymun Oynuyor",
+      "processed_at": "2026-09-04T17:34:42.100888+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "N5j18iIkBag",
+      "title": "Yasaklanan Mod Geri Döndü! Broken Script 2.0 Güncellemesi! - Minecraft",
+      "processed_at": "2026-09-04T17:34:42.117335+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "WPUNbJwYHsY",
+      "title": "Saçma Fikirlerinizi Kodladım 2 - Minecraft",
+      "processed_at": "2026-09-04T17:34:42.133373+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "4MaH-NOXqz4",
+      "title": "Speedrunner vs 2 Viltrumite - Minecraft Manhunt",
+      "processed_at": "2026-09-04T17:34:42.149298+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "dfjDquGMI5w",
+      "title": "Saçma Fikirlerinizi Kodladım 1 - Minecraft",
+      "processed_at": "2026-09-04T17:34:42.167396+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "Kmrhn8tKipY",
+      "title": "THIS WEAPON IS THE KING OF THE GAME!! WE GOT 23 KILLS! [PUBG]",
+      "processed_at": "2026-09-04T17:34:58.018340+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "_k559u2-1RU",
+      "title": "NEW WEAPON RPD IS HERE! THIS GUN IS DESTROYING EVERYTHING!! [PUBG]",
+      "processed_at": "2026-09-04T17:34:58.034374+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "_vl1fEvKr48",
+      "title": "fully focused legendary gameplay",
+      "processed_at": "2026-09-04T17:34:58.051992+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "B973uxCMldQ",
+      "title": "I SAVED THE AIRDROP ON THE ROOF! [PUBG]",
+      "processed_at": "2026-09-04T17:34:58.068057+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "0v7LzWC8hIY",
+      "title": "A LEGENDARY SHOT FROM THE LAST PIXEL! [PUBG]",
+      "processed_at": "2026-09-04T17:34:58.083461+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "B4Ef4I6ZGr4",
+      "title": "Minecraft'ta Bir Blok Kırmak HEPSİNİ Kırıyor",
+      "processed_at": "2026-09-04T17:35:01.706221+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "dHhjjFZtv6s",
+      "title": "Minecraft'ta KAR YÜKSELİYOR",
+      "processed_at": "2026-09-04T17:35:01.723161+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "eVz7Ox1eSno",
+      "title": "YENİ 100.000₺ 'LİK BİLGİSAYARIM ve YAYINCI EKİPMANLARIM!",
+      "processed_at": "2026-09-04T17:35:01.739508+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "pK7RsCJ-DGs",
+      "title": "Arkadaşım Oyunda Değilken Evini Barbie Diyarına Çevirdim - Bölüm 3",
+      "processed_at": "2026-09-04T17:35:01.756108+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "DEbgOIWogbM",
+      "title": "Minecraft'ta Gökyüzünde 30 Saat Geçirebilir Miyim?",
+      "processed_at": "2026-09-04T17:35:01.773219+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "bLmqfb9yWc8",
+      "title": "KORKU VE GERİLİM DOLU BİR GECE! | WELCOME TO THE GAME III | BÖLÜM 6 I",
+      "processed_at": "2026-09-04T17:35:08.803238+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "1iEOUkzGA44",
+      "title": "EKİPLE 5V5 BÜYÜK KAPIŞMA!  | REMATCH | BÖLÜM 8 |",
+      "processed_at": "2026-09-04T17:35:08.820522+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "qqAdGJCQzyM",
+      "title": "PEŞİMİ BIRAK ARTIK NOIR! | WELCOME TO THE GAME III | BÖLÜM 5 |",
+      "processed_at": "2026-09-04T17:35:08.835791+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "KejXtwm1xUc",
+      "title": "EKİPLE FARKLI RENKLERİ BULUYORUZ!| COLORFIND I",
+      "processed_at": "2026-09-04T17:35:08.850768+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "eXpd_0IZjA0",
+      "title": "PEŞİMİZDE BİRİSİ Mİ VAR ? | THE STALKED 3",
+      "processed_at": "2026-09-04T17:35:08.866250+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "tazkYjYLU9I",
+      "title": "GTA 6 IN REAL LIFE! I WENT TO THE FIFA WORLD CUP FINAL! (GOT RIPPED OFF FOR 17K TL BY A TAXI!)",
+      "processed_at": "2026-09-04T17:35:11.282472+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "Be8Jwg2i718",
+      "title": "GTA 6 BLEW MY MIND! LOOK AT THE FIRST GAMEPLAY VIDEO!",
+      "processed_at": "2026-09-04T17:35:11.300319+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "3qUB4ngEQ_Y",
+      "title": "\"YOU'RE CLUELESS!\" WE PICKED THE MOST OVERHYPED AND THE GREATEST GAME OF THE YEAR WITH 1000 PEOPLE!",
+      "processed_at": "2026-09-04T17:35:11.315316+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "tCVvL5uF7ZA",
+      "title": "GTA 6 VIDEO MADE 100 MILLION DOLLARS, HOW MUCH DID WE MAKE FROM OUR GAME",
+      "processed_at": "2026-09-04T17:35:11.330656+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "UyU-EGDbh2o",
+      "title": "PLAYING REALISTIC GAMES FOR 1 FULL DAY! (THIS IS TOO MUCH!)",
+      "processed_at": "2026-09-04T17:35:11.346835+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "J_S8I9HD3Bs",
+      "title": "A QUICK TRIP TO THE PAST | THE LAST OF US PART II | PART 3",
+      "processed_at": "2026-09-04T17:35:13.706029+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "olmu1p7xTJA",
+      "title": "NEVER SEEN A PARTY LIKE THIS, THEY THREW ME IN THE POOL! RRAENEE, ENIS KIRAZOGLU, ERAY, LIMONIFY,...",
+      "processed_at": "2026-09-04T17:35:13.724166+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "TtpUwxQYqwQ",
+      "title": "BALIKLAR TARAFINDAN SALDIRI ALTINDAYIZ! | HOW TO FISH | BÖLÜM 1",
+      "processed_at": "2026-09-04T17:35:13.740083+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "Nk_Jq8UPIwk",
+      "title": "İNTİKAM HIRSI BİZİ NEREYE GÖTÜRECEK? | THE LAST OF US PART II | BÖLÜM 2",
+      "processed_at": "2026-09-04T17:35:13.755775+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "w8Tzw9mOkUc",
+      "title": "ÇOCUKLUĞUMUN DÜKKANINI AÇTIM! | RETRO REWIND |",
+      "processed_at": "2026-09-04T17:35:13.773169+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "x-Hm48ZStDw",
+      "title": "WOW! EMULATOR AND MOBILE ARE NOW ON THE SAME SERVER! NEW PUBG MOBILE LIGHT GRAPHICS!",
+      "processed_at": "2026-09-04T17:35:21.902553+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "GvU2HdJBW-A",
+      "title": "WE UNLOCKED THE NEW M416 ON 10 DIFFERENT ACCOUNTS! RECORD! PUBG Mobile",
+      "processed_at": "2026-09-04T17:35:21.919374+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "iRx91QS6aEY",
+      "title": "WE MAXED OUT MY SON'S ACCOUNT WITH 150,000 UC! EXTREMELY LUCKY! PUBG Mobile",
+      "processed_at": "2026-09-04T17:35:21.935093+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "RmOuaSyhD5M",
+      "title": "WE GOT 500 MYTHICS ON 2 SEPARATE ACCOUNTS AT THE SAME TIME! INCREDIBLE ACCUMULATION! PUBG Mobile",
+      "processed_at": "2026-09-04T17:35:21.950911+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "LV-vkgjMz4k",
+      "title": "Selling a Fish for $1,000,000 - Stream Highlights #104",
+      "processed_at": "2026-09-04T17:35:26.663238+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "nKkk4Bi1x1s",
+      "title": "The Traitor Who Betrayed Their Duo - Goose Goose Duck Fun Times 3",
+      "processed_at": "2026-09-04T17:35:26.678636+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "UyiZ17B5tNQ",
+      "title": "Rotating to All Sides - From Zero to Master Episode 8",
+      "processed_at": "2026-09-04T17:35:26.694573+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "mH-L5MQqmI0",
+      "title": "Oyuncuları Birbirine Düşürmek | PUBG",
+      "processed_at": "2026-09-04T17:35:26.710201+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "-zh7nqaX9Os",
+      "title": "Mini Volleyball Tournament | Fun Times in Fall Guys",
+      "processed_at": "2026-09-04T17:35:26.726996+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "7ZU39l2Ct9s",
+      "title": "WINNER TAKES ALL: BEST IMPRESSION WINS! HILARIOUS MIMIC PARTY WITH THE SQUAD!",
+      "processed_at": "2026-09-04T17:35:30.362026+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "dhMfs8-Zj3I",
+      "title": "WE SET A HUGE TRAP FOR LEWNI! WE BLEW UP HIS HOUSE! NEW VILLAGE CHIEF! Minecraft Season 3 Episode 11",
+      "processed_at": "2026-09-04T17:35:30.378067+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "nis9eDecdAU",
+      "title": "FISHING BETWEEN THE ISLANDS! THE CREW IS SO MUCH FUN | How to Fish",
+      "processed_at": "2026-09-04T17:35:30.393325+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "CEfV5uNFSLQ",
+      "title": "GTA 6 FIRST GAMEPLAY! WATCHING GTA 6 WITH THE CREW!",
+      "processed_at": "2026-09-04T17:35:30.408559+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "i23zLjXb1lI",
+      "title": "HE RESIGNED AFTER THESE WORDS TOLUNAY OREN | PES 17 CAREER FINALE",
+      "processed_at": "2026-09-04T19:34:21.869039+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "F6blmTZxSsQ",
+      "title": "Experience is the mother of wisdom.",
+      "processed_at": "2026-09-04T19:34:21.884974+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "HpWFgbKUu9g",
+      "title": "LOS ANGELES VLOG",
+      "processed_at": "2026-09-04T19:34:21.900478+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "Xg9-zUab9A8",
+      "title": "I'VE DONE IT FOR YOU ALL!!!!",
+      "processed_at": "2026-09-04T19:34:21.915015+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "5zVRlDSshA4",
+      "title": "THE FINAL REVENGE VIDEO",
+      "processed_at": "2026-09-04T19:34:21.930066+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "WLpH21xSj8M",
+      "title": "They Stole My Bus! │ Beam.ng Career",
+      "processed_at": "2026-09-04T19:34:26.802397+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "iM2J4RS3Sco",
+      "title": "The Biggest Winged Car in BeamNG!",
+      "processed_at": "2026-09-04T19:34:26.817636+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "rT3dFz1NMF0",
+      "title": "Canavar Bu Canvar! │ Yeni Bilgisayar İle Kariyer!",
+      "processed_at": "2026-09-04T19:34:26.832455+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "e9U2N3nRj2U",
+      "title": "Tank vs Cars!?",
+      "processed_at": "2026-09-04T19:34:26.847303+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "Ai9aZdUVcxc",
+      "title": "Minecraft'ı Bitiriyoruz ama Aramızda Bir HAİN Var (2.BÖLÜM)",
+      "processed_at": "2026-09-04T19:34:29.503863+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "l59oqKhfsmE",
+      "title": "Minecraft'ı Bitiriyorum ama Tamamen Su Altında",
+      "processed_at": "2026-09-04T19:34:29.524608+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "yurG8u09vMg",
+      "title": "Minecraft'ı Bitiriyoruz ama Aramızda Bir HAİN Var...",
+      "processed_at": "2026-09-04T19:34:29.540620+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "cML2XIrJD8U",
+      "title": "Terk Edilmiş Minecraft Sunucularını İnceledim",
+      "processed_at": "2026-09-04T19:34:29.557596+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "Lmf72dXY3Ew",
+      "title": "Minecraft’ı Bitiriyorum ama 10X HIZDA…",
+      "processed_at": "2026-09-04T19:34:29.573911+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "j1TiusVga5A",
+      "title": "1000rr RADIANT vs 300rr RADIANT!",
+      "processed_at": "2026-09-04T19:34:32.965634+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "1eaKZ6VISlM",
+      "title": "Phoenix Sunset | Tutorial coaching session #7 (Members Only)",
+      "processed_at": "2026-09-04T19:34:32.986501+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "QaMZ1Inn3As",
+      "title": "I WHIPED MY OPPONENTS WITH THE NEW SET AND GOT ​​MY FIRST TROUBLE! (Valorant Quick Trigger 2.0 Ga...",
+      "processed_at": "2026-09-04T19:34:33.003846+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "WjH_keT_btQ",
+      "title": "I Let Chat Control My Gameplay in Radiant Elo! | Valorant",
+      "processed_at": "2026-09-04T19:34:33.022520+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "RE2IymvJPjQ",
+      "title": "I Opened 100 of My Followers' NIGHT MARKETS and BOUGHT the Ones with the SECRET SKIN! | Valorant",
+      "processed_at": "2026-09-04T19:34:33.045580+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "FO7BxJr_i6M",
+      "title": "Minecraft'ın En Tehlikeli Okyanusunda Hayatta Kalmak!",
+      "processed_at": "2026-09-04T19:34:35.627370+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "6M2l5Tw0eZY",
+      "title": "Baldiback'e Gizlice Korku Modu Oynattım (Evet) - Minecraft",
+      "processed_at": "2026-09-04T19:34:35.643604+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "QGcpXGWYYvQ",
+      "title": "​",
+      "processed_at": "2026-09-04T19:34:35.661337+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "rw5GjvbY3xE",
+      "title": "Speedrunner vs Beast Titan - Minecraft",
+      "processed_at": "2026-09-04T19:34:35.676928+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "vktlglsl4jc",
+      "title": "Bedrock'ın Altı Boş Değil! Minecraft Hardcore Bölüm 6 (Sayılırsa)",
+      "processed_at": "2026-09-04T19:34:35.696109+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "dbFM087TQc0",
+      "title": "We won by a hair's breadth",
+      "processed_at": "2026-09-04T19:34:43.984202+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "55kwqzl_6wQ",
+      "title": "I wish I were this lucky",
+      "processed_at": "2026-09-04T19:34:43.999255+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "PUSXfK37MSw",
+      "title": "RAKİPLERİ SANHOK'A GÖMÜYORUM! [PUBG]",
+      "processed_at": "2026-09-04T19:34:44.013535+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "F2JP4oaifKQ",
+      "title": "WE RELEASED THE NEW GLASYA COSTUME AND DOMINATED! [PUBG]",
+      "processed_at": "2026-09-04T19:34:44.027966+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "E3cFMIM0YXc",
+      "title": "Chaos on the bridge",
+      "processed_at": "2026-09-04T19:34:44.042588+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "46BUOzCDBjc",
+      "title": "Minecraft'ı Tek Envanter Slotuyla Bitirmek",
+      "processed_at": "2026-09-04T19:34:52.244397+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "Tt_pW45PCKM",
+      "title": "Minecraft'ta Ölen Köpeğimin Geri Gelmesinin Hikayesi - SMP Bölüm 2",
+      "processed_at": "2026-09-04T19:34:52.261432+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "-RD6QoBkBZs",
+      "title": "Minecraft'ı Karla Kaplı Dünyada Bitirmek",
+      "processed_at": "2026-09-04T19:34:52.277939+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "x-14qj45bFs",
+      "title": "Minecraft'ta Yer KARA Dönüşüyor (Kar Topu Savaşı)",
+      "processed_at": "2026-09-04T19:34:52.293456+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "Rtdo2J0wGdg",
+      "title": "Minecraft'ta Zombi Salgınında Hayatta Kalmak",
+      "processed_at": "2026-09-04T19:34:52.310982+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "ZcgthRMLEe0",
+      "title": "ÇANAKKALE GEÇİLMEZ! GERÇEKÇİ SAVAŞ SİMÜLASYONU! | GALLIPOLI |",
+      "processed_at": "2026-09-04T19:34:55.516325+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "-9PnZbiWMmg",
+      "title": "ÇITIR ÇEREZ TEK ATIMLIK OYUNLAR! | KARMA OYUNLAR |",
+      "processed_at": "2026-09-04T19:34:55.533902+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "rWOoxB96ytU",
+      "title": "EKİP TOPLANDI YENİDEN SAHALARDAYIZ! | REMATCH | BÖLÜM 7 |",
+      "processed_at": "2026-09-04T19:34:55.551094+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "uLPO0jBjmK8",
+      "title": "SİSTEMİ ÇÖZDÜK VE SONA YAKLAŞTIK! | WELCOME TO THE GAME III | BÖLÜM 4 |",
+      "processed_at": "2026-09-04T19:34:55.566383+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "d-m--F_9Lx4",
+      "title": "BULMACA ZAMANI! YENİ RUSTY LAKE OYUNU! | RUSTY LAKE SERVANT OF THE LAKE |",
+      "processed_at": "2026-09-04T19:34:55.589150+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "mOsjP65IMVU",
+      "title": "THIS ISN'T A MEAL, IT'S A FEAST! ELRAEN, ERAY, LIMON, SELF-TAUGHT MUSICIAN, CONSOLE GAME, RRAENEE",
+      "processed_at": "2026-09-04T19:34:58.971605+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "IRamAhhustw",
+      "title": "THIS MEAL IS LETHAL! EFE UYGAC, ELRAEN, ERAY, LIMON, KONSOL OYUN, RRAENEE",
+      "processed_at": "2026-09-04T19:34:58.988691+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "4jd4FWg7UO8",
+      "title": "THE GAME I BEGGED TO BE RELEASED! PLAYSTATION 6 EXPLODED!",
+      "processed_at": "2026-09-04T19:34:59.004503+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "fvRun8q_D0o",
+      "title": "THEY RAIDED MY HOUSE FOR A COOK-OFF! ELRAEN, ERAY, LIMONIFY, KONSOL OYUN, RRAENEE",
+      "processed_at": "2026-09-04T19:34:59.020751+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "TBrjTwp156U",
+      "title": "WE GOT SCAMMED AT THE DINING TABLE! ELRAEN, ERAY, LIMONIFY, KONSOL OYUN, ROSEHEUS, RRAENEE",
+      "processed_at": "2026-09-04T19:34:59.035718+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "Y3PRSMR6rEw",
+      "title": "NELER OLUYOR LAAANN!! | THE LAST OF US PART II | BÖLÜM 1",
+      "processed_at": "2026-09-04T19:35:02.309322+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "hcxSRsAQLUc",
+      "title": "THE GENIE DWARFS ARE UP FOR FUN! | BURGLIN' GNOMES | EPISODE 5",
+      "processed_at": "2026-09-04T19:35:02.325106+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "soJo6vxm5mI",
+      "title": "THE MYSTERIOUS STORY OF THE MARKET! WHO IS THAT GUY? | SHIFT AT MIDNIGHT | EPISODE 3",
+      "processed_at": "2026-09-04T19:35:02.341026+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "m1e1fSBm6co",
+      "title": "LAN YOKSAAA? YENİ GÜNCELLEME | PEAK | YENİDEN BÖLÜM 4",
+      "processed_at": "2026-09-04T19:35:02.357225+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "riET9JBxa_Y",
+      "title": "ARAMIZDA YENİ YALANCILAR VAR! | GOOSE GOOSE DUCK | BÖLÜM 18",
+      "processed_at": "2026-09-04T19:35:02.373463+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "j12dCw431oc",
+      "title": "WOW! NEW FREE FORMULA 1 CAR and NEW COMPANION! 6 RESPAWNS! PUBG Mobile",
+      "processed_at": "2026-09-04T19:35:05.526750+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "tff7GT83qQk",
+      "title": "WATER M416 IS BACK! THE FIRST M762 WITH A FIRING EFFECT IN THE GAME! NEW ULTIMATE SET HAS ARRIVED...",
+      "processed_at": "2026-09-04T19:35:05.542871+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "aINqRhMUKh0",
+      "title": "VURAL IS UPSET",
+      "processed_at": "2026-09-04T19:35:05.559486+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "voBssLV3Q7Q",
+      "title": "NEW FERRARI SPIN! WE GOT 3 KEYS FOR 2000 UC! FIRST IN THE GAME! PUBG Mobile",
+      "processed_at": "2026-09-04T19:35:05.576981+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "tseJqA2HSZY",
+      "title": "Beyblade Shot | Strikers Club Fun Moments",
+      "processed_at": "2026-09-04T19:35:23.838800+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "6ISTeDQ_e-g",
+      "title": "Stream Highlights 103",
+      "processed_at": "2026-09-04T19:35:23.856366+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "vNjXHcaSzNs",
+      "title": "Baiting the Traitor by Hiding Inside Each Other - Goose Goose Duck Fun Games 2",
+      "processed_at": "2026-09-04T19:35:23.872447+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "O3-jonB8fRM",
+      "title": "PUBG Pit Tactic - From Zero to Master Episode 7",
+      "processed_at": "2026-09-04T19:35:23.890560+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "XBZWNWCinto",
+      "title": "Rushing Enemies with a Tank, Aggressive zSuat - Road to Master Episode 6",
+      "processed_at": "2026-09-04T19:35:23.907110+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "tHeRevDEJEI",
+      "title": "THE NEW SUPER FUN SQUID GAME! TWISTED PARTY WITH THE CREW!",
+      "processed_at": "2026-09-04T19:35:27.010958+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "HLboHb4Uzu8",
+      "title": "WE WENT ON OUR FIRST CASTLE SIEGE! WE FIXED THE ECONOMY! Bannerlord with the Squad Episode 3",
+      "processed_at": "2026-09-04T19:35:27.026637+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "QSjirn5Vgvw",
+      "title": "IF YOU CAN'T DO AN ANIMAL IMPRESSION, YOU DIE! SUPER FUN HUNTER GAME WITH THE CREW! Moo Who?",
+      "processed_at": "2026-09-04T19:35:27.042472+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "tbAxsaZinCE",
+      "title": "NEW GTA 5 MOBILE GAME! PULLING OFF A HEIST WITH THE CREW! Gangstar Mirage City",
+      "processed_at": "2026-09-04T19:35:27.066537+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "wjsoUK42nnQ",
+      "title": "A GREAT VLOG, HUH? THOSE WHO DON'T CLICK MISS OUT, THOSE WHO DO CLICK LOSE EVERYTHING",
+      "processed_at": "2026-09-05T12:35:21.114124+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "NSIZXixXFZM",
+      "title": "THE POOR MAN'S NIGHTMARE",
+      "processed_at": "2026-09-05T12:35:21.129964+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "HQQtd_Navrk",
+      "title": "BU MAÇ KAÇAR GİBİ BEYLER YA",
+      "processed_at": "2026-09-05T12:35:21.144673+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "tqJ5OnilD5k",
+      "title": "MR. PRESIDENT, LET'S PLAY LIKE THIS FOR AN HOUR ON THE LEFT WING SO OUR KENAN CAN GET SOME REST",
+      "processed_at": "2026-09-05T12:35:21.159906+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "SsZdGTC7Q-0",
+      "title": "SOMETIMES IT'S A BRAWL",
+      "processed_at": "2026-09-05T12:35:21.175050+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "btqiyA9PHb4",
+      "title": "Every Crash Makes a Random Part Bigger!",
+      "processed_at": "2026-09-05T12:35:22.419612+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "x8ZPxr2yAnA",
+      "title": "What Is This Bus! │ Beam.ng Career",
+      "processed_at": "2026-09-05T12:35:22.436122+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "BIfSHn3Nm9Q",
+      "title": "The Best Wheelie Car in BeamNG!",
+      "processed_at": "2026-09-05T12:35:22.451409+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "SaEMqh-Q0Mc",
+      "title": "Daha Büyük Rampa! │ Beam.ng Kariyer",
+      "processed_at": "2026-09-05T12:35:22.466868+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "FKtclg3Q5LA",
+      "title": "Minecraft'ı 10 Dakikada Tamamen Bitirmeye Çalışıyoruz!",
+      "processed_at": "2026-09-05T12:35:24.095341+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "D4xs8gLQaNU",
+      "title": "Minecraft'ı Bitirmenin İmkansız Olduğu Modu Bitirdim!",
+      "processed_at": "2026-09-05T12:35:24.112875+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "Bi6GPU-HX5M",
+      "title": "Minecraft'ı Bitiriyorum ama TEK BLOKTA (FİNAL)",
+      "processed_at": "2026-09-05T12:35:24.130293+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "7ZDTKBXWcJM",
+      "title": "Minecraft'ı Bitiriyorum ama Sadece 1x1 Alanda",
+      "processed_at": "2026-09-05T12:35:24.146133+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "VG-nXOD30pY",
+      "title": "Minecraft'ı Bitiriyorum ama TEK BLOKTA (part 2)",
+      "processed_at": "2026-09-05T12:35:24.161175+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "MNsiWTM7Bf8",
+      "title": "VALORANT RANK PREDICTION WITH HAIR CUTTING PENALTY! @UrcanX",
+      "processed_at": "2026-09-05T12:35:25.518142+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "cHIVHOJy13A",
+      "title": "Cypher Lotus | Öğretici ders koçluk #6 (Katıl Üyelerine Özel)",
+      "processed_at": "2026-09-05T12:35:25.537205+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "tVp5AGi_c2s",
+      "title": "I reached RADIANT in 24 hours with the EASIEST AGENT! | Valorant",
+      "processed_at": "2026-09-05T12:35:25.556906+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "PoFvdv4qFHA",
+      "title": "YOU'VE BEEN AIM TRAINING WRONG FOR YEARS! (How to Improve Your Aim in Valorant)",
+      "processed_at": "2026-09-05T12:35:25.573549+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "_ArzKNpFGTs",
+      "title": "NEW MAP SUMMIT and THE FIRST TROUBLE WITH THE NEW SET! (Valorant Dark Tower Gameplay)",
+      "processed_at": "2026-09-05T12:35:25.590278+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "UNgNkQ0OtCA",
+      "title": "Verity Mutlu Son Fakat Bazı Sorunlarımız Var... - Minecraft",
+      "processed_at": "2026-09-05T12:35:26.980427+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "Br3CA4yU_B0",
+      "title": "DİKKAT Bu Videoda Verity Spoilerları Vardır! - Mobil GTA",
+      "processed_at": "2026-09-05T12:35:27.003610+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "z8-8KdqIRAE",
+      "title": "Verity Kalk, Büyüğün Geldi!",
+      "processed_at": "2026-09-05T12:35:27.020337+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "sbuvtYiFz5g",
+      "title": "Verity'den Daha Gerici Modlar Varmış...",
+      "processed_at": "2026-09-05T12:35:27.036537+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "URv9I1dFuow",
+      "title": "Öğrenen ve Büyüyen Örümcek Kodladım! - Minecraft The Skitter",
+      "processed_at": "2026-09-05T12:35:27.081149+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "LlgXoyok11E",
+      "title": "UMP BU MESAFEDEN VURUR MU?! [PUBG]",
+      "processed_at": "2026-09-05T12:35:29.231204+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "mjvS9ru89bY",
+      "title": "A BOMB KILL FROM 100 METERS??!! [PUBG]",
+      "processed_at": "2026-09-05T12:35:29.246806+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "uczBi8icee4",
+      "title": "SNIPING WITH THE MINI-14!! [PUBG]",
+      "processed_at": "2026-09-05T12:35:29.262509+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "XtiH_wstYkg",
+      "title": "SANHOK IS FINALLY HERE!!! [PUBG]",
+      "processed_at": "2026-09-05T12:35:29.277394+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "cYN1JsAHJ7c",
+      "title": "BOTH LYNX AND AWM AT THE SAME TIME!! [PUBG]",
+      "processed_at": "2026-09-05T12:35:29.292266+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "G8OcStJRfXg",
+      "title": "2 Boyutlu Minecraft'ı Bitirmek",
+      "processed_at": "2026-09-05T12:35:30.380672+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "QnKyB8q0EPs",
+      "title": "100 Peach vs Peach",
+      "processed_at": "2026-09-05T12:35:30.397192+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "M88XCC6Uc-o",
+      "title": "Minecraft'ta Zıplamam Katlanarak Artıyor",
+      "processed_at": "2026-09-05T12:35:30.413945+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "hc6eOXb2MQs",
+      "title": "Minecraft'ta 3 Kişi 1 Oyuncuyu Kontrol Ediyor",
+      "processed_at": "2026-09-05T12:35:30.430544+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "ODMMp6U4_T4",
+      "title": "Minecraft'ı Şekil Değiştirerek Bitirmek",
+      "processed_at": "2026-09-05T12:35:30.448098+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "7iAmjhcMWeE",
+      "title": "TURNUVADA PUAN DURUMU KRİTİK! | MOBILE LEGENDS BANG BANG |",
+      "processed_at": "2026-09-05T12:35:32.152597+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "Zzlqa7e28lM",
+      "title": "AİLECEK İNGİLTERE GEZİSİ! VLOG",
+      "processed_at": "2026-09-05T12:35:32.169174+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "4VdOoVM7OLA",
+      "title": "YENGENİZLE YEMEK YAYIN! I ENFES LEZZETLER",
+      "processed_at": "2026-09-05T12:35:32.184417+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "o8hox59wy3U",
+      "title": "TÜM KATİLLER PEŞİME DÜŞTÜ! | WELCOME TO THE GAME III | BÖLÜM 3 |",
+      "processed_at": "2026-09-05T12:35:32.199141+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "xn7fLYyVx_8",
+      "title": "MESAİ BAŞLAD!I GÜN 2...  | WELCOME TO THE GAME III | BÖLÜM 2 |",
+      "processed_at": "2026-09-05T12:35:32.214184+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "qMOKSj5ZxeM",
+      "title": "GTA 6 CRAZE: 40 MILLION PRE-ORDERS BEFORE RELEASE?!",
+      "processed_at": "2026-09-05T12:35:34.808800+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "u5P_gWHLV9Y",
+      "title": "WE WENT FOR DINNER AND THEY SPAT IN OUR FACES! BERKCAN GÜVEN, ELRAEN, ERAY, LIMONIFY, KONSOL OYUN...",
+      "processed_at": "2026-09-05T12:35:34.824726+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "MQnB1liqzTs",
+      "title": "THE PUBLIC WILL NEVER FORGIVE YOU... HARSH REVIEWS OF THE BEST GAMES OF THE YEAR!",
+      "processed_at": "2026-09-05T12:35:34.839844+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "hrBfGPLHfxw",
+      "title": "THE GAME I'VE BEEN PLAYING DAY AND NIGHT FOR A WEEK! FREE SOCCER GAME, AMAZING RPG",
+      "processed_at": "2026-09-05T12:35:34.854742+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "Rd0TZb-1icI",
+      "title": "THIS GAME WILL BREAK THE INTERNET! 25 AMAZING NEW GAMES ANNOUNCED!",
+      "processed_at": "2026-09-05T12:35:34.870866+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "yexGuoxzZIU",
+      "title": "IF THE BALLOON DROPS, EVERYTHING RESTARTS! | KEEP IT UP! |",
+      "processed_at": "2026-09-05T12:35:36.156740+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "44EvvlIB1Yw",
+      "title": "THINGS ARE GETTING WEIRDER EVERY DAY!! | SHIFT AT MIDNIGHT | EPISODE 2",
+      "processed_at": "2026-09-05T12:35:36.172206+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "JrQsXnbSyU4",
+      "title": "EACH EPISODE IS A BLAST! | MACHINE PARTY | EPISODE 2",
+      "processed_at": "2026-09-05T12:35:36.187174+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "_wOJV3sKVNQ",
+      "title": "TERRIFYING NIGHT SHIFT! | SHIFT AT MIDNIGHT | PART 1",
+      "processed_at": "2026-09-05T12:35:36.201759+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "FF04CF84S2c",
+      "title": "WE HAD SO MUCH FUN, LAUGH A LOT | MACHINE PARTY | PART 1",
+      "processed_at": "2026-09-05T12:35:36.216182+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "IRdjB7QM-JE",
+      "title": "LUZY'S DREAM RARE OUTFIT IS BACK IN THE GAME! NEW CHOICE CRATE! PUBG Mobile",
+      "processed_at": "2026-09-05T12:35:37.771461+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "1TnHV5CPxjk",
+      "title": "AZERBAYCANLI İZLEYİCİME BÜYÜK SÜRPRİZ! 6 SENEDİR BUZ DİYARI ALAMAMIŞ! FULLEDİK! PUBG Mobile",
+      "processed_at": "2026-09-05T12:35:37.787186+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "SVWoBSdU2eU",
+      "title": "THE NEW LAG-FREE PUBG MOBILE WHERE EVERYONE GETS 120 FPS! EVERYTHING HAS BEEN REVAMPED!",
+      "processed_at": "2026-09-05T12:35:37.802668+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "F8CINnhChO8",
+      "title": "WHOA! ALL WEAPONS REMOVED FROM THE GAME! WINNING WITHOUT WEAPONS! PUBG Mobile",
+      "processed_at": "2026-09-05T12:35:37.817297+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "0FnJ6AE_4z8",
+      "title": "Level 4 vs. Level 10 Epic Race😏 | Forza Horizon 6",
+      "processed_at": "2026-09-05T12:35:39.394948+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "OkqCAHBNqVc",
+      "title": "Playing Mind Games with the Opponent, Delicious Bridge Ambush - Zero to Master Episode 5",
+      "processed_at": "2026-09-05T12:35:39.410793+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "dt768i6MExU",
+      "title": "Using Sage Wall in PUBG? - From Zero to Master Part 4",
+      "processed_at": "2026-09-05T12:35:39.425540+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "oMsI22og8cg",
+      "title": "Herkes Mi Hain? Goose Goose Duck Keyifli Oyunlar",
+      "processed_at": "2026-09-05T12:35:39.439970+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "j_NG3qAM04I",
+      "title": "An Abnormal Game | PUBG",
+      "processed_at": "2026-09-05T12:35:39.454531+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "kzcaItKbYzo",
+      "title": "WE JOINED THE KHUZAIT KHANATE! MAKING A NAME FOR OURSELVES! Bannerlord Multiplayer Part 2",
+      "processed_at": "2026-09-05T12:35:42.096298+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "9e7zbY_MVaI",
+      "title": "NEW GALLIPOLI BATTLE GAME! IT GIVES YOU GOOSEBUMPS! 🇹🇷 Gallipolli",
+      "processed_at": "2026-09-05T12:35:42.112341+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "jbSy4By1Qps",
+      "title": "WE MADE IT ON CITY TV! OUR FAMILY BECAME FAMOUS! Mobile Gta 5",
+      "processed_at": "2026-09-05T12:35:42.127879+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "djm6kQwh-8k",
+      "title": "WE SUFFERED OUR FIRST LOSS OF THE CAREER! VURAL KING KNOCKOUT! UFC 6 Career Episode 4",
+      "processed_at": "2026-09-05T12:35:42.142873+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "mnE_d_zIOnQ",
+      "title": "SEEOK ANABACI HYPNOS GAMEPLAY",
+      "processed_at": "2026-09-06T19:46:43.601962+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "yKC2xieJ3KA",
+      "title": "⚽🚨THE FUNNIEST TURF SOCCER VIDEO IN HISTORY🚨⚽",
+      "processed_at": "2026-09-06T19:46:43.639206+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "0-AG1NJ4msw",
+      "title": "DID WE FIND THIS PS3 IN THE TRASH? | FIFA 09",
+      "processed_at": "2026-09-06T19:46:43.661874+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "fP2JHZum3FE",
+      "title": "WE TRIED THE MOST DISGUSTING THINGS FROM CHINA!",
+      "processed_at": "2026-09-06T19:46:43.690409+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "ZDVSNlvBKfk",
+      "title": "ONLY THOSE WHO LIVE CAN'T SEE",
+      "processed_at": "2026-09-06T19:46:43.705687+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "ZZHJKQfOW8s",
+      "title": "BeamNG but my gas pedal is stuck!",
+      "processed_at": "2026-09-06T19:46:51.781759+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "460QSIF7VBU",
+      "title": "Segra Back in Action! │ Beam.ng Career",
+      "processed_at": "2026-09-06T19:46:51.796980+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "Roz1pEu8g30",
+      "title": "My Nitro Increases with Every Crash!",
+      "processed_at": "2026-09-06T19:46:51.812439+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "Vt-vCEx7TQQ",
+      "title": "O Geri Geldi! │ Beam.ng Kariyer",
+      "processed_at": "2026-09-06T19:46:51.827715+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "P573SsJ33Ls",
+      "title": "Minecraft'ı Bitiriyorum ama TEK BLOKTA",
+      "processed_at": "2026-09-06T19:46:56.169104+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "LD1NFNOVqlA",
+      "title": "Minecraft Manhunt ama BUZ AVCI'ya Karşı",
+      "processed_at": "2026-09-06T19:46:56.184668+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "6yE9ATx-Pcw",
+      "title": "Minecraft Başarım Avı ama Tombala Kartıyla",
+      "processed_at": "2026-09-06T19:46:56.199953+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "kwsc4V5N0ac",
+      "title": "Minecraft Rastgele Eşya Yarışması",
+      "processed_at": "2026-09-06T19:46:56.215296+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "9CPPfdqlPsc",
+      "title": "I TAUGHT A VALORANT LESSON TO THE OPPONENT WHO SAID YOU GUYS SUCK AT THE TOURNAMENT!",
+      "processed_at": "2026-09-06T19:47:14.419086+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "7ewopZCkCl4",
+      "title": "5 VALORANT YOUTUBERS Battled for 50,000 VP with Penalties! @UrcanX @buraclone @ikolojik @EliEsSVL...",
+      "processed_at": "2026-09-06T19:47:14.433957+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "reMLvkjuqBo",
+      "title": "Global Champion & Top Turkish Creator vs 8 IMMORTALS - valorant",
+      "processed_at": "2026-09-06T19:47:14.454420+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "y2G7kJFAI78",
+      "title": "FIRST TROUBLE with the NEW OUTLAW set! (Valorant Outlaw Gameplay)",
+      "processed_at": "2026-09-06T19:47:14.469176+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "PVbjKopIsdI",
+      "title": "I'm building up a ZERO account with an AMAZING NIGHT MARKET! | Episode 3 Valorant",
+      "processed_at": "2026-09-06T19:47:14.483344+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "opOmflBjbLU",
+      "title": "Herobrine.exe Sezon 4 - 1.21 Minecraft Hardcore",
+      "processed_at": "2026-09-06T19:47:17.123648+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "qdBdKrnjsFo",
+      "title": "Gerçek Verity Modu'nun Tüm Hikayesi! - Minecraft",
+      "processed_at": "2026-09-06T19:47:17.138478+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "kI0223jA9OQ",
+      "title": "Gerçek Verity Modu Son Mücadele! - Minecraft",
+      "processed_at": "2026-09-06T19:47:17.153556+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "ec7bq_IWmh4",
+      "title": "Verity ve Backrooms Ne ALAKA?",
+      "processed_at": "2026-09-06T19:47:17.178078+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "sT6jDxoiQoo",
+      "title": "Rubik Küpü Olup Saklandım!",
+      "processed_at": "2026-09-06T19:47:17.193516+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "inLTeaXeoS0",
+      "title": "LEGENDARY ERANGEL MATCH AND THE SNAKE AT THE END!! [PUBG]",
+      "processed_at": "2026-09-06T19:47:20.877153+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "meKh998ZeIw",
+      "title": "MITHRAIN IS DISHING OUT JUSTICE WITH THE MG3! [PUBG]",
+      "processed_at": "2026-09-06T19:47:20.893818+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "lCGvx6cSKmk",
+      "title": "LEGENDARY ERANGEL MATCH AND THE SNAKE AT THE END!! [PUBG]",
+      "processed_at": "2026-09-06T19:47:20.911448+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "pVfzO-Gz8XE",
+      "title": "IT WAS A MIRACLE I MADE IT OUT ALIVE!! [PUBG]",
+      "processed_at": "2026-09-06T19:47:20.927201+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "k92x65blmpE",
+      "title": "WE DIDN'T SEE THE OPPONENT THIS TIME! [PUBG]",
+      "processed_at": "2026-09-06T19:47:20.945028+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "r_-QcV18-ZU",
+      "title": "Minecraft'ın En Az Bilinen Versiyonunu Denedim",
+      "processed_at": "2026-09-06T19:47:23.228990+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "uj8jBNdoOtA",
+      "title": "LEGO Minecraft",
+      "processed_at": "2026-09-06T19:47:23.243777+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "MEjvwc3LXmM",
+      "title": "Minecraft Türkiye Speedrun 1.siyle MANHUNT",
+      "processed_at": "2026-09-06T19:47:23.258898+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "ED7iqVaSOkg",
+      "title": "Minecraft AMA Arkadaşımı Taşımak Zorundayım",
+      "processed_at": "2026-09-06T19:47:23.273381+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "CMFRie0LWYQ",
+      "title": "I tried my viewers ideas on Minecraft.. (THEY WERE BAD)",
+      "processed_at": "2026-09-06T19:47:23.288184+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "uq5ouM4xsRA",
+      "title": "GERİLİM ARTIYOR! KURTULABİLECEK MİYİZ? | WELCOME TO THE GAME III | BÖLÜM 7 I",
+      "processed_at": "2026-09-06T19:47:26.394461+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "T1-avhEJpKs",
+      "title": "REKABET ARTIYOR.. BÜYÜK KAPIŞMALAR!! | MOBILE LEGENDS BANG BANG |",
+      "processed_at": "2026-09-06T19:47:26.409758+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "yT2Zk9LBUjo",
+      "title": "MESAİ BAŞLAD!I GÜN 1...  | WELCOME TO THE GAME III | BÖLÜM 1",
+      "processed_at": "2026-09-06T19:47:26.425783+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "N1cFp0FNvNk",
+      "title": "PARANORMAL FOTOĞRAFÇI DÜKKANI İŞLETİYORUM! | PHOTOMALY |",
+      "processed_at": "2026-09-06T19:47:26.441478+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "FdM6AUcXwb8",
+      "title": "EKİPLE GHOSTLARA KARŞI MÜCADELE! | PUBG |",
+      "processed_at": "2026-09-06T19:47:26.457284+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "qZMqRynWuKk",
+      "title": "THE GRAPHICS ARE UNREAL! 15 AMAZING NEW GAMES ANNOUNCED! (WOLVERINE, GOD OF WAR)",
+      "processed_at": "2026-09-06T19:47:28.693944+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "e1ZGpwpKU9E",
+      "title": "CHECK OUT THE GAME FROM THE GUY WHO SAID \"FIRE ME IF THIS DOESN'T HIT!\" (HE GOT FIRED)",
+      "processed_at": "2026-09-06T19:47:28.710259+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "QiQPC_aLO2I",
+      "title": "3 GÜN BOYUNCA NEFESSİZ OYNADIĞIM OYUN! 007 FIRST LIGHT",
+      "processed_at": "2026-09-06T19:47:28.726787+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "u8C3SN_Ht3A",
+      "title": "I'VE BEEN WAITING 10 YEARS FOR THIS GAME! (finally played it!)",
+      "processed_at": "2026-09-06T19:47:28.743218+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "braAZJubuHw",
+      "title": "A GAME THAT DECEIVES PEOPLE AND MAKES CRAZY MONEY! (A LEGEND!)",
+      "processed_at": "2026-09-06T19:47:28.759768+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "hCEX3SlOxDE",
+      "title": "BU BÖLÜM DEHŞET ÖTESİ! EMPATİSİNİN… | THE LAST OF US PART II | BÖLÜM 4",
+      "processed_at": "2026-09-06T19:47:35.769766+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "6SDqW1gnAe0",
+      "title": "SANDIKLARIN BEDELİ AĞIR OLDU! | VEIN | SEZON 2 BÖLÜM 3",
+      "processed_at": "2026-09-06T19:47:35.784815+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "qrYHsSHqh3U",
+      "title": "NO ONE CAN FIND YOU IF YOU THINK SIMPLY! | MECCHA CHAMELEON | EPISODE 4",
+      "processed_at": "2026-09-06T19:47:35.800806+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "wtIN3_IOVCo",
+      "title": "GERMANY VLOG WITH THE CREW",
+      "processed_at": "2026-09-06T19:47:35.816034+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "fMyWc8UfDbs",
+      "title": "BÜYÜK HAPİSHANEYE TEHLİKELİ BASKIN! | VEIN | SEZON 2 BÖLÜM 2",
+      "processed_at": "2026-09-06T19:47:35.831554+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "7XgzJ4XD0Uk",
+      "title": "BIG SURPRISE FOR BULUT! WE SECRETLY BOUGHT A KARAMBIT FOR HIS ACCOUNT! (HE WAS SO HAPPY) PUBG Mobile",
+      "processed_at": "2026-09-06T19:47:38.451001+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "c0CuIAmfj50",
+      "title": "WOW! THE BEST BONUS PASS IS HERE! BLINDING QBZ AND UPGRADABLE UAZ! (LEGENDARY) PUBG Mobile",
+      "processed_at": "2026-09-06T19:47:38.466167+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "LEdl-4CEl94",
+      "title": "AN EXTREMELY RARE BASKETBALL PLAYER SET IS HERE! WE GOT THE BASKETBALL PLAYER SET! PUBG Mobile Korea",
+      "processed_at": "2026-09-06T19:47:38.481636+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "Kkr8wnC3_38",
+      "title": "OMG! THE LEGENDARY OCEAN MODE IS BACK! NEW DRACULA BOSS! MASSIVE 4.6 UPDATE! PUBG Mobile",
+      "processed_at": "2026-09-06T19:47:38.497146+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "w4UkW5vBrDM",
+      "title": "Hiding Inside the Hunter? Funny Moments - MECCHA CHAMELEON",
+      "processed_at": "2026-09-06T19:47:50.671761+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "PYEQ_Jn6j-0",
+      "title": "The Art of the Mortar, The A-Plus Student - From Zero to Master Episode 3",
+      "processed_at": "2026-09-06T19:47:50.686794+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "clZO8v7byek",
+      "title": "Tryhard zSuat - Stream Highlights #102",
+      "processed_at": "2026-09-06T19:47:50.702176+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "MeNSBeWBSYw",
+      "title": "Are We Losing in a 4v1 Situation? - From Zero to Master Episode 2",
+      "processed_at": "2026-09-06T19:47:50.717245+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "yMNcy9ou46g",
+      "title": "Road to Master Episode 1 - Does the Ship Rotation Lead to a Win?",
+      "processed_at": "2026-09-06T19:47:50.732650+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "kUKmXVZ1434",
+      "title": "KÖYÜMÜZE KOCAMAN ÇİFTLİK ve TARIM ALANI YAPTIK! Minecraft Sezon 3 Bölüm 12",
+      "processed_at": "2026-09-06T19:47:58.481053+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "y77MEHBaSos",
+      "title": "WE'RE DRIVING A CAR BUT WITH OUR VOICES! SO MUCH FUN WITH THE CREW VROOOOM!",
+      "processed_at": "2026-09-06T19:47:58.496621+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "GvZK6NgBkes",
+      "title": "WE'RE BACK IN THE CITY! OUR NEW FAMILY and THE MOST EXPENSIVE CAR IN THE CITY! Mobile Gta 5",
+      "processed_at": "2026-09-06T19:47:58.511977+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "mpNyvBFJhQU",
+      "title": "CO-OP BANNERLORD IS HERE! BUILDING THE OTTOMAN EMPIRE FROM SCRATCH TOGETHER! (LEGENDARY)",
+      "processed_at": "2026-09-06T19:47:58.526948+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "_I-WtteAKR8",
+      "title": "I DON'T KNOW IF IT'S THE SMALLEST, BUT IT'S VERY SMALL",
+      "processed_at": "2026-09-07T18:13:09.162051+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "AUthsEYoz2E",
+      "title": "DÜNYA KUPASI | GOLLE BURUN BURUNA",
+      "processed_at": "2026-09-07T18:13:09.181904+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "cX4AOgIq8zw",
+      "title": "HASTASINA DIVISION ELITE | EA FC 26",
+      "processed_at": "2026-09-07T18:13:09.201070+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "XW1XvPjwbJM",
+      "title": "O OSSSURUĞU DA DUYDUM BU ARADA | PUBG",
+      "processed_at": "2026-09-07T18:13:09.220476+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "xxdjmfuxsIc",
+      "title": "We Made a Fortune with Otebis! │ Beam.ng Career!",
+      "processed_at": "2026-09-07T18:13:15.595749+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "Psmi20fxzbY",
+      "title": "BeamNG but It's Raining Rocks on My Head!",
+      "processed_at": "2026-09-07T18:13:15.614758+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "TdNSXubUVsA",
+      "title": "The Fastest Car in BeamNG!",
+      "processed_at": "2026-09-07T18:13:15.633858+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "PA9aMfdaty0",
+      "title": "We Got a New Trailer! │ Beam.ng Career",
+      "processed_at": "2026-09-07T18:13:15.652952+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "viwS3WI47_M",
+      "title": "Minecraft'ın En Bozuk Eşyasını Elde Ettim! - SMP Bölüm 5",
+      "processed_at": "2026-09-07T18:13:17.363382+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "g9roULdO_PY",
+      "title": "Minecraft Manhunt ama 2 NETHERITE TANK'a Karşı (FİNAL)",
+      "processed_at": "2026-09-07T18:13:17.382260+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "xnMo0u9Awcc",
+      "title": "Minecraft'taki Tüm 1 Nisan Sürümlerini Bitirdim",
+      "processed_at": "2026-09-07T18:13:17.401684+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "RbQQr5A11VA",
+      "title": "Minecraft'ı Bitiriyorum ama Her Gün Sürüm Değişiyor",
+      "processed_at": "2026-09-07T18:13:17.420976+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "Te7DQlS7eXw",
+      "title": "Minecraft Netherden Kaçış ama 2 Avcıya Karşı",
+      "processed_at": "2026-09-07T18:13:17.440587+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "jXbMyDLDB_Y",
+      "title": "24 saatte EN ZOR AJAN ile RADIANT oldum! | Valorant",
+      "processed_at": "2026-09-07T18:13:19.406974+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "ij23jCEzZCo",
+      "title": "Valorant Tutorial Lesson Coaching #5 (watching and reviewing your matches)",
+      "processed_at": "2026-09-07T18:13:19.425868+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "gwgBFh3UKYE",
+      "title": "We ACCIDENTALLY entered the PREMIER tournament and WON! | Valorant",
+      "processed_at": "2026-09-07T18:13:19.444747+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "Seh_h_tNUKw",
+      "title": "I PARTICIPATED IN A VALORANT TOURNAMENT WITH A 500,000 TL PRIZE!",
+      "processed_at": "2026-09-07T18:13:19.463836+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "gk5fESLJzs4",
+      "title": "Hellian'a KIŞKIRTMA çekip, YAYINCILARA 60 vurdum! (Team Combatry vs Team Hellian)",
+      "processed_at": "2026-09-07T18:13:19.482792+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "ChrQMAlp3SA",
+      "title": "Gerçek Verity ve Diğerleri Geldi! - Minecraft",
+      "processed_at": "2026-09-07T18:13:21.009229+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "ck-wFZJMYFE",
+      "title": "Gerçek Verity'e İhanet Etmek HATAYDI ! - Minecraft",
+      "processed_at": "2026-09-07T18:13:21.027940+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "k4UyX4slevQ",
+      "title": "Önerdiğiniz Yerlere \"DEV\" Olup Saklandım!",
+      "processed_at": "2026-09-07T18:13:21.046551+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "nJs2dlAYWrs",
+      "title": "Gerçek Verity Modunu Oynamak Bi Hataydı! - Minecraft",
+      "processed_at": "2026-09-07T18:13:21.065550+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "3d68INUeRJ8",
+      "title": "Önerdiğiniz Yerlere Saklandım!",
+      "processed_at": "2026-09-07T18:13:21.084654+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "uXqiiRtjZMU",
+      "title": "I ONLY GOT THIS KILL WITH ALL THAT DAMAGE?! [PUBG]",
+      "processed_at": "2026-09-07T18:13:27.824036+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "lThjS4Yshv4",
+      "title": "I BET A VIEWER! NEVER SEEN A MATCH LIKE THIS! [PUBG]",
+      "processed_at": "2026-09-07T18:13:27.843005+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "QVxioiNBAx4",
+      "title": "THIS TIME I MADE IT UP THE MOUNTAIN! [PUBG]",
+      "processed_at": "2026-09-07T18:13:27.862337+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "aOwpVTtMfl8",
+      "title": "INSANE SNIPER SHOTS THROUGH THE NEEDLE'S EYE! [PUBG]",
+      "processed_at": "2026-09-07T18:13:27.881624+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "YJJvs2TUWGY",
+      "title": "MG3 İLE EFSANE SPRAYLER YOK ETTİM! [PUBG]",
+      "processed_at": "2026-09-07T18:13:27.900965+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "hWq5YagvKQE",
+      "title": "Minecraft Hardcore'da 100 GÜN",
+      "processed_at": "2026-09-07T18:13:29.306583+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "CQ_5bKDNczA",
+      "title": "Arkadaşlarım Oyunda Değilken Netherite Set Oldum - Bölüm 1",
+      "processed_at": "2026-09-07T18:13:29.325544+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "CKBzKR55tMQ",
+      "title": "Minecraft'ın En Uzun Speedrun'ları...",
+      "processed_at": "2026-09-07T18:13:29.344851+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "wh9-kBE1o-I",
+      "title": "Minecraft'ı Eşya Kullanmadan Bitirmek",
+      "processed_at": "2026-09-07T18:13:29.363940+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "IKTBUTd267o",
+      "title": "Minecraft'ı Bitirmek AMA Yer Lava Dönüşüyor",
+      "processed_at": "2026-09-07T18:13:29.383295+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "nacnkNB-nGU",
+      "title": "UZUN SÜRE SONRA YENİDEN SAHALARDAYIZ! | FALL GUYS | BÖLÜM 19 |",
+      "processed_at": "2026-09-07T18:13:31.162076+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "gQBLuoptK5c",
+      "title": "GERİLİM DOLU MARKET VARDIYASI! | RETAIL HELL |",
+      "processed_at": "2026-09-07T18:13:31.181004+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "izQX8VZSb5g",
+      "title": "ARTIK DERS ALMAM DERS VERİRİM! | E FOOTBALL |",
+      "processed_at": "2026-09-07T18:13:31.199838+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "JMKQlC-2tTo",
+      "title": "UZUN BİR ARADAN SONRA EKİP SAHADA! | PUBG |",
+      "processed_at": "2026-09-07T18:13:31.218961+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "xc8Q2AD64LU",
+      "title": "MÜŞTERİYİ KAZIKLAYAN SANAYİ USTASI! | CHEAP CAR REPAIR |",
+      "processed_at": "2026-09-07T18:13:31.238364+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "COl6KMtOiBI",
+      "title": "THE GAME THAT PLAYERS FIGHT OVER! A TAXI DRIVER GAME IN ISTANBUL!",
+      "processed_at": "2026-09-07T18:13:32.881041+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "eSyOO16xK6U",
+      "title": "I PLAYED THE GAME MY FRIENDS KEEP HYPING UP! (WE FOUGHT!)",
+      "processed_at": "2026-09-07T18:13:32.899311+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "CRkwSV8Pm5M",
+      "title": "WE BOUGHT ALL THE PLAYSTATION CONSOLES! WE PLAYED FOR A WHOLE DAY! (A COLLECTION WORTH 100,000 TL!)",
+      "processed_at": "2026-09-07T18:13:32.918423+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "YnR9_95X7Hc",
+      "title": "THE GAME THAT WAS SAID TO BE LIKE GTA HAS BOOTED! THE GAME'S ENEMIES IN Türkiye!",
+      "processed_at": "2026-09-07T18:13:32.937548+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "lix81Gr3cZQ",
+      "title": "I PLAYED CALL OF DUTY GAMES FOR 24 HOURS! (EXPENSE: 6000 TL)",
+      "processed_at": "2026-09-07T18:13:32.957036+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "XhgXZQ-DWoA",
+      "title": "CİN CÜCELER ÇILDIRDI! ADAMI EVDEN KAÇIRACAKLAR! | BURGLIN' GNOMES | BÖLÜM 6",
+      "processed_at": "2026-09-07T18:13:34.525245+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "CPXrhu7d4S8",
+      "title": "BENİ ARTIK TUTMAYIN!! | FALL GUYS |",
+      "processed_at": "2026-09-07T18:13:34.544970+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "7nIhvWhZRLc",
+      "title": "AKSİYONUN ORTASINDA KALDIK! ZOR MOD! | VEIN | SEZON 2 BÖLÜM 1",
+      "processed_at": "2026-09-07T18:13:34.564534+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "eI3Bavj7YD0",
+      "title": "DENGELERİ BOZAN TAKIM! BÜYÜK KAPIŞMA | RUST | BEDWARS",
+      "processed_at": "2026-09-07T18:13:34.584459+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "BGovQGmUJ00",
+      "title": "BU OYUNUN EĞLENCESİ BAMBAŞKA! | PARTY ANIMALS | BÖLÜM 10",
+      "processed_at": "2026-09-07T18:13:34.603959+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "jOMCkEixeUc",
+      "title": "WE OPENED 50,000 UC WORTH OF MUMMY CRATES ON 5 EMPTY ACCOUNTS! PUBG Mobile",
+      "processed_at": "2026-09-07T18:13:36.079093+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "3D94RQts6dE",
+      "title": "WE OPENED MUMMY CRATES ON 5 DIFFERENT EMPTY ACCOUNTS WITH 60,000 UC! EXTREMELY LUCKY! PUBG Mobile",
+      "processed_at": "2026-09-07T18:13:36.098373+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "YYmJyxNPTP4",
+      "title": "NEW ESPORTS SETS HAVE ARRIVED! INSANE PMWC SETS and MAX GROZA! PUBG Mobile",
+      "processed_at": "2026-09-07T18:13:36.117701+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "uDukDIAF_lM",
+      "title": "I GET THE X SUIT IF I LOSE TO A CHEATER AT 15 FPS?! UNBELIEVABLE! PUBG Mobile",
+      "processed_at": "2026-09-07T18:13:36.136912+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "Faya40LEGgI",
+      "title": "zSuat Is Taking Down All the PUBG Legends in One Night!",
+      "processed_at": "2026-09-07T18:13:37.557874+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "aS5cziJqYwI",
+      "title": "Suat Car Techniques - Clips from the Broadcast #101",
+      "processed_at": "2026-09-07T18:13:37.576686+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "bSqWFM65vMQ",
+      "title": "Knight's Ambush - Clips from the Broadcast #100",
+      "processed_at": "2026-09-07T18:13:37.595170+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "4JlH3OKtqdc",
+      "title": "DO NOT PRESS - Clips from the Broadcast #99",
+      "processed_at": "2026-09-07T18:13:37.613814+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "zv106Q9OIkA",
+      "title": "Rahatlama Garantili, Demir'den Zümrüt'e zSuat! (League of Legends #64)",
+      "processed_at": "2026-09-07T18:13:37.632874+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "ZxstHLfhtvk",
+      "title": "HERŞEYE TEK ATAN DEV BALYOZ YAPTIK! ÇOK GÜÇLÜ! Minecraft Sezon 3 Bölüm 10",
+      "processed_at": "2026-09-07T18:13:39.387400+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "o9OOOviT1o4",
+      "title": "eFootball 2027 IS OUT! NEW OVERHEAD KICK and LEGENDARY HAZARD CARD! eFootball 27",
+      "processed_at": "2026-09-07T18:13:39.406499+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "lc1W635Ygy4",
+      "title": "WE RAIDED THE OLD MAN'S MANSION WITH THE FAMILY! THE BIG SHOWDOWN! GTA Online Episode 31",
+      "processed_at": "2026-09-07T18:13:39.425344+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "ZOJLK4WWceY",
+      "title": "CATCHING FISH AND MAKING MONEY! A FUN FISHING GAME WITH THE SQUAD! The One Fish",
+      "processed_at": "2026-09-07T18:13:39.444791+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "B8HO4FnRlF0",
+      "title": "DAMN THIS GAME!",
+      "processed_at": "2026-09-08T10:48:17.765757+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "bM-rNVLYfgo",
+      "title": "HERE'S THE SECOND VIDEO OF PES 17 MASTER LEAGUE.",
+      "processed_at": "2026-09-08T10:48:17.780332+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "FsbTf9eAAoQ",
+      "title": "ÖZDENLE REANIMAL #2",
+      "processed_at": "2026-09-08T10:48:17.793600+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "iVMT41IO4qU",
+      "title": "THOSE WHO DON'T WATCH THIS WILL MISS OUT ON A LOT IN LIFE, LIVE A WASTEFUL LIFE, AND SCRATCH THEI...",
+      "processed_at": "2026-09-08T10:48:17.806373+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "SOJg3ody3Zo",
+      "title": "BeamNG Crashes Are Now Much More Realistic!",
+      "processed_at": "2026-09-08T10:48:18.923778+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "9fe95OhUxTY",
+      "title": "Her Kazada Arabam Yükseliyor!",
+      "processed_at": "2026-09-08T10:48:18.937804+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "OOrJJHK8rq8",
+      "title": "We Tried Hauling Heavy Cargo and It Backfired! | Beam.ng Career",
+      "processed_at": "2026-09-08T10:48:18.970624+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "CKTA_fb5ncE",
+      "title": "Yapay Zeka Kapışması BÜYÜK FİNAL!",
+      "processed_at": "2026-09-08T10:48:19.016770+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "RturMDzD3W4",
+      "title": "Minecraft Scavenger Hunt VS 3 Hunters (REMATCH)",
+      "processed_at": "2026-09-08T10:48:20.341488+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "PgqXudEMNdY",
+      "title": "Minecraft Parkour VS 2 Hunters (FINALE)",
+      "processed_at": "2026-09-08T10:48:20.354127+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "Hd05k2obnqY",
+      "title": "Minecraft End Yarışı ama 2 Avcıya Karşı",
+      "processed_at": "2026-09-08T10:48:20.367928+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "_0owVZx9Rpo",
+      "title": "Neden Minecraft'ta 1,000,000 Zümrüt Topladım? (part 2)",
+      "processed_at": "2026-09-08T10:48:20.381682+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "szXL1q8P_CQ",
+      "title": "Valorant turned into a Türkiye vs SPAIN match! | (Combatry vs Horcus)",
+      "processed_at": "2026-09-08T10:48:21.619340+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "zZBrCotTjSI",
+      "title": "FIRST TROUBLE with the NEW HOLO MERIDIAN set! (Holo Meridian Valorant new vandal new operator gam...",
+      "processed_at": "2026-09-08T10:48:21.633081+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "7QydbUBTKQk",
+      "title": "I'm setting up a ZERO account with NIGHT MARKET! | Episode 2 Valorant",
+      "processed_at": "2026-09-08T10:48:21.646724+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "7bBoscYhLjs",
+      "title": "YOUTUBERLARI DELİRTTİM! URCANI POMPALADIM.. | Valorant @UrcanX ",
+      "processed_at": "2026-09-08T10:48:21.660686+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "xdPZCSvvq_E",
+      "title": "2 Milyon Bloğu TNTsiz Kırmak Hataydı..? - Minecraft Sonsuz Chunk Hardcore: Bölüm 5",
+      "processed_at": "2026-09-08T10:48:23.038184+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "jXUA4cPgwz8",
+      "title": "Kimse Beni Bulamayacak...",
+      "processed_at": "2026-09-08T10:48:23.056625+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "zw4Sn304G64",
+      "title": "Gerçek Verity Modu Zayıflar İçin Değil... - Minecraft",
+      "processed_at": "2026-09-08T10:48:23.070230+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "Yx7e5Q3z1m0",
+      "title": "Gayet Normal Köpek Bakma Oyunu (!)",
+      "processed_at": "2026-09-08T10:48:23.085219+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "kvJUzON44Gs",
+      "title": "HE HAD THE MATCH AND GAVE IT TO THE OPPONENT.. [PUBG]",
+      "processed_at": "2026-09-08T10:48:24.288620+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "f8fzMrcL1gc",
+      "title": "I LITERALLY HAD AIRDROPS RAIN DOWN ON ME!! [PUBG]",
+      "processed_at": "2026-09-08T10:48:24.301540+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "f15m6j8btSk",
+      "title": "THE SMOKE GLITCH RUINED US!! [PUBG]",
+      "processed_at": "2026-09-08T10:48:24.315865+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "JRIo37OmF2c",
+      "title": "IT HAPPENS IN THE FIRST MATCH [PUBG]",
+      "processed_at": "2026-09-08T10:48:24.329708+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "ZUzmUWAcHBw",
+      "title": "Minecraft'ı Yeni Mağaralarda Başlayarak Bitirmek",
+      "processed_at": "2026-09-08T10:48:30.565233+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "u5-GVUAxJBQ",
+      "title": "Minecraft'ı Yalnızca Okyanusta Başlayarak Bitirmek",
+      "processed_at": "2026-09-08T10:48:30.578315+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "rXass04XbUo",
+      "title": "Minecraft AMA Her Abone Geldiğinde...",
+      "processed_at": "2026-09-08T10:48:30.589932+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "WMal5byXNxw",
+      "title": "Minecraft'ı Düz Biyomda Başlayarak Bitirmek",
+      "processed_at": "2026-09-08T10:48:30.603181+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "aLFXbyQTj2g",
+      "title": "İNSAN MI HAYVAN MI? YENİ KORKU OYUNU! | ANIMALY BAR | DEMO |",
+      "processed_at": "2026-09-08T10:48:31.857310+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "gWln0me--AQ",
+      "title": "ÇALIM ŞOV DEVAM EDİYOR! | E FOOTBALL |",
+      "processed_at": "2026-09-08T10:48:31.870832+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "4iXJOsx_e4w",
+      "title": "BELALI MAHALLE SORUNLU KOMŞU!!  | DREAD NEIGHBOR |",
+      "processed_at": "2026-09-08T10:48:31.883885+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "_STmiPveeZg",
+      "title": "SİZDEN GELEN DOĞUM GÜNÜ HEDİYELERİNİ AÇIYORUM! BÖLÜM 1",
+      "processed_at": "2026-09-08T10:48:31.897090+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "TFxREavoiPs",
+      "title": "THE MAN WHO PLAYED A GAME NO ONE ELSE COULD PLAY AND EARNED MILLIONS OF DOLLARS!",
+      "processed_at": "2026-09-08T10:48:33.178542+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "fCeb2H8DcmU",
+      "title": "THE TURKEY OF THE GAME WORLD! (SUCH TOPICS!)",
+      "processed_at": "2026-09-08T10:48:33.192336+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "sWy7CBO6Gfg",
+      "title": "LIVING LIKE A GAME IN REAL LIFE! (A $1000 GAME-LIKE EXPERIENCE!)",
+      "processed_at": "2026-09-08T10:48:33.204812+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "Lm9akr9L8Rc",
+      "title": "WE SPENT 300 HOURS ON THIS GAME IN ONE WEEK, AND NOW WE'VE RECEIVED NEGATIVE REVIEWS!",
+      "processed_at": "2026-09-08T10:48:33.218837+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "WBt-POkmi2g",
+      "title": "WARMING UP BEFORE THE BIG SHOWDOWN! | RUST | BEDWARS",
+      "processed_at": "2026-09-08T10:48:34.774610+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "y4G52M8necA",
+      "title": "UÇANA KAÇANA CİN CÜCE YUMRUĞU! | BURGLIN' GNOMES | BÖLÜM 4",
+      "processed_at": "2026-09-08T10:48:34.788187+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "TlWTXcW5m84",
+      "title": "IMPOSSIBLE TO FIND! WE TURNED INTO ARTWORK! | MECCHA CHAMELEON | EPISODE 3",
+      "processed_at": "2026-09-08T10:48:34.801619+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "WUeXJKIfNJE",
+      "title": "WE CAN MAKE PASTA AND DEFUSE BOMBS TOO! | BOMBANA! | PART 1",
+      "processed_at": "2026-09-08T10:48:34.813762+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "IYgK5iWzL8E",
+      "title": "I MAXED OUT ALL THE NEW X-SUITS! WE MAXED OUT 2 X-SUITS FOR 90,000 UC! (SPECIAL DISCOUNT) PUBG Mo...",
+      "processed_at": "2026-09-08T10:48:36.151431+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "DjPOAeh_CMI",
+      "title": "BIG SURPRISE! RAYNOR'S NEW ULTRA-RARE ACCOUNT! (HE WAS THRILLED) PUBG Mobile",
+      "processed_at": "2026-09-08T10:48:36.165070+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "SBYFiy8WB4U",
+      "title": "3 NEW LEVEL 7 X-SUITS HAVE ARRIVED! WE SPENT 130,000 UC TO GET AND MAX THEM ALL OUT! PUBG Mobile",
+      "processed_at": "2026-09-08T10:48:36.177364+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "nhQ2SRztEn4",
+      "title": "WE PLAYED THE NEW SPIDER-MAN MODE FOR 24 HOURS! (RECORD) PUBG Mobile",
+      "processed_at": "2026-09-08T10:48:36.190697+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "DOJt1aXd2x8",
+      "title": "My Microphone Was Off - Clips From the Broadcast #98",
+      "processed_at": "2026-09-08T10:48:37.489356+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "Ow9rFMlA5AM",
+      "title": "This Game Will Be a Hit! - Clips from the Broadcast #97",
+      "processed_at": "2026-09-08T10:48:37.502682+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "t94k71cA0kg",
+      "title": "zSuat Gets Checkmated in 1 Second Vol.2 - Clips from the Broadcast #96",
+      "processed_at": "2026-09-08T10:48:37.514782+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "MXfv6kzQ_wM",
+      "title": "C4 Menace - Clips from the Broadcast #95",
+      "processed_at": "2026-09-08T10:48:37.528086+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "Yc42iPKUzo0",
+      "title": "WE CRIED LAUGHING! IMPOSSIBLE OBSTACLE COURSE LINKED TOGETHER AS A TEAM! Don't Pull Me!",
+      "processed_at": "2026-09-08T10:48:38.814924+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "qT2JkLSxEEo",
+      "title": "WE BLEW UP THE NETHER WITH 120 TNT! CRAFTED A FULL SET WITH THE STRONGEST ORE! Minecraft Season 3...",
+      "processed_at": "2026-09-08T10:48:38.825701+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "S_SqhKZDg7M",
+      "title": "TRYING TO SURVIVE ON A BOAT! LIFE ON THE BOAT WITH THE SQUAD! Water You Doing?",
+      "processed_at": "2026-09-08T10:48:38.839004+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "XkALfxw8Agk",
+      "title": "FIGHT TO WIN! SUPER FUN DINO PARTY WITH THE SQUAD!",
+      "processed_at": "2026-09-08T10:48:38.853723+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "ESWVnRPfvFI",
+      "title": "Shooting Down a Plane and Stealing a Tank (We've Incurred the Curse of Many Poor People) | PUBG",
+      "processed_at": "2026-09-10T13:44:18.424109+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "-2vtNjDuy8U",
+      "title": "NEW 4-CAMERA FRIDAY THE 13TH HORROR GAME! WITH THE SQUAD Holloween: The Game",
+      "processed_at": "2026-09-10T13:44:20.759838+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "CYfU3ktvUsA",
+      "title": "THE NEW LINCOLN CARS ARE HERE! WE BOUGHT AND MAXED THEM ALL! (LEGENDARY) PUBG Mobile",
+      "processed_at": "2026-09-10T13:44:21.633945+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@YusufTe",
+      "video_id": "Qg8YTUp0msE",
+      "title": "Minecraft'ın EN GARİP Korku Modunu Bitirdim...",
+      "processed_at": "2026-09-10T13:44:22.473367+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "Kiy_weFAl1Q",
+      "title": "Good Money in Police Work! │ Beam.ng Career",
+      "processed_at": "2026-09-10T13:44:23.446785+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "aOnwlPe0p6E",
+      "title": "ELMAS rankı Phoenix | Öğretici ders koçluk #10 (Katıl Üyeleri)",
+      "processed_at": "2026-09-10T13:44:24.463087+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "KQcLQ7XSTWk",
+      "title": "BU ADAMIN PEŞİMİZİ BIRAKMASI LAZIM | HALLOWEEN THE GAME l",
+      "processed_at": "2026-09-10T13:44:26.010258+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "DccU-yIy9uI",
+      "title": "Verity'i Unutun, Vesper Geldi! - Minecraft",
+      "processed_at": "2026-09-10T13:44:26.834571+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "Xw54AeqFCQU",
+      "title": "MADALYONUN DİĞER YÜZÜ: ABBY'NİN HAYATI! | THE LAST OF US PART II | BÖLÜM 5",
+      "processed_at": "2026-09-10T13:44:30.482958+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "SGo7mtSuHgI",
+      "title": "When there is no hope left, there is no fear.",
+      "processed_at": "2026-09-10T13:44:31.336049+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "kWEJGhvEgho",
+      "title": "Puppeteering the Traitor Duo - Goose Goose Duck Fun Games 4",
+      "processed_at": "2026-09-12T10:32:55.140463+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "fMAk6QgZIUA",
+      "title": "WE BUILT THE BIGGEST HOUSE IN THE VILLAGE! FINALLY, MY NEW HOUSE! Minecraft Season 3 Episode 13",
+      "processed_at": "2026-09-12T10:32:57.562690+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "RkwG15pkEgE",
+      "title": "THE MOBILE METIN 2 IS OUT! GRINDING TO LEVEL 100 WITH THE SQUAD! Era Online",
+      "processed_at": "2026-09-12T10:32:57.577296+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "IG0htL2icSk",
+      "title": "NEW PEAK WITH REALISTIC GRAPHICS! CLIMBING HIGH MOUNTAINS WITH THE SQUAD! Sunset Summit",
+      "processed_at": "2026-09-12T10:32:57.593008+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "k7anFkdY-AM",
+      "title": "THE NEW ROYALE PASS IS HERE! FREE LEGENDARY SET and UPGRADABLE HONEY BADGER! PUBG Mobile",
+      "processed_at": "2026-09-12T10:32:59.954602+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "9cx9qeSQ1gQ",
+      "title": "OMG! THE FROZEN KINGDOM IS IN A DIFFERENT CRATE! NEW DRACULA X-SUIT! PUBG Mobile Korea",
+      "processed_at": "2026-09-12T10:32:59.968847+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "0zhtLGDiE8s",
+      "title": "TURNING INTO A ZOMBIE IN THE NEW MODE?! INCREDIBLE FEATURES! PUBG Mobile",
+      "processed_at": "2026-09-12T10:32:59.984242+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "xckMl4OVZ1M",
+      "title": "MASSIVE 4.6 UPDATE IS HERE! NEW VAMPIRE MODE! INFLATABLE BOAT! (LEGENDARY) PUBG Mobile",
+      "processed_at": "2026-09-12T10:32:59.997817+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "zOWFfJcitHM",
+      "title": "Sadece Türk Arabaları İle Kuleye Tırmanabilir Miyim?",
+      "processed_at": "2026-09-12T10:33:02.409485+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "q3_-UKkr3b0",
+      "title": "BeamNG But Real Life!",
+      "processed_at": "2026-09-12T10:33:02.423984+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "F28USZXFm4o",
+      "title": "We Leveled Up the Derby!! | Beam.ng Career",
+      "processed_at": "2026-09-12T10:33:02.439759+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "Yg1ESDAY9-o",
+      "title": "1 RADIANT, 1 PRO PLAYER vs 5 ASCENDANT! | Valorant (CombatRy & Woot)",
+      "processed_at": "2026-09-12T10:33:03.856224+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "L6oT-lKC60w",
+      "title": "ÇOK GARİP ŞEYLER OLUYOR! | WELCOME TO THE GAME III | BÖLÜM 8 I",
+      "processed_at": "2026-09-12T10:33:06.545229+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "SHmnYjNfixY",
+      "title": "Gelişmiş AI Zombi Kıyametinde 100 Gün Hayatta Kalabilir Miyim? - Minecraft Hardcore",
+      "processed_at": "2026-09-12T10:33:08.045554+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "ugQ3-akW2WM",
+      "title": "I PLAYED THE GAME EVERYONE IS MOCKING! THE NEW WOLVERINE GAME!",
+      "processed_at": "2026-09-12T10:33:09.370964+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "L41WUWkj2lA",
+      "title": "THE GAME THAT SURPRISES WITH EVERY DETAIL! | BODYCAM | EPISODE 1",
+      "processed_at": "2026-09-12T10:33:10.550275+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "OhHGB-8IM-M",
+      "title": "Yakından atamıyorum ya🏀#peak #game",
+      "processed_at": "2026-09-17T12:42:42.393066+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "8L9luP-TplU",
+      "title": "POKÉMON Benzeri Yeni MMO! | Aniimo İlk Bakış 🔥",
+      "processed_at": "2026-09-17T12:42:42.401734+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "__ngsRU5Vb0",
+      "title": "Avrupa 60.sıyla lazer finali😏#stumbleguys #game",
+      "processed_at": "2026-09-17T12:42:42.409538+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "fhn2kQvxYoA",
+      "title": "Suratıma bomba😅#stumbleguys #game",
+      "processed_at": "2026-09-17T12:42:42.417756+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "PG3hl-KdzUY",
+      "title": "Taş gibi oyuncuyduk oysaki🤭🪨#peak #game",
+      "processed_at": "2026-09-17T12:42:42.431442+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "8L9luP-TplU",
+      "title": "POKÉMON Benzeri Yeni MMO! | Aniimo İlk Bakış 🔥",
+      "processed_at": "2026-09-17T12:42:44.061286+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "__ngsRU5Vb0",
+      "title": "Avrupa 60.sıyla lazer finali😏#stumbleguys #game",
+      "processed_at": "2026-09-17T12:42:44.075831+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "fhn2kQvxYoA",
+      "title": "Suratıma bomba😅#stumbleguys #game",
+      "processed_at": "2026-09-17T12:42:44.084274+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "OhHGB-8IM-M",
+      "title": "Yakından atamıyorum ya🏀#peak #game",
+      "processed_at": "2026-09-17T12:42:44.100022+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "b13ayRPkikw",
+      "title": "SÜRPRİZ! BEN GELDİM - CANLI YAYIN",
+      "processed_at": "2026-09-17T12:42:45.954791+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "EjM5PhwXtso",
+      "title": "WHEELCHAIR OBSTACLE COURSE! SO MUCH FUN WITH THE CREW 4Wheel Challenge",
+      "processed_at": "2026-09-17T12:42:49.197860+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "jFNaR11iYsc",
+      "title": "THE MOST REALISTIC CITY BUS SIMULATOR GAME! I LET LUZY DRIVE! The Bus",
+      "processed_at": "2026-09-17T12:42:49.205693+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "m4ZGrZyF0uI",
+      "title": "WE DECLARED WAR ON THE ARABS! WE’RE WAYLAYING THE LORDS! Bannerlord with the Crew Episode 4",
+      "processed_at": "2026-09-17T12:42:49.212309+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "JS1s1lY3pRI",
+      "title": "🔴 SÜRPRİZ MINECRAFT YAYINI!",
+      "processed_at": "2026-09-17T12:42:49.220711+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "4l2WWtWb5w0",
+      "title": "THE WORLD'S MOST REALISTIC FPS GAME! BODYCAM WITH THE SQUAD!",
+      "processed_at": "2026-09-17T12:42:49.236454+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "hBWKFfZybys",
+      "title": "🔴LİDERLİĞE DOĞRU! PMGO LİG AŞAMASI 3. GÜN! PUBG Mobile",
+      "processed_at": "2026-09-17T12:42:52.362257+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "wxPY5Q7o1J0",
+      "title": "SURPRISE FOR LUZY ON THE WAY BACK TO ERZURUM! I MAXED OUT HER ACCOUNT! PUBG Mobile",
+      "processed_at": "2026-09-17T12:42:52.370895+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "2wSNgklg_Vc",
+      "title": "🔴TAKIMIMIZI DESTEKLİYORUZ! PMGO LİG AŞAMASI 2. GÜN! PUBG Mobile",
+      "processed_at": "2026-09-17T12:42:52.378729+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "-Xx43iQZIeM",
+      "title": "LUZY CAME TO MY HOUSE SECRETLY! BIG SURPRISE! | PUBG Mobile",
+      "processed_at": "2026-09-17T12:42:52.386359+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "sUy36IEIMO8",
+      "title": "🔴LİDERLİĞE DOĞRU! PMGO LİG AŞAMASI 3. GÜN! PUBG Mobile",
+      "processed_at": "2026-09-17T12:42:52.402247+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "4m6Wh6is0Pw",
+      "title": "Our 1000 HP Toaster Caused Nothing But Trouble!",
+      "processed_at": "2026-09-17T12:42:55.902189+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "4GCj_mJc1K4",
+      "title": "Ben malım #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-09-17T12:42:55.914938+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "_krNnA93kFY",
+      "title": "We've Arrived at the New Map! │ Beam.ng Career",
+      "processed_at": "2026-09-17T12:42:55.922992+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "TeuYqFkYXds",
+      "title": "Haberiniz var mı mevzudan #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-09-17T12:42:55.929285+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "CUJMuREOJ2w",
+      "title": "Siz Tostunuzu nasıl alırsınız? #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-09-17T12:42:55.944546+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "vX-a8zeq5-Q",
+      "title": "valorant eğlenerek oynayınca keyifli #valorant",
+      "processed_at": "2026-09-17T12:42:58.242342+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "4Vik8fwhKuM",
+      "title": "%100 buraya gelecek.. #valorant",
+      "processed_at": "2026-09-17T12:42:58.262177+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "kGJYi_-J9wk",
+      "title": "duom belamı çalarsa… #valorant",
+      "processed_at": "2026-09-17T12:42:58.280385+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "9hBF9us9nQU",
+      "title": "KORK, KAÇ, SAKLAN! BİTTİ Mİ? | WELCOME TO THE GAME III | FİNAL",
+      "processed_at": "2026-09-17T12:43:01.885397+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "gRmVYmjY3BM",
+      "title": "EKİPLE AŞIRI GERÇEKÇİ FPS OYUNU | BODYCAM l",
+      "processed_at": "2026-09-17T12:43:01.904022+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "RODpF9tjVY4",
+      "title": "NÜKLEER BOMBA ATILDI! HAYATTA KALABİLECEK MİYİZ? | 60 SECONDS |",
+      "processed_at": "2026-09-17T12:43:01.920414+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "hAc-Jb8GbKo",
+      "title": "Verity ve Vesper Aynı İpte Oynamaz! - Minecraft",
+      "processed_at": "2026-09-17T12:43:04.039028+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "h_tmDPjrEBI",
+      "title": "ROLLER KONTROLDEN ÇIKTI! | FEIGN | BÖLÜM 8",
+      "processed_at": "2026-09-17T12:43:12.294300+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "jCvGcyO8Zq0",
+      "title": "BACK AGAIN AFTER YEARS! FUN ARENA | LEAGUE OF LEGENDS |",
+      "processed_at": "2026-09-17T12:43:12.331624+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "KfjqWaVpvys",
+      "title": "FİNAL",
+      "processed_at": "2026-09-17T12:43:14.227809+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "m3qzbamfVz0",
+      "title": "THE SINKING CITY 2 \"SONU!\"",
+      "processed_at": "2026-09-17T12:43:14.254458+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "0euQ_bxOZg4",
+      "title": "Havan Yağmuruna Yakalandık - Sıfırdan Master'a Bölüm 9",
+      "processed_at": "2026-09-26T10:42:33.626549+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "gg42eo33Q08",
+      "title": "Takıma katkı denince biz🤭#pubg #game",
+      "processed_at": "2026-09-26T10:42:33.674250+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "fwKLE_XeBbw",
+      "title": "Komutan'a kafa tutan gariban😅#pubg #game",
+      "processed_at": "2026-09-26T10:42:33.703777+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "wGfuGfTSEeo",
+      "title": "UZAYDA HAİN KİM?! | LOCKDOWN Protocol 🌌",
+      "processed_at": "2026-09-26T10:42:33.724899+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "o4CDnGAZ3GE",
+      "title": "Uçan tavuk operasyonu😅#pubg #game",
+      "processed_at": "2026-09-26T10:42:33.784337+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "gg42eo33Q08",
+      "title": "Takıma katkı denince biz🤭#pubg #game",
+      "processed_at": "2026-09-26T10:42:35.943136+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "fwKLE_XeBbw",
+      "title": "Komutan'a kafa tutan gariban😅#pubg #game",
+      "processed_at": "2026-09-26T10:42:35.957730+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "wGfuGfTSEeo",
+      "title": "UZAYDA HAİN KİM?! | LOCKDOWN Protocol 🌌",
+      "processed_at": "2026-09-26T10:42:35.965865+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "0euQ_bxOZg4",
+      "title": "Caught in an Airstrike - From Zero to Master Part 9",
+      "processed_at": "2026-09-26T10:42:35.985115+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Peach",
+      "video_id": "4vuzONXq-ME",
+      "title": "Fizikli Minecraft'ta Bütün Canlılar Agresif",
+      "processed_at": "2026-09-26T10:42:37.654425+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "qTqFs1drVdA",
+      "title": "WHAT KIND OF KILLER IS THIS?! DEAD BY DYLIGHT WITH A TEAM AND 5 CAMERAS!",
+      "processed_at": "2026-09-26T10:42:39.782316+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "4dnazUDzQjQ",
+      "title": "WE BECAME REAL MINIBUS DRIVERS! NEW MINIBUS SIMULATOR WITH THE CREW!",
+      "processed_at": "2026-09-26T10:42:39.799044+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "ineopKUAm7U",
+      "title": "KÖYÜMÜZE EYFEL KULESİ YAPTIK! Minecraft Sezon 3 Bölüm 15",
+      "processed_at": "2026-09-26T10:42:39.807260+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "z4KFzVC8VUg",
+      "title": "RUNNING A LUXURY RESTAURANT IN PARIS! EXTREMELY FUN NEW SIMULATOR GAME WITH THE SQUAD!",
+      "processed_at": "2026-09-26T10:42:39.815494+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "R0vRUyIuYtM",
+      "title": "Bütün Ekibi Tek Başıma Kestim!",
+      "processed_at": "2026-09-26T10:42:39.864781+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "HG3-yWFe0LY",
+      "title": "🔴BAŞLIYORUZ! PMGO BÜYÜK FİNALLER 1. GÜN! PUBG Mobile",
+      "processed_at": "2026-09-26T10:42:41.420397+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "OkpdXIFk_qY",
+      "title": "🔴BAŞLIYORUZ! PMGO BÜYÜK FİNALLER 1. GÜN! PUBG Mobile",
+      "processed_at": "2026-09-26T10:42:41.435477+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "k-Oxhomalx4",
+      "title": "THE NEW ULTIMATE SET AND THE GAME'S BIGGEST HIT EFFECT WEAPON HAVE ARRIVED! PUBG Mobile",
+      "processed_at": "2026-09-26T10:42:41.443178+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "7OF7MqFj7po",
+      "title": "Bedava İtfaiyeci Seti ve Full Destansı Set Çıkardım!",
+      "processed_at": "2026-09-26T10:42:41.450800+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "PZvdzxnY-T0",
+      "title": "OMG! I RAN INTO THE #1 MOST POPULAR ACCOUNT, THE RICHEST ONE! (21 BILLION POP) PUBG Mobile",
+      "processed_at": "2026-09-26T10:42:41.465870+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "nQMNNUYqOvE",
+      "title": "300 Beygirlik Tavuk?",
+      "processed_at": "2026-09-26T10:42:44.952503+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "oOIkdbzAENk",
+      "title": "Neler oluyor #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-09-26T10:42:44.964437+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "MJNa0LstkbQ",
+      "title": "Yeni Güncelleme Geldi! │ Beam.ng Kariyer",
+      "processed_at": "2026-09-26T10:42:44.972003+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "gPkNWplDhAQ",
+      "title": "Caart #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-09-26T10:42:44.979490+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "2-pQxoCth8E",
+      "title": "Kızarmış davuk #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-09-26T10:42:44.994633+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "P__J2MJSQcE",
+      "title": "NEW CHAMPIONS 2026 Collection FIRST LOOK! (Valorant Champions 2026 Phantom Gameplay)",
+      "processed_at": "2026-09-26T10:42:46.492804+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "Sj91890lzIE",
+      "title": "YENİ MOD \"GALEYANI\" oynayıp ŞAMPİYON olmayı denedik! (Hellian & CombatRy)",
+      "processed_at": "2026-09-26T10:42:46.511751+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "M22mUoQrj_M",
+      "title": "I played VALORANT for 12 hours with CHEAP GEAR I bought from the STORE!",
+      "processed_at": "2026-09-26T10:42:46.540259+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "cVo0YjB0cH0",
+      "title": "TREN İSTASYONUMUZU KURUYORUZ! | TRAIN STATION PROJECT | DEMO I",
+      "processed_at": "2026-09-26T10:42:49.715241+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "xjFG8mb5RwM",
+      "title": "KAZI KAZAN ÇILGINLIGI! ŞANSIMIZI ZORLADIK! l SCRITCHY SCRATCHY l",
+      "processed_at": "2026-09-26T10:42:49.734498+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "gA7AifUaW4w",
+      "title": "İNSANLARLA HAYVANLARIN SAVAŞI! | ANIMALY BAR |",
+      "processed_at": "2026-09-26T10:42:49.742744+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "85bahumqw9U",
+      "title": "SAMANLIKTA İGNE ARIYORUZ! | FIND THE NEEDLE l",
+      "processed_at": "2026-09-26T10:42:49.757947+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "pd1hmLFqjQM",
+      "title": "Gelişmiş AI Zombi Kıyametinde 100 Gün Hayatta Kalma - 2 - Minecraft Hardcore",
+      "processed_at": "2026-09-26T10:42:51.218158+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "GKG5MoGq6Bg",
+      "title": "Vesper Wither Storm Olma Yolunda! - Minecraft",
+      "processed_at": "2026-09-26T10:42:51.243560+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "0bIaVKLiab4",
+      "title": "THE GAME THAT MADE ME FALL IN LOVE IN JUST 1 HOUR!",
+      "processed_at": "2026-09-26T10:42:52.788091+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "vzURK_TYpXM",
+      "title": "GRAFİKLER SÜPER AMA OYUNLAR ÇOK PAHALI! 16650 TL ve 7 YENİ OYUN!",
+      "processed_at": "2026-09-26T10:42:52.813547+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "IL2FtqVGw1U",
+      "title": "MYSTERIOUS BOSS REVEALED! | HOW TO FISH | EPISODE 3",
+      "processed_at": "2026-09-26T10:42:54.325493+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "QEpqX9ruoyo",
+      "title": "ABBY GERÇEKTEN İYİ BİRİ Mİ? | THE LAST OF US PART II | BÖLÜM 7",
+      "processed_at": "2026-09-26T10:42:54.344548+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "puefOCDiANM",
+      "title": "SUMMIT JOURNEY AT SUNSET | SUNSET SUMMIT | PART 1",
+      "processed_at": "2026-09-26T10:42:54.352002+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "6RtkO8gI-WE",
+      "title": "GEÇMİŞİN GÖLGESİNDEN UZANAN YARDIM ELİ! | THE LAST OF US PART II | BÖLÜM 6",
+      "processed_at": "2026-09-26T10:42:54.359387+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "Tf5DMag0X-8",
+      "title": "BÖYLE BİR OYUN İZLEMEDİNİZ! KAMERALI | GOOSE GOOSE DUCK | BÖLÜM 19",
+      "processed_at": "2026-09-26T10:42:54.374045+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "sP11fH7o4Ik",
+      "title": "16 GOLLÜ MAÇ",
+      "processed_at": "2026-09-26T10:42:55.935612+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "ZBFJCUKLSc0",
+      "title": "AMAN YAA RABBİM",
+      "processed_at": "2026-09-26T10:42:55.955239+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "4RXP3KNoMsg",
+      "title": "A small package, a huge smile!",
+      "processed_at": "2026-09-26T10:42:55.962666+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "4x2zZq4in_0",
+      "title": "Hangi \"CRUSH\" Üyesiyim?",
+      "processed_at": "2026-09-26T10:42:55.970380+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "y3wo2-TnOKI",
+      "title": "WALKOUTTTT",
+      "processed_at": "2026-09-26T10:42:55.985135+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "iz_LNziVE6Q",
+      "title": "Hayattaki şansım🤦‍♂😅#wormswmd #game",
+      "processed_at": "2026-10-15T20:30:53.336545+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "tDddoEZ-Ri4",
+      "title": "1v1 solucan mücadelesi🤔#wormswmd #game",
+      "processed_at": "2026-10-15T20:30:53.578009+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "bmWx86SgmSc",
+      "title": "Övgüye çöktük🤭#goosegooseduck #game",
+      "processed_at": "2026-10-15T20:30:53.635951+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "jgG9PlCvYZ0",
+      "title": "Beceri atışı😎#wormswmd #game",
+      "processed_at": "2026-10-15T20:30:53.737283+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin/streams",
+      "video_id": "WrHrVbwk7q4",
+      "title": "4 ARABAYLA ZORLU YOLLARDAYIZ! ⛰️ | Over the Hill",
+      "processed_at": "2026-10-15T20:30:54.493762+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "tDddoEZ-Ri4",
+      "title": "1v1 solucan mücadelesi🤔#wormswmd #game",
+      "processed_at": "2026-10-15T20:30:55.889442+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "bmWx86SgmSc",
+      "title": "Övgüye çöktük🤭#goosegooseduck #game",
+      "processed_at": "2026-10-15T20:30:55.905548+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "jgG9PlCvYZ0",
+      "title": "Beceri atışı😎#wormswmd #game",
+      "processed_at": "2026-10-15T20:30:55.913137+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@zSuatCanliYayin",
+      "video_id": "iz_LNziVE6Q",
+      "title": "Hayattaki şansım🤦‍♂😅#wormswmd #game",
+      "processed_at": "2026-10-15T20:30:55.935006+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "X8vJ7sndWRs",
+      "title": "WE BUILT A BRIDGE TO THE AREA! LIFE IN THE DEADLY COLD! Permafrost Part 2",
+      "processed_at": "2026-10-15T20:31:00.719551+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "7QP4aMmW69Y",
+      "title": "WE OPENED A FOOTBALL ACADEMY! RAISING YOUNG STARS! Football Academy Simulator",
+      "processed_at": "2026-10-15T20:31:00.734642+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "TB2aWZ_duSU",
+      "title": "Gerçek Arabacıların Oyunu",
+      "processed_at": "2026-10-15T20:31:00.741695+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "nI0AOYWXdTo",
+      "title": "THE LONG DARK WITH THE SQUAD! NEW SURVIVAL GAME IN THE COLD! LEGENDARY! Permafrost",
+      "processed_at": "2026-10-15T20:31:00.749124+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@VURALUZUL2",
+      "video_id": "TqyyPCFwEIk",
+      "title": "Böyle Olsun İstememiştim!",
+      "processed_at": "2026-10-15T20:31:00.763395+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "wftBeC3MiDg",
+      "title": "Yeni Kış Modu Detayları! PowNin Geri Döndü!",
+      "processed_at": "2026-10-15T20:31:02.308270+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "jVeB5gVoPe4",
+      "title": "POWNİN IS BACK! WE ENTERED THE NEW ERANGEL WINTER MODE! THE BRIDGE IS DESTROYED! PUBG Mobile",
+      "processed_at": "2026-10-15T20:31:02.324266+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "AA7QERkw_I0",
+      "title": "I'M FINALLY IN THE GAME FOR FREE! 😂 WE GOT IT AND TESTED IT! PUBG Mobile",
+      "processed_at": "2026-10-15T20:31:02.332578+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "M93DY_J-LDQ",
+      "title": "WE OPENED 50,000 UC WORTH OF NEW RARE CRATES ON 5 EMPTY ACCOUNTS! 1 IN A MILLION CHANCE! PUBG Mobile",
+      "processed_at": "2026-10-15T20:31:02.340602+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@vuraluzul",
+      "video_id": "NG2y1OUizVQ",
+      "title": "FREE SPECIAL TURKEY SET WITH WOLF LOGO IS HERE! LEGENDARY! PUBG Mobile",
+      "processed_at": "2026-10-15T20:31:02.355703+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "zxLCmpmbBmU",
+      "title": "Our New 800 HP Police Car! │ Beam.ng Career",
+      "processed_at": "2026-10-15T20:31:05.697943+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "VHMylr09bgE",
+      "title": "Traktör vs bugatti #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-10-15T20:31:05.717709+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "QP81fNfq2uA",
+      "title": "Can I Outrun a Bugatti With a Tractor I Built Myself?",
+      "processed_at": "2026-10-15T20:31:05.725865+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "hLtPHuNVLNE",
+      "title": "Temudan mod #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-10-15T20:31:05.734197+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@hawkpawk2571",
+      "video_id": "8R0CQnbnVoc",
+      "title": "Egzoz fırladı #beamngdrive #beamng #beamngdrivemods",
+      "processed_at": "2026-10-15T20:31:05.749979+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "PoNpsdSU5RY",
+      "title": "The NEW POPMON set is nothing but TROUBLE! (Valorant POPMON collection Gameplay)",
+      "processed_at": "2026-10-15T20:31:07.135310+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "s_vFSBTUXHM",
+      "title": "valorant'ta koşu bandıyla oynarken bela attım.. #valorant #shorts",
+      "processed_at": "2026-10-15T20:31:07.157483+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "F3il9PLHDxc",
+      "title": "koşu bandında valorant oynadım 😳 #shorts #valorant",
+      "processed_at": "2026-10-15T20:31:07.165696+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "9zRCWX09ILY",
+      "title": "I Hit IMMORTAL in 7 Days… on a TREADMILL | Valorant",
+      "processed_at": "2026-10-15T20:31:07.173772+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@combatry",
+      "video_id": "NLvPDDSA0Fc",
+      "title": "reynanın bana efsane tepkisi 😂 #valorant #combatry #shorts",
+      "processed_at": "2026-10-15T20:31:07.188920+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "tUvHh8UqWLM",
+      "title": "BIRTH OF A LEGENDARY AGENT! | 007 FIRST LIGHT (Part 1) | Turkish Gameplay",
+      "processed_at": "2026-10-15T20:31:08.679148+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "kxuRGnh9X6E",
+      "title": "YOU HAVE TO WATCH THIS MATCH!! [PUBG]",
+      "processed_at": "2026-10-15T20:31:08.698801+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "9dk7auxX2ok",
+      "title": "WHY IS MILITARY ISLAND EMPTY!! [PUBG]",
+      "processed_at": "2026-10-15T20:31:08.706855+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "gND2u0-SkEE",
+      "title": "A DISASTROUS COMEBACK!! [PUBG]",
+      "processed_at": "2026-10-15T20:31:08.714831+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@mithrain",
+      "video_id": "yq481NHPOis",
+      "title": "EFSANE MAÇTA NAZARA GELDİK!! [PUBG]",
+      "processed_at": "2026-10-15T20:31:08.729857+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "XauNehh98Z0",
+      "title": "KAÇINILMAZ SON.. | NO I'M NOT A HUMAN | FİNAL (S2)",
+      "processed_at": "2026-10-15T20:31:10.197509+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "RnxyeOTE7k0",
+      "title": "ZAMAN DÖNGÜSÜNDEN ÇIKABİLECEK MİYİZ?! | TWELVE MINUTES l",
+      "processed_at": "2026-10-15T20:31:10.217046+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "2lGFz2WM14c",
+      "title": "BU HİKAYELER KURGU MU?? GERÇEK Mİ? | TALES OF FEAR EPISODE ZERO l",
+      "processed_at": "2026-10-15T20:31:10.224762+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "z5t-4j3Cn-E",
+      "title": "DÜNYANIN SONU GELDİ! HAYATTA KALMAK ZORUNDAYIZ! | IRONBLIGHT l BÖLÜM 1 l",
+      "processed_at": "2026-10-15T20:31:10.240629+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@RRaenee",
+      "video_id": "cN-KhBMDeAI",
+      "title": "EKİPLE SESSİZ REKABETÇİ PUMMEL KAPIŞMA!! | PUMMEL PARTY |",
+      "processed_at": "2026-10-15T20:31:10.256326+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "kwOdeqg7O3Q",
+      "title": "Bu Maymun Hile Yaptığınızı Anlıyor! -Minecraft",
+      "processed_at": "2026-10-15T20:31:11.918108+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "LGSS8MwDgWs",
+      "title": "Gta V İçinde Minecraft Oynamak!",
+      "processed_at": "2026-10-15T20:31:11.938479+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "TnqwNCv43R4",
+      "title": "GTA 5 İçinde Minecraft Oynamak!",
+      "processed_at": "2026-10-15T20:31:11.946623+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "ie_11aHZscQ",
+      "title": "Yeni Boyutu Keşfediyoruz! (Resmi) - Minecraft Dungeons 2",
+      "processed_at": "2026-10-15T20:31:11.954381+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@DogukanAdalTvo",
+      "video_id": "Gv--81v_Kao",
+      "title": "​",
+      "processed_at": "2026-10-15T20:31:11.969505+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "njcl1IuXN6g",
+      "title": "PLAYSTATION 5 JAILBROKEN, NEW GTA 6 DETAILS and A RUDE GAMING COMPANY!",
+      "processed_at": "2026-10-15T20:31:13.618713+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "KYvv-6aYqf0",
+      "title": "I’M DONE WITH THIS GAME (EA FC 27 TURKISH PLAYER CAREER)",
+      "processed_at": "2026-10-15T20:31:13.637819+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "Daxt2JHNcRE",
+      "title": "I RACED LEGENDARY FORMULA 1 DRIVER MAX VERSTAPPEN (HE DESTROYED ME IN 5 SECONDS!)",
+      "processed_at": "2026-10-15T20:31:13.645644+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@EnisKirazogluvideolar",
+      "video_id": "MVE5Ejf9Ywc",
+      "title": "DÜNYANIN EN İYİ OYUNU VE İNANILMAZ GRAFİKLERİ!",
+      "processed_at": "2026-10-15T20:31:13.660455+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "D_DQEUGdtNY",
+      "title": "KAYBEDEN TAKIMI DELİRTEN EKİP! | GTA5: PLAYLIST |",
+      "processed_at": "2026-10-15T20:31:15.150440+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "1-JROUGwIxE",
+      "title": "LABİRENTTEN ASLA ÇIKAMAYACAĞIZ! | INFERNO PROTOCOL | BÖLÜM 2",
+      "processed_at": "2026-10-15T20:31:15.171598+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "cJLbu2wY86s",
+      "title": "HAYALİMİZİ GERÇEKLEŞTİRDİK CO-OP SINGLE | MOUNT & BLADE II: BANNERLORD | BÖLÜM 1",
+      "processed_at": "2026-10-15T20:31:15.178916+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "bmnymPklRQs",
+      "title": "THE SQUAD IS OUT FOR REVENGE! | PUMMEL PARTY | EPISODE 10",
+      "processed_at": "2026-10-15T20:31:15.186006+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@Elraenn",
+      "video_id": "874UcLcefw4",
+      "title": "CAMERAS TOOK THE FUN TO THE NEXT LEVEL! | SCAM LINE | EPISODE 4",
+      "processed_at": "2026-10-15T20:31:15.200299+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "ZJhRYViIraU",
+      "title": "if the trophy is far, the journey is more meaningful...",
+      "processed_at": "2026-10-15T20:31:16.665350+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "ch9D3M9DjxY",
+      "title": "POİZİ YENİ ŞARKI TEPKİ",
+      "processed_at": "2026-10-15T20:31:16.684160+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "OM5RUXXCioc",
+      "title": "MANİFEST YENİ ŞARKI TEPKİ",
+      "processed_at": "2026-10-15T20:31:16.691542+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "FD4AHgVX9Ag",
+      "title": "WEGH YENİ ŞARKI TEPKİ",
+      "processed_at": "2026-10-15T20:31:16.698708+00:00"
+    },
+    {
+      "channel_url": "https://www.youtube.com/@TolunayOren",
+      "video_id": "JS1te7IGx0I",
+      "title": "GEL KARDEŞİM ÇEKİNME",
+      "processed_at": "2026-10-15T20:31:16.713185+00:00"
+    }
+  ]
+}
