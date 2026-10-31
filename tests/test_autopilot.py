@@ -590,3 +590,10 @@ def test_calculate_process_after_rules():
     no_date = AutoPilotManager.calculate_process_after({})
     assert no_date is not None
 
+
+def test_auto_shuffle_upcoming(manager, auto_db):
+    """auto_shuffle_upcoming fonksiyonu gelecek 14 gün için diversified_shuffle çalıştırmalıdır."""
+    res = manager.auto_shuffle_upcoming(days_ahead=14)
+    assert "shuffled_count" in res
+
+

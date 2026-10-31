@@ -348,6 +348,13 @@ class AutoPilotManager:
     def diversified_shuffle(self, selected_dates: list[str]) -> dict[str, Any]:
         return self.slot_allocator.diversified_shuffle(selected_dates)
 
+    def auto_shuffle_upcoming(self, days_ahead: int = 14) -> dict[str, Any]:
+        """Gelecek günlerdeki planlanmış tüm kuyruk kliplerini ardışık aynı kanal gelmeyecek şekilde otomatik karıştırır."""
+        now_local = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=self.tz_offset)
+        today = now_local.date()
+        dates = [(today + datetime.timedelta(days=d)).isoformat() for d in range(days_ahead)]
+        return self.diversified_shuffle(selected_dates=dates)
+
     def get_day_slots_grid(self, date_str: str) -> dict[str, dict[str, Any] | None]:
         return self.slot_allocator.get_day_slots_grid(date_str)
 
@@ -824,6 +831,13 @@ class AutoPilotManager:
                 with self.db._connect() as conn:
                     conn.execute("UPDATE videos SET status='error' WHERE id=?", (v_id,))
                     conn.commit()
+
+        if processed_count > 0:
+            try:
+                shuffle_res = self.auto_shuffle_upcoming(days_ahead=14)
+                logger.info("Otomatik klip dağıtımı (auto-shuffle) yapıldı: {}", shuffle_res.get("message"))
+            except Exception as se:
+                logger.warning("Otomatik shuffle hatası: {}", se)
 
         return {"processed": processed_count, "errors": proc_errors}
 
