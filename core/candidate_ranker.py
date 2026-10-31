@@ -280,18 +280,20 @@ class CandidateRanker:
 
         # --- VIP Yorum Tohumlaması (Comment VIP Injection) ---
         # İzleyicilerin yorumlarda bizzat güldüğü/dikkat çektiği anlar (örn. 5:13)
-        # doğrudan VIP adayı olarak havuza en yüksek öncelikle enjekte edilir.
+        # aday havuzuna öncelikle dahil edilir, ancak skora suni 0.96+ tabanı basılmaz.
         if comment_clusters:
             for comm_cl in comment_clusters:
                 comm_t = float(comm_cl["time"])
                 idx_comm = int(np.argmin(np.abs(times - comm_t)))
                 base_c_score = float(composite_score[idx_comm]) if idx_comm < len(composite_score) else 0.5
-                vip_score = max(0.96, min(1.0, base_c_score + 0.50))
+                # Suni 0.96 sabiti yerine yorum sayısına göre ölçülü öncelik takviyesi (+0.10 ~ +0.20)
+                comm_boost = min(0.20, 0.08 + 0.04 * float(comm_cl.get("count", 1)))
+                boosted_score = min(0.95, base_c_score + comm_boost)
 
                 found = False
                 for c in clusters:
                     if abs(c["peak_time"] - comm_t) <= self.merge_threshold_sec:
-                        c["score"] = max(c["score"], vip_score)
+                        c["score"] = max(c["score"], boosted_score)
                         c["is_vip"] = True
                         c["comment_info"] = comm_cl
                         found = True
@@ -300,7 +302,7 @@ class CandidateRanker:
                     clusters.append(
                         {
                             "peak_time": comm_t,
-                            "score": vip_score,
+                            "score": boosted_score,
                             "indices": [idx_comm],
                             "is_vip": True,
                             "comment_info": comm_cl,

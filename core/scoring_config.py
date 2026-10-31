@@ -26,12 +26,21 @@ STORY_COMPLETENESS_WEIGHT: int = 20  # Hikaye bütünlüğü (bağlam, giriş-ge
 SIGNAL_VALIDATION_WEIGHT: int = 15  # Sinyal doğrulama (ses, pitch, frame-diff uyumu)
 
 # ---------------------------------------------------------------------------
-# İZLEYİCİ YORUMU (COMMENT MINING) AĞIRLIK VE BONUSLARI
+# İZLEYİCİ YORUMU (COMMENT MINING)
 # ---------------------------------------------------------------------------
-# İzleyicilerin yorumlarda bizzat güldüğü / saniye verdiği anlara verilecek puan bonusu
-COMMENT_BOOST_POINTS: int = 15
-# İzleyici yorumuyla teyit edilmiş VIP adayların asgari taban viral puanı (İlk 3-4'e girmesini garantiler)
-VIP_COMMENT_MIN_SCORE: int = 88
+# Yorumlar artık suni +15 puan basmak yerine füzyon sinyali ve LLM bağlamı
+# olarak kullanılır. Skor 98'e sabitlenmez.
+COMMENT_FEATURE_ENABLED: bool = True
+
+# ---------------------------------------------------------------------------
+# KALİTE EŞİĞİ VE SIFIR KLİP POLİTİKASI (STRICT GATEKEEPER)
+# ---------------------------------------------------------------------------
+# Kalite barajı (0-100). Bu puanın altındaki anlar elenir.
+VIRAL_SCORE_THRESHOLD: int = 70
+# Zorunlu kota iptali: Eğer videoda kaliteli an yoksa zorla klip üretme (0 klip dön)
+ALLOW_ZERO_CLIPS: bool = True
+# Test / Audit modu: Kapıdan geçemeyen (elenen) klipleri de [ELENDİ] olarak kaydet ve render et
+SAVE_REJECTED_CLIPS: bool = False
 
 # ---------------------------------------------------------------------------
 # KATEGORİ TAKSONOMİSİ
@@ -72,12 +81,6 @@ BAND_LABELS_ENABLED: bool = True
 # 1 = tek çalışma (hızlı ama tutarsız).
 ENSEMBLE_RUNS: int = 3
 
-# ---------------------------------------------------------------------------
-# VİRAL SKOR EŞİĞİ
-# ---------------------------------------------------------------------------
-# Otopilot kuyruğuna alınacak minimum viral_confidence puanı.
-# 80: daha fazla klip yakalanır; 90: sadece en iyiler (eski ayar).
-VIRAL_SCORE_THRESHOLD: int = 80
 
 # ---------------------------------------------------------------------------
 # HİBRİT SKOR AĞIRLIKLARI

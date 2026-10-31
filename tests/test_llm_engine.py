@@ -528,3 +528,39 @@ def test_score_consistency_test_returns_stats(mock_client_class, mock_candidates
     assert stats["mean"] == 85.0
     assert stats["verdict"] == "STABLE"  # range=10 ≤ 15
     assert "recommendation" in report["summary"]
+
+
+@patch("core.llm_engine.genai.Client")
+def test_strict_zero_clips_policy(mock_client_class, mock_candidates):
+    """allow_zero_clips=True iken kalite eşiğinin altındaki anlar için zoraki klip üretilmemeli (0 klip)."""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    mock_response = MagicMock()
+    mock_response.text = json.dumps(
+        {
+            "selected_clips": [
+                {
+                    "candidate_id": 1,
+                    "verdict": "DROP",
+                    "category": "MUNDANE",
+                    "viral_confidence": 30,
+                    "suggested_start": 0.0,
+                    "suggested_end": 15.0,
+                }
+            ]
+        }
+    )
+    mock_client.models.generate_content.return_value = mock_response
+
+    result = GeminiHighlightEngine.batch_judge_gaming_candidates(
+        candidates=mock_candidates[:1],
+        video_title="Boring Video",
+        total_duration=100,
+        target_clips=3,
+        api_key="TEST_KEY",
+        allow_zero_clips=True,
+    )
+
+    assert result == [], "allow_zero_clips=True iken kaliteyi geçemeyen videodan 0 klip dönmeli"
+

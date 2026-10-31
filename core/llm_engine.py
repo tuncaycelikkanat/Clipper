@@ -258,6 +258,8 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
         api_key: str | None = None,
         channel_dna: dict[str, Any] | None = None,
         ensemble_runs: int | None = None,
+        allow_zero_clips: bool | None = None,
+        include_rejected: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Top-N adayı Gemini Flash ile yargılar, viral skor hesaplar.
@@ -266,6 +268,9 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             ensemble_runs: Kaç kez tekrar çalıştırıp medyan alınacak.
                            None ise scoring_config.ENSEMBLE_RUNS kullanılır.
                            1 = tekil çalışma (varsayılan).
+            allow_zero_clips: Kalite eşiğini geçen klip yoksa boş liste (0 klip) dönülmesine
+                              izin verilsin mi? None ise scoring_config.ALLOW_ZERO_CLIPS kullanılır.
+            include_rejected: Elenen adayları da [ELENDİ] başlığıyla dön.
         """
         n_runs = ensemble_runs if ensemble_runs is not None else SC.ENSEMBLE_RUNS
 
@@ -283,7 +288,14 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             data = _gemini_single_call(client, cls.MODELS_TO_TRY, prompt, system_instruction)
             if not data:
                 raise RuntimeError("Gemini Batch Analiz hatası: tüm modeller başarısız.")
-            return cls._build_final_clips(data, candidates, total_duration, target_clips)
+            return cls._build_final_clips(
+                data,
+                candidates,
+                total_duration,
+                target_clips,
+                allow_zero_clips=allow_zero_clips,
+                include_rejected=include_rejected,
+            )
 
         # Ensemble modu: N kez çağır, her aday için medyan skor al
         logger.info("Ensemble modu: {} çalışma yapılıyor...", n_runs)
@@ -317,7 +329,14 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             )
 
         ensemble_data = {"selected_clips": list(representative.values())}
-        return cls._build_final_clips(ensemble_data, candidates, total_duration, target_clips)
+        return cls._build_final_clips(
+            ensemble_data,
+            candidates,
+            total_duration,
+            target_clips,
+            allow_zero_clips=allow_zero_clips,
+            include_rejected=include_rejected,
+        )
 
     @classmethod
     def _build_final_clips(
@@ -326,9 +345,12 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
         candidates: list[dict[str, Any]],
         total_duration: int,
         target_clips: int,
+        allow_zero_clips: bool | None = None,
+        include_rejected: bool = False,
     ) -> list[dict[str, Any]]:
         """Ham Gemini çıktısını standart klip listesine dönüştürür."""
         verdicts = data.get("selected_clips", [])
+        save_rejected = include_rejected or getattr(SC, "SAVE_REJECTED_CLIPS", False)
 
         # Hibrit Skor (Fusion + LLM Entegrasyonu)
         for v in verdicts:
@@ -359,7 +381,7 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
                         v["viral_confidence"],
                     )
 
-        # VIP İzleyici Yorumu Puan Takviyesi: İzleyici yorumu olan anları ilk sıralara yükselt
+        # İzleyici Yorumu Rationale zenginleştirmesi (Skoru suni 98 yapmadan bağlam ekle)
         for v in verdicts:
             cid = v.get("candidate_id")
             cand_match = next((c for c in candidates if c["candidate_id"] == cid), None)
@@ -368,30 +390,52 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
                 or cand_match.get("from_comment")
                 or cand_match.get("signals", {}).get("comment_count", 0) > 0
             ):
-                orig_score = int(v.get("viral_confidence", 80))
-                # İzleyici teyitli anlara taban puan (min 88) ve bonus puan ekle (+15)
-                boosted_score = max(SC.VIP_COMMENT_MIN_SCORE, min(98, orig_score + SC.COMMENT_BOOST_POINTS))
-                v["viral_confidence"] = boosted_score
-                if str(v.get("category", "")).upper() != "MUNDANE":
-                    v["verdict"] = "KEEP"
-
-                # Rationale'a izleyici teyidini açıkça ekle
                 c_count = cand_match.get("signals", {}).get("comment_count", 1)
                 c_react = cand_match.get("signals", {}).get("comment_reaction") or "HIGHLIGHT"
                 curr_rationale = str(v.get("rationale", "")).strip()
                 if "İzleyici Yorumu" not in curr_rationale:
                     v["rationale"] = (
-                        f"⭐ [İzleyici Yorumu VIP Teyidi ({c_count} yorum, {c_react})] {curr_rationale}".strip()
+                        f"⭐ [İzleyici Yorumu ({c_count} yorum, {c_react})] {curr_rationale}".strip()
                     )
 
-        keep_clips = [v for v in verdicts if v.get("verdict", "").upper() == "KEEP"]
-        if not keep_clips:
-            # Fallback: MUNDANE olmayanlardan en iyileri al
-            non_mundane = [v for v in verdicts if str(v.get("category", "")).upper() != "MUNDANE"]
-            keep_clips = non_mundane[:target_clips] if non_mundane else verdicts[:target_clips]
+        # -----------------------------------------------------------------------
+        # Kalite Kapısı ve Zorunlu Kota İptali (Strict Quality Gate)
+        # -----------------------------------------------------------------------
+        use_zero_clips = allow_zero_clips if allow_zero_clips is not None else False
+        min_score_gate = getattr(SC, "VIRAL_SCORE_THRESHOLD", 70)
 
-        keep_clips.sort(key=lambda x: x.get("viral_confidence", 0), reverse=True)
-        top_selected = keep_clips[:target_clips]
+        candidates_pool = []
+        for v in verdicts:
+            is_keep = (
+                v.get("verdict", "").upper() == "KEEP"
+                and str(v.get("category", "")).upper() != "MUNDANE"
+                and int(v.get("viral_confidence", 0)) >= min_score_gate
+            )
+            v_copy = dict(v)
+            v_copy["is_passed"] = is_keep
+            v_copy["gate_status"] = "PASSED" if is_keep else "REJECTED"
+            if is_keep or save_rejected:
+                candidates_pool.append(v_copy)
+
+        if not any(c.get("is_passed") for c in candidates_pool) and not save_rejected:
+            if use_zero_clips:
+                logger.info(
+                    "Strict Quality Gate: Eşiği ({} puan) geçen viral klip bulunamadı. Zoraki klip üretilmiyor (0 klip).",
+                    min_score_gate,
+                )
+                return []
+            else:
+                # Fallback: Sadece zorunlu modda (allow_zero_clips=False) en iyileri al
+                non_mundane = [v for v in verdicts if str(v.get("category", "")).upper() != "MUNDANE"]
+                candidates_pool = non_mundane[:target_clips] if non_mundane else verdicts[:target_clips]
+                for c in candidates_pool:
+                    c["is_passed"] = True
+
+        candidates_pool.sort(
+            key=lambda x: (1 if x.get("is_passed", True) else 0, int(x.get("viral_confidence", 0))),
+            reverse=True,
+        )
+        top_selected = candidates_pool if save_rejected else candidates_pool[:target_clips]
 
         final_clips = []
         for rank, clip in enumerate(top_selected, start=1):
@@ -410,19 +454,25 @@ MUNDANE değil, gerçekten viral potansiyeli olan anları seç.
             category = clip.get("category", "EPIC_MOMENT")
             rationale = clip.get("rationale", "")
             why_viral = clip.get("why_viral", "")
+            is_passed = clip.get("is_passed", True)
+
+            raw_title = clip.get("title", f"Gaming Klip #{rank}")
+            display_title = raw_title if is_passed else f"[ELENDİ] {raw_title}"
 
             final_clips.append(
                 {
                     "rank": rank,
                     "candidate_id": clip.get("candidate_id"),
-                    "title": clip.get("title", f"Gaming Klip #{rank}"),
+                    "title": display_title,
                     "category": category,
                     "score": raw_score,
                     "score_band": score_to_band(raw_score),  # Bant etiketi (madde 2)
                     "intensity": raw_score,
                     "rationale": rationale,  # Kısa gerekçe (madde 8)
+                    "is_passed": is_passed,
+                    "gate_status": "PASSED" if is_passed else "REJECTED",
                     "hook_caption": clip.get("hook_caption", ""),
-                    "reason": f"🎮 [{category}] {clip.get('hook_caption', '')} — {why_viral}",
+                    "reason": f"{'🎮' if is_passed else '❌ [ELENDİ]'} [{category}] {clip.get('hook_caption', '')} — {why_viral}",
                     "peak_time": round((s_time + e_time) / 2.0, 1),
                     "peak_formatted": YouTubeExtractor.format_seconds((s_time + e_time) / 2.0),
                     "start_time": round(s_time, 1),

@@ -24,6 +24,7 @@ from core.llm_engine import GeminiHighlightEngine
 from core.logger import logger
 from core.transcript import TranscriptManager
 from core.visual_dsp import VisualDSPAnalyzer
+import core.scoring_config as SC
 
 
 class ClipperPipeline:
@@ -64,6 +65,7 @@ class ClipperPipeline:
         add_subtitles: bool = False,
         add_hook_card: bool = False,
         enhance_colors: bool = True,
+        include_rejected: bool = False,
         api_key: str | None = None,
         progress_callback: Callable[[str], None] | None = None,
         db: DatabaseManager | None = None,
@@ -77,6 +79,7 @@ class ClipperPipeline:
             add_subtitles=add_subtitles,
             add_hook_card=add_hook_card,
             enhance_colors=enhance_colors,
+            include_rejected=include_rejected,
             api_key=api_key,
             progress_callback=progress_callback,
         )
@@ -92,6 +95,7 @@ class ClipperPipeline:
         add_subtitles: bool = False,
         add_hook_card: bool = False,
         enhance_colors: bool = True,
+        include_rejected: bool = False,
         api_key: str | None = None,
         progress_callback: Callable[[str], None] | None = None,
     ) -> list[dict[str, Any]]:
@@ -214,17 +218,48 @@ class ClipperPipeline:
         )
         step_timings["3. Candidate Ranking & Fusion"] = time.perf_counter() - t0
 
-        # 4. LLM Judgement
+        # 4. Multimodal Vision Gatekeeper & Judgement
         t0 = time.perf_counter()
-        safe_cb("🤖 Yapay Zeka anları değerlendiriyor...")
-        evaluated_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
-            candidates=candidates,
-            video_title=video_title,
-            total_duration=duration,
-            target_clips=target_clips,
-            api_key=api_key,
-        )
-        step_timings["4. Gemini Flash Viral Judgement"] = time.perf_counter() - t0
+        safe_cb("🤖 Yapay Zeka anları değerlendiriyor (Multimodal Vision Gatekeeper)...")
+        save_rejected = include_rejected or getattr(SC, "SAVE_REJECTED_CLIPS", False)
+        evaluated_clips = []
+        vision_success = False
+        if candidates:
+            try:
+                from core.vision_gatekeeper import VisionGatekeeper
+
+                evaluated_clips = VisionGatekeeper.filter_and_evaluate_candidates(
+                    candidates=candidates,
+                    video_source=url,
+                    video_title=video_title,
+                    total_duration=duration,
+                    target_clips=target_clips,
+                    api_key=api_key,
+                    include_rejected=save_rejected,
+                )
+                vision_success = True
+            except Exception as ve:
+                logger.warning("Vision Gatekeeper hatası, metin tabanlı LLM fallback devreye giriyor: {}", ve)
+                vision_success = False
+
+        if not vision_success:
+            evaluated_clips = GeminiHighlightEngine.batch_judge_gaming_candidates(
+                candidates=candidates,
+                video_title=video_title,
+                total_duration=duration,
+                target_clips=target_clips,
+                api_key=api_key,
+                allow_zero_clips=True,
+                include_rejected=save_rejected,
+            )
+        step_timings["4. Multimodal Vision Viral Judgement"] = time.perf_counter() - t0
+
+        # Kalite eşiğini geçen klip yoksa 0 klip dön ve gereksiz render yapma
+        if not evaluated_clips:
+            safe_cb("ℹ️ Bu videoda kalite eşiğini geçen viral klip bulunamadı. 0 klip üretildi.")
+            logger.info("Pipeline: Kalite eşiğini geçen klip bulunamadı (0 klip). Video tamamlandı olarak işaretleniyor.")
+            self.db.mark_video_done(video_id)
+            return []
 
         # 5. Boundary Alignment (Frame-diff dahil)
         t0 = time.perf_counter()
@@ -264,6 +299,7 @@ class ClipperPipeline:
         enriched_clips = []
         for clip in aligned_clips:
             clip_copy = dict(clip)
+            is_passed = clip_copy.get("is_passed", True)
             try:
                 meta = HumanMetadataEngine.generate_metadata(
                     transcript_snippet=clip.get("text") or clip.get("transcript_snippet") or "",
@@ -273,7 +309,8 @@ class ClipperPipeline:
                     duration_sec=clip.get("duration", 30.0),
                 )
                 if meta.get("recommended_title"):
-                    clip_copy["title"] = meta["recommended_title"]
+                    raw_title = meta["recommended_title"]
+                    clip_copy["title"] = raw_title if is_passed else f"[ELENDİ] {raw_title}"
                 if meta.get("hook_caption"):
                     clip_copy["hook_caption"] = meta["hook_caption"]
                 clip_copy["description"] = meta.get("description", "")
@@ -352,9 +389,17 @@ class ClipperPipeline:
                 clip_res["render_path"] = ""
                 return clip_res
 
+        # Sunucu bellek koruması: 4-6 GB RAM sunucularda OOM önlemek için en fazla 2 paralel render
+        try:
+            total_ram_gb = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024**3)
+            default_render_workers = 2 if total_ram_gb <= 6.0 else 4
+        except Exception:
+            default_render_workers = 2
+
         rendered_results = []
         if len(enriched_clips) > 1:
-            with ThreadPoolExecutor(max_workers=min(4, len(enriched_clips))) as executor:
+            workers = min(default_render_workers, len(enriched_clips))
+            with ThreadPoolExecutor(max_workers=workers) as executor:
                 rendered_results = list(executor.map(render_single_clip, enumerate(enriched_clips)))
         elif len(enriched_clips) == 1:
             rendered_results = [render_single_clip((0, enriched_clips[0]))]

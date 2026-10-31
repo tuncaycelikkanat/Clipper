@@ -89,6 +89,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="KEY",
         help="Gemini API key (overrides GEMINI_API_KEY env var).",
     )
+    run_parser.add_argument(
+        "--include-rejected",
+        action="store_true",
+        dest="include_rejected",
+        default=False,
+        help="Kapıdan geçemeyen (elenen) klipleri de [ELENDİ] başlığıyla kaydet ve render et (audit modu).",
+    )
 
     # -----------------------------------------------------------------
     # Sub-command: backfill
@@ -117,10 +124,11 @@ def build_parser() -> argparse.ArgumentParser:
 def _cmd_run(args: argparse.Namespace) -> int:
     """Execute the pipeline and print results."""
     logger.info(
-        "Starting pipeline — url={} clips={} format={}",
+        "Starting pipeline — url={} clips={} format={} include_rejected={}",
         args.url,
         args.target_clips,
         args.render_mode,
+        args.include_rejected,
     )
 
     def _progress(msg: str) -> None:
@@ -134,6 +142,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             add_subtitles=args.add_subtitles,
             add_hook_card=args.add_hook_card,
             enhance_colors=args.enhance_colors,
+            include_rejected=args.include_rejected,
             api_key=args.api_key,
             progress_callback=_progress,
         )
@@ -143,14 +152,16 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return 1
 
     print("\n" + "=" * 60)
-    print(f"✅  {len(results)} clip(s) rendered successfully:")
+    print(f"✅  {len(results)} clip(s) processed:")
     print("=" * 60)
     for clip in results:
+        status_tag = "✅ GEÇTİ" if clip.get("is_passed", True) else "❌ ELENDİ"
         print(
-            f"  [{clip['rank']}] {clip['title']}\n"
+            f"  [{clip['rank']}] {status_tag} {clip['title']}\n"
             f"       {clip['start_time']}s → {clip['end_time']}s  "
-            f"({clip['duration']}s)  score={clip['score']}\n"
-            f"       ▶ {clip['render_path']}\n"
+            f"({clip['duration']}s)  skor={clip['score']}  kategori={clip.get('category')}\n"
+            f"       Gerekçe: {clip.get('rationale', '')}\n"
+            f"       ▶ {clip.get('render_path', '')}\n"
         )
     return 0
 

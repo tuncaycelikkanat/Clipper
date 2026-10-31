@@ -177,4 +177,4 @@ def test_autopilot_cycle_with_new_videos(tmp_path):
 
     res = mgr.run_cycle()
     assert res["channels_checked"] == 1
-    assert res["new_videos_found"] == 2
+    assert res["new_videos_found"] == 1
